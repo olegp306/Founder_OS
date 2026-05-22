@@ -4,7 +4,10 @@ import {
   handleAiExecutionDecision,
   handleAiKeyReferenceRegistration
 } from "@/server/project-ai-api-services";
-import { buildAiControlDashboardViewModel } from "@/server/dashboard-services";
+import {
+  buildAiControlDashboardViewModel,
+  seedAiControlDashboardDemoData
+} from "@/server/dashboard-services";
 
 describe("dashboard services", () => {
   it("builds AI control dashboard metrics from runtime execution decisions", async () => {
@@ -84,5 +87,28 @@ describe("dashboard services", () => {
     ]);
     expect(JSON.stringify(viewModel)).not.toContain("vercel:BOOKING_ASSISTANT_OPENAI_API_KEY");
     expect(JSON.stringify(viewModel)).not.toContain("world history");
+  });
+
+  it("seeds safe demo execution data idempotently for local dashboard previews", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+
+    await seedAiControlDashboardDemoData(runtime, { projectKey: "booking_assistant" });
+    await seedAiControlDashboardDemoData(runtime, { projectKey: "booking_assistant" });
+
+    const viewModel = await buildAiControlDashboardViewModel(runtime, {
+      projectKey: "booking_assistant"
+    });
+
+    expect(viewModel.metrics).toEqual([
+      { label: "Execution decisions", value: "3", detail: "latest project preflight decisions" },
+      { label: "Tokens under risk", value: "4.5k", detail: "estimated tokens on non-low-risk requests" },
+      { label: "Downgrade rate", value: "33%", detail: "fallback model enforcement" },
+      { label: "Blocked requests", value: "1", detail: "requests denied before model execution" }
+    ]);
+    expect(viewModel.recentSignals).toHaveLength(3);
+    expect(JSON.stringify(viewModel)).not.toContain("sk-");
+    expect(JSON.stringify(viewModel)).not.toContain("vercel:BOOKING_ASSISTANT_OPENAI_API_KEY");
+    expect(JSON.stringify(viewModel)).not.toContain("world history");
+    expect(runtime.events.all().filter((event) => event.event === "assistant.ai_execution.decided")).toHaveLength(3);
   });
 });

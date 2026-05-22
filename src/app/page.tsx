@@ -1,5 +1,8 @@
 import React from "react";
-import { buildAiControlDashboardViewModel } from "@/server/dashboard-services";
+import {
+  buildAiControlDashboardViewModel,
+  seedAiControlDashboardDemoData
+} from "@/server/dashboard-services";
 import { getFounderOsRuntime } from "@/server/founder-os-runtime";
 
 const routeContracts = [
@@ -19,7 +22,13 @@ const guardrails = [
 const dashboardProjectKey = "booking_assistant";
 
 export default async function HomePage() {
-  const dashboard = await buildAiControlDashboardViewModel(getFounderOsRuntime(), {
+  const runtime = getFounderOsRuntime();
+
+  if (process.env.FOUNDER_OS_ENABLE_DASHBOARD_DEMO === "true") {
+    await seedAiControlDashboardDemoData(runtime, { projectKey: dashboardProjectKey });
+  }
+
+  const dashboard = await buildAiControlDashboardViewModel(runtime, {
     projectKey: dashboardProjectKey
   });
 

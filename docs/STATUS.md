@@ -196,3 +196,11 @@ Connects the dashboard to runtime data:
 - Adds a dashboard service that builds AI control metrics from execution summary and audit data.
 - The home page now reads dashboard metrics and recent signals from the Founder OS runtime instead of hard-coded values.
 - Empty runtime state renders an explicit no-decisions row while keeping route contracts and guardrails visible.
+
+### `codex/ai-dashboard-demo-seed`
+
+Adds an opt-in local preview seed for the AI control dashboard:
+
+- `seedAiControlDashboardDemoData` creates safe sample key metadata and execution decisions for local dashboard previews.
+- `FOUNDER_OS_ENABLE_DASHBOARD_DEMO=true` lets the home page show meaningful runtime metrics before real connected products send traffic.
+- The seed is idempotent and keeps dashboard output free of raw request text and secret references.

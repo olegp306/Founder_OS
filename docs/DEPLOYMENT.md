@@ -16,6 +16,7 @@ Founder OS is intended to deploy as a private internal control plane.
 - `FOUNDER_OS_ADMIN_EMAIL`: owner email for internal display and audit context.
 - `FOUNDER_OS_ADMIN_TOKEN`: long random bearer token for protected API access.
 - `FOUNDER_OS_FORCE_MEMORY`: optional local/testing override. Set to `true` to keep runtime stores in memory even when `DATABASE_URL` is present.
+- `FOUNDER_OS_ENABLE_DASHBOARD_DEMO`: optional local dashboard preview seed. Set to `true` only for local smoke tests or demos; do not enable in production.
 
 Do not commit real environment values. Store production values in the hosting provider secret store.
 
@@ -36,6 +37,8 @@ Founder OS selects persistence mode at runtime:
 - `prisma`: selected when `DATABASE_URL` is configured.
 
 Set `FOUNDER_OS_FORCE_MEMORY=true` only for local development or smoke tests. Do not use forced memory mode in production.
+
+Set `FOUNDER_OS_ENABLE_DASHBOARD_DEMO=true` only when you need the local AI control dashboard to show safe sample execution decisions before real products are connected. The seed is idempotent and excludes raw prompts and secret references, but it should stay disabled in production.
 
 `/api/health` reports both `persistenceMode` and `repositoryKind` so deploy checks can confirm whether the app is running with memory repositories or database-backed repositories.
 

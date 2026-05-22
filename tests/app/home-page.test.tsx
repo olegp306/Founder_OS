@@ -1,9 +1,13 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import HomePage from "@/app/page";
 
 describe("Founder OS home page", () => {
+  afterEach(() => {
+    delete process.env.FOUNDER_OS_ENABLE_DASHBOARD_DEMO;
+  });
+
   it("surfaces the AI execution control dashboard", async () => {
     const html = renderToStaticMarkup(await HomePage());
 
@@ -15,5 +19,18 @@ describe("Founder OS home page", () => {
     expect(html).toContain("No raw prompts");
     expect(html).toContain("No secret refs");
     expect(html).toContain("No execution decisions recorded for booking_assistant");
+  });
+
+  it("can seed safe local demo AI execution signals when explicitly enabled", async () => {
+    process.env.FOUNDER_OS_ENABLE_DASHBOARD_DEMO = "true";
+
+    const html = renderToStaticMarkup(await HomePage());
+
+    expect(html).toContain("Execution decisions");
+    expect(html).toContain("4.5k");
+    expect(html).toContain("gpt-5.4-mini");
+    expect(html).toContain("prompt_injection_or_system_extraction");
+    expect(html).not.toContain("demo-secret-ref");
+    expect(html).not.toContain("world history");
   });
 });
