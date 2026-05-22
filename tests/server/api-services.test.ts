@@ -63,6 +63,42 @@ describe("API services backed by repositories", () => {
     });
   });
 
+  it("records an audit event when token policy is changed centrally", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+
+    await expect(
+      handleTokenPolicySave(runtime, {
+        projectKey: "booking_photoshop_studio",
+        assistantKey: "booking_assistant",
+        preferredModel: "gpt-5.4",
+        fallbackModel: "gpt-5.4-mini",
+        dailyBudgetUsd: 25,
+        monthlyBudgetUsd: 500,
+        maxTokensPerRequest: 8000,
+        emergencyMode: true
+      })
+    ).resolves.toMatchObject({ status: "saved" });
+
+    expect(runtime.events.all()).toEqual([
+      expect.objectContaining({
+        event: "token.policy.changed",
+        source: "founder_os",
+        project: "booking_photoshop_studio",
+        summary: "Token policy changed for booking_photoshop_studio/booking_assistant.",
+        tags: ["token_policy", "ai_control", "emergency_mode"],
+        facts: {
+          assistant_key: "booking_assistant",
+          preferred_model: "gpt-5.4",
+          fallback_model: "gpt-5.4-mini",
+          daily_budget_usd: 25,
+          monthly_budget_usd: 500,
+          max_tokens_per_request: 8000,
+          emergency_mode: true
+        }
+      })
+    ]);
+  });
+
   it("records token usage through repositories and includes active policy when present", async () => {
     const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
     await handleTokenPolicySave(runtime, {

@@ -204,3 +204,12 @@ Adds an opt-in local preview seed for the AI control dashboard:
 - `seedAiControlDashboardDemoData` creates safe sample key metadata and execution decisions for local dashboard previews.
 - `FOUNDER_OS_ENABLE_DASHBOARD_DEMO=true` lets the home page show meaningful runtime metrics before real connected products send traffic.
 - The seed is idempotent and keeps dashboard output free of raw request text and secret references.
+
+### `codex/ai-execution-token-policy`
+
+Connects central token policy to AI execution decisions:
+
+- `/api/token-policy` changes now produce `token.policy.changed` audit events with model, budget, request-limit, and emergency-mode facts.
+- `/api/ai-execution/decide` applies the active project/assistant token policy before returning provider, model, or secret reference details.
+- Emergency mode centrally downgrades execution to the fallback model, and over-limit requests are blocked without exposing provider or secret references.
+- AI execution audit events now include `policy_source` for policy-driven decisions.

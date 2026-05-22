@@ -11,6 +11,7 @@ import {
   registerAiKeyReference,
   resolveProjectAiControl
 } from "@/domain/projects/project-onboarding";
+import { getSafeTokenPolicy } from "@/domain/token-control/token-control-service";
 import type { FounderOsRuntime } from "@/server/founder-os-runtime";
 
 export const projectManifestSchema = z.object({
@@ -145,8 +146,51 @@ export async function handleAiExecutionDecision(runtime: FounderOsRuntime, paylo
     };
   }
 
-  const requestedModel =
-    assessment.modelDirective === "fallback" ? undefined : input.requestedModel;
+  const policy = await runtime.repositories.tokenPolicies.find({
+    projectKey: input.projectKey,
+    assistantKey: input.assistantKey
+  });
+  const policyDecision = policy
+    ? getSafeTokenPolicy({
+        activePolicy: {
+          projectKey: policy.projectKey,
+          preferredModel: policy.preferredModel,
+          fallbackModel: policy.fallbackModel,
+          maxTokensPerRequest: policy.maxTokensPerRequest,
+          emergencyMode: policy.emergencyMode
+        },
+        lastKnownSafePolicy: {
+          projectKey: policy.projectKey,
+          preferredModel: policy.preferredModel,
+          fallbackModel: policy.fallbackModel,
+          maxTokensPerRequest: policy.maxTokensPerRequest,
+          emergencyMode: policy.emergencyMode
+        },
+        requestedTokens: input.estimatedTokens
+      })
+    : undefined;
+
+  if (policyDecision && !policyDecision.allowed) {
+    const decision = {
+      allowed: false,
+      action: "block" as const,
+      provider: undefined,
+      model: undefined,
+      secretRef: undefined,
+      monthlyBudgetUsd: undefined,
+      reasons: policyDecision.reasons,
+      userFacingResponse: assessment.userFacingResponse,
+      policySource: policyDecision.source
+    };
+    recordAiExecutionDecision(runtime, input, assessment, decision);
+
+    return {
+      status: "decided" as const,
+      decision
+    };
+  }
+
+  const requestedModel = selectExecutionModel(input.requestedModel, assessment, policyDecision);
   const control = resolveProjectAiControl(runtime.projectOnboarding, {
     projectKey: input.projectKey,
     requestedModel
@@ -173,13 +217,16 @@ export async function handleAiExecutionDecision(runtime: FounderOsRuntime, paylo
 
   const decision = {
     allowed: true,
-    action: assessment.recommendedAction,
+    action: policyDecision?.reasons.length
+      ? "downgrade" as const
+      : assessment.recommendedAction,
     provider: control.provider,
     model: control.model,
     secretRef: control.secretRef,
     monthlyBudgetUsd: control.monthlyBudgetUsd,
-    reasons: [...assessment.reasons, ...control.reasons],
-    userFacingResponse: assessment.userFacingResponse
+    reasons: [...assessment.reasons, ...(policyDecision?.reasons ?? []), ...control.reasons],
+    userFacingResponse: assessment.userFacingResponse,
+    policySource: policyDecision?.source
   };
   recordAiExecutionDecision(runtime, input, assessment, decision);
 
@@ -270,6 +317,7 @@ function recordAiExecutionDecision(
     provider?: string;
     model?: string;
     reasons: string[];
+    policySource?: string;
   }
 ) {
   const now = new Date().toISOString();
@@ -289,6 +337,7 @@ function recordAiExecutionDecision(
       model: decision.model,
       model_directive: assessment.modelDirective,
       provider: decision.provider,
+      policy_source: decision.policySource,
       reasons: decision.reasons,
       requested_model: input.requestedModel,
       risk_level: assessment.riskLevel
@@ -298,6 +347,22 @@ function recordAiExecutionDecision(
   };
 
   runtime.events.append(event);
+}
+
+function selectExecutionModel(
+  requestedModel: string,
+  assessment: ReturnType<typeof assessAiUsageRequest>,
+  policyDecision?: ReturnType<typeof getSafeTokenPolicy>
+): string | undefined {
+  if (!policyDecision) {
+    return assessment.modelDirective === "fallback" ? undefined : requestedModel;
+  }
+
+  if (assessment.modelDirective === "fallback") {
+    return policyDecision.model;
+  }
+
+  return policyDecision.model;
 }
 
 function countBy(values: string[]): Record<string, number> {

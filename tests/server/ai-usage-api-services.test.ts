@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createFounderOsRuntime } from "@/server/founder-os-runtime";
+import { handleTokenPolicySave } from "@/server/api-services";
 import {
   handleAiExecutionDecision,
   handleAiExecutionDecisionAuditList,
@@ -198,6 +199,111 @@ describe("AI usage API services", () => {
           "I can help with supported product tasks, but cannot help with unrelated or abusive use."
       }
     });
+  });
+
+  it("applies central token policy to AI execution decisions before provider execution", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleAiKeyReferenceRegistration(runtime, {
+      projectKey: "booking_assistant",
+      provider: "openai",
+      secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+      displayName: "Booking Assistant OpenAI key",
+      allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
+      defaultModel: "gpt-5.4",
+      monthlyBudgetUsd: 250
+    });
+    await handleTokenPolicySave(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot",
+      preferredModel: "gpt-5.4",
+      fallbackModel: "gpt-5.4-mini",
+      dailyBudgetUsd: 20,
+      monthlyBudgetUsd: 250,
+      maxTokensPerRequest: 2000,
+      emergencyMode: true
+    });
+
+    await expect(
+      handleAiExecutionDecision(runtime, {
+        projectKey: "booking_assistant",
+        assistantKey: "support_bot",
+        userRef: "telegram:123",
+        productScope: "Photo studio booking automation and customer support",
+        requestSummary: "Help the user reschedule a photo session booking.",
+        requestedModel: "gpt-5.4",
+        estimatedTokens: 1200,
+        recentRequestsInHour: 1
+      })
+    ).resolves.toEqual({
+      status: "decided",
+      decision: {
+        allowed: true,
+        action: "downgrade",
+        provider: "openai",
+        model: "gpt-5.4-mini",
+        secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+        monthlyBudgetUsd: 250,
+        policySource: "active_policy",
+        reasons: ["emergency_mode"],
+        userFacingResponse:
+          "I can help with supported product tasks, but cannot help with unrelated or abusive use."
+      }
+    });
+
+    await expect(
+      handleAiExecutionDecision(runtime, {
+        projectKey: "booking_assistant",
+        assistantKey: "support_bot",
+        userRef: "telegram:124",
+        productScope: "Photo studio booking automation and customer support",
+        requestSummary: "Help the user prepare a long but valid booking follow-up.",
+        requestedModel: "gpt-5.4",
+        estimatedTokens: 2500,
+        recentRequestsInHour: 1
+      })
+    ).resolves.toEqual({
+      status: "decided",
+      decision: {
+        allowed: false,
+        action: "block",
+        provider: undefined,
+        model: undefined,
+        secretRef: undefined,
+        monthlyBudgetUsd: undefined,
+        policySource: "active_policy",
+        reasons: ["request_token_limit_exceeded"],
+        userFacingResponse:
+          "I can help with supported product tasks, but cannot help with unrelated or abusive use."
+      }
+    });
+
+    const decisions = runtime.events
+      .all()
+      .filter((event) => event.event === "assistant.ai_execution.decided");
+    expect(decisions).toEqual([
+      expect.objectContaining({
+        tags: ["ai_execution", "downgrade", "risk:low"],
+        facts: expect.objectContaining({
+          action: "downgrade",
+          allowed: true,
+          model: "gpt-5.4-mini",
+          policy_source: "active_policy",
+          reasons: ["emergency_mode"]
+        })
+      }),
+      expect.objectContaining({
+        tags: ["ai_execution", "block", "risk:low"],
+        facts: expect.objectContaining({
+          action: "block",
+          allowed: false,
+          model: undefined,
+          provider: undefined,
+          policy_source: "active_policy",
+          reasons: ["request_token_limit_exceeded"]
+        })
+      })
+    ]);
+    expect(JSON.stringify(decisions)).not.toContain("vercel:BOOKING_ASSISTANT_OPENAI_API_KEY");
   });
 
   it("lists AI execution decision audit events without secrets or raw request text", async () => {

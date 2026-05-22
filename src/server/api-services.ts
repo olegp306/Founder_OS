@@ -1,5 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { rejectUnsafeRawPayload } from "@/domain/events/event-ingestion";
+import { rejectUnsafeRawPayload, type StructuredEvent } from "@/domain/events/event-ingestion";
 import type { TokenUsageInput } from "@/domain/token-control/token-control";
 import type { FounderOsRuntime } from "@/server/founder-os-runtime";
 
@@ -100,9 +101,9 @@ export async function handleTokenUsageRecord(runtime: FounderOsRuntime, payload:
 }
 
 export async function handleTokenPolicySave(runtime: FounderOsRuntime, payload: unknown) {
-  const policy = await runtime.repositories.tokenPolicies.save(
-    tokenPolicyRequestSchema.parse(payload)
-  );
+  const input = tokenPolicyRequestSchema.parse(payload);
+  const policy = await runtime.repositories.tokenPolicies.save(input);
+  await recordTokenPolicyChange(runtime, policy);
 
   return {
     status: "saved" as const,
@@ -131,6 +132,41 @@ export async function handleTokenPolicyLookup(
   }
 
   return { policy };
+}
+
+async function recordTokenPolicyChange(
+  runtime: FounderOsRuntime,
+  policy: z.infer<typeof tokenPolicyRequestSchema>
+) {
+  const now = new Date().toISOString();
+  const subject = policy.assistantKey
+    ? `${policy.projectKey}/${policy.assistantKey}`
+    : policy.projectKey;
+  const event: StructuredEvent = {
+    idempotencyKey: `token-policy:${policy.projectKey}:${policy.assistantKey ?? "*"}:${randomUUID()}`,
+    event: "token.policy.changed",
+    source: "founder_os",
+    project: policy.projectKey,
+    summary: `Token policy changed for ${subject}.`,
+    tags: [
+      "token_policy",
+      "ai_control",
+      ...(policy.emergencyMode ? ["emergency_mode"] : [])
+    ],
+    facts: {
+      assistant_key: policy.assistantKey,
+      preferred_model: policy.preferredModel,
+      fallback_model: policy.fallbackModel,
+      daily_budget_usd: policy.dailyBudgetUsd,
+      monthly_budget_usd: policy.monthlyBudgetUsd,
+      max_tokens_per_request: policy.maxTokensPerRequest,
+      emergency_mode: policy.emergencyMode
+    },
+    occurredAt: now,
+    storedAt: now
+  };
+
+  await runtime.repositories.events.append(event);
 }
 
 function eventResponse(event: {

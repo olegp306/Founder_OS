@@ -52,6 +52,8 @@ Set `FOUNDER_OS_ENABLE_DASHBOARD_DEMO=true` only when you need the local AI cont
 - Connected products should ask `/api/ai-control/resolve` which provider, model, secret reference, and budget metadata to use before high-cost AI work.
 - Connected assistants should call `/api/ai-usage/assess` before expensive or open-ended AI work. Respect `recommendedAction` and `modelDirective` to downgrade, rate-limit, block, or temporarily suspend abusive usage.
 - Prefer `/api/ai-execution/decide` for connected products that want one preflight call combining AI key resolution, model choice, budget metadata, and abuse enforcement.
+- Configure `/api/token-policy` for each connected project/assistant before production traffic. `/api/ai-execution/decide` applies the active token policy before exposing provider, model, or secret reference details to the product.
+- Use token policy emergency mode for central fallback-model enforcement during cost spikes or provider incidents. Policy changes are recorded as `token.policy.changed` audit events.
 - Use `/api/ai-execution/audit?projectKey=<project>` to inspect recent AI execution decisions without exposing secrets or raw request text.
 - Use `/api/ai-execution/summary?projectKey=<project>` for a compact project-level view of allow, downgrade, block, risk, reasons, and estimated tokens under risk.
 
@@ -65,8 +67,9 @@ Current recommended local flow:
 2. Run `npm run projects:scan -- --root C:\Repos` to preview discovered manifests.
 3. Run `npm run projects:import -- --root C:\Repos --endpoint https://<founder-os-host>/api/projects/bulk-import --token <FOUNDER_OS_ADMIN_TOKEN>` to submit them.
 4. Register each project's AI key reference with `/api/ai-keys`.
-5. Configure the connected project to call `/api/ai-control/resolve` before high-cost AI work.
-6. Configure connected assistants to call `/api/ai-usage/assess` before expensive or open-ended AI work.
-7. For new integrations, use `/api/ai-execution/decide` as the single AI preflight before model execution.
-8. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
-9. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
+5. Configure each project's token policy with `/api/token-policy`.
+6. Configure the connected project to call `/api/ai-control/resolve` before high-cost AI work.
+7. Configure connected assistants to call `/api/ai-usage/assess` before expensive or open-ended AI work.
+8. For new integrations, use `/api/ai-execution/decide` as the single AI preflight before model execution.
+9. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
+10. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
