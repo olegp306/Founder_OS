@@ -327,3 +327,11 @@ Adds deployable database migrations:
 - Adds the initial Prisma migration SQL generated from the current Founder OS schema.
 - Adds `npm run prisma:migrate:deploy` for deployment pipelines.
 - Adds migration coverage so the core project, AI key reference, project control, token usage, and foreign-key tables stay represented in versioned SQL.
+
+### `codex/deployment-readiness-check`
+
+Adds a pre-transfer deployment smoke check:
+
+- Adds `npm run deployment:check` for validating a deployed Founder OS URL before routing personal projects to it.
+- The check verifies the migration deploy script, admin token, `/api/health`, expected persistence mode, repository kind, private MVP readiness flags, and plaintext-secret safety.
+- The CLI supports `--dry-run`, `--base-url`, `--token`, and `--expected-persistence` for local, staging, and production checks.

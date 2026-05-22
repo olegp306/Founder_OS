@@ -29,7 +29,8 @@ Do not commit real environment values. Store production values in the hosting pr
 3. Run `npm run prisma:migrate:deploy` from the deployment pipeline.
 4. Deploy the Next.js app.
 5. Put the dashboard behind Cloudflare Access or Tailscale before connecting real product integrations.
-6. Configure connected products to call Founder OS APIs with `Authorization: Bearer <FOUNDER_OS_ADMIN_TOKEN>`.
+6. Run `npm run deployment:check -- --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>`.
+7. Configure connected products to call Founder OS APIs with `Authorization: Bearer <FOUNDER_OS_ADMIN_TOKEN>`.
 
 ## Persistence Mode
 
@@ -49,6 +50,8 @@ Project onboarding services use `runtime.repositories.projects`. In Prisma mode,
 When `DATABASE_URL` is set and `FOUNDER_OS_FORCE_MEMORY` is not `true`, the runtime uses Prisma repositories. Token usage and token policy APIs still accept project and assistant keys; the Prisma repository layer resolves those keys to database ids before writing.
 
 Use `npm run prisma:migrate:deploy` against each fresh Postgres database before routing connected products to Founder OS. The initial migration creates the private control-plane tables for projects, repositories, project controls, AI key references, events, token usage, token policies, profiles, consents, feedback, segments, campaigns, and audit logs.
+
+Use `npm run deployment:check -- --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>` after deploy. It checks the migration deploy script, bearer token configuration, `/api/health`, Prisma persistence mode, Prisma repository kind, private MVP readiness flags, and verifies plaintext secrets are not centrally stored.
 
 ## Production Guardrails
 

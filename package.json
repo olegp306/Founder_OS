@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "deployment:check": "tsx scripts/check-deployment.ts",
     "projects:import": "tsx scripts/import-projects.ts",
     "projects:scan": "tsx scripts/import-projects.ts --dry-run",
     "projects:setup-ai": "tsx scripts/setup-project-ai.ts",
