@@ -136,3 +136,12 @@ Adds batch onboarding for existing projects:
 - `/api/health` reports `bulkProjectImport`.
 
 The API accepts explicit manifest file contents instead of scanning server disks by itself. A local CLI/helper can be added later to scan `C:\Repos` and submit the discovered manifests.
+
+### `codex/local-project-import-helper`
+
+Adds the local helper for moving existing projects into Founder OS:
+
+- `npm run projects:scan -- --root C:\Repos` discovers `.founderos/project.json` files and prints the exact bulk-import payload without sending it.
+- `npm run projects:import -- --root C:\Repos --endpoint <url>/api/projects/bulk-import --token <FOUNDER_OS_ADMIN_TOKEN>` submits discovered manifests to the bulk import API.
+- The scanner skips heavy generated directories such as `.git`, `.next`, `dist`, `coverage`, and `node_modules`.
+- Manifest content is normalized by removing a UTF-8 BOM before submission, which protects imports from PowerShell-authored JSON files.

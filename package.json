@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "projects:import": "tsx scripts/import-projects.ts",
+    "projects:scan": "tsx scripts/import-projects.ts --dry-run",
     "prisma:validate": "prisma validate",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

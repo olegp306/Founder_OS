@@ -55,7 +55,7 @@ Use `/api/projects/onboard` for a single project manifest or `/api/projects/bulk
 Current recommended local flow:
 
 1. Add `.founderos/project.json` to each founder-owned project.
-2. Run a local helper or script to collect those manifest files from `C:\Repos`.
-3. Submit the collected manifests to `/api/projects/bulk-import`.
+2. Run `npm run projects:scan -- --root C:\Repos` to preview discovered manifests.
+3. Run `npm run projects:import -- --root C:\Repos --endpoint https://<founder-os-host>/api/projects/bulk-import --token <FOUNDER_OS_ADMIN_TOKEN>` to submit them.
 4. Register each project's AI key reference with `/api/ai-keys`.
 5. Configure the connected project to call `/api/ai-control/resolve` before high-cost AI work.
