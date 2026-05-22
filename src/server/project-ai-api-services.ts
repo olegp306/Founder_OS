@@ -90,6 +90,11 @@ export const bulkProjectImportSchema = z.object({
   )
 });
 
+export const projectReadinessListSchema = z.object({
+  projectKeys: z.array(z.string().min(2)).min(1),
+  assistantKey: z.string().min(2).optional()
+});
+
 export async function handleProjectManifestOnboarding(
   runtime: FounderOsRuntime,
   payload: unknown
@@ -375,10 +380,35 @@ function countBy(values: string[]): Record<string, number> {
 export async function handleBulkProjectImport(runtime: FounderOsRuntime, payload: unknown) {
   const input = bulkProjectImportSchema.parse(payload);
   const report = importProjectManifests(runtime.projectOnboarding, input.manifests);
-  const readiness = buildProjectImportReadiness(
-    runtime.projectOnboarding,
-    report.imported.map((item) => item.projectKey)
-  );
+  const { readiness } = await handleProjectReadinessList(runtime, {
+    projectKeys: report.imported.map((item) => item.projectKey)
+  });
 
   return { status: "imported" as const, report, readiness };
+}
+
+export async function handleProjectReadinessList(
+  runtime: FounderOsRuntime,
+  payload: unknown
+) {
+  const input = projectReadinessListSchema.parse(payload);
+  const baseReadiness = buildProjectImportReadiness(runtime.projectOnboarding, input.projectKeys);
+  const readiness = await Promise.all(
+    baseReadiness.map(async (project) => {
+      const policy = await runtime.repositories.tokenPolicies.find({
+        projectKey: project.projectKey,
+        assistantKey: input.assistantKey
+      });
+
+      return {
+        ...project,
+        tokenPolicyConfigured: Boolean(policy)
+      };
+    })
+  );
+
+  return {
+    status: "listed" as const,
+    readiness
+  };
 }

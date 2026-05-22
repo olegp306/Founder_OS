@@ -213,3 +213,11 @@ Connects central token policy to AI execution decisions:
 - `/api/ai-execution/decide` applies the active project/assistant token policy before returning provider, model, or secret reference details.
 - Emergency mode centrally downgrades execution to the fallback model, and over-limit requests are blocked without exposing provider or secret references.
 - AI execution audit events now include `policy_source` for policy-driven decisions.
+
+### `codex/project-token-policy-readiness`
+
+Adds project transfer readiness checks for AI control:
+
+- `/api/projects/readiness` lists imported project readiness by project key and optional assistant key.
+- Readiness now includes `tokenPolicyConfigured` alongside manifest import, AI key reference, token tracking, feedback capture, and raw-message policy.
+- Bulk import readiness uses the same enrichment so newly imported projects show whether token policy still needs configuration.

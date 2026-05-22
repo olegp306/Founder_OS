@@ -6,7 +6,9 @@ import {
   handleAiExecutionDecisionAuditList,
   handleAiExecutionSummary,
   handleAiKeyReferenceRegistration,
-  handleAiUsageAssessment
+  handleAiUsageAssessment,
+  handleProjectManifestOnboarding,
+  handleProjectReadinessList
 } from "@/server/project-ai-api-services";
 
 describe("AI usage API services", () => {
@@ -198,6 +200,84 @@ describe("AI usage API services", () => {
         userFacingResponse:
           "I can help with supported product tasks, but cannot help with unrelated or abusive use."
       }
+    });
+  });
+
+  it("reports project readiness including AI key and token policy configuration", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "booking_assistant",
+      name: "Booking Assistant",
+      status: "active",
+      owner: "olegp306",
+      assistant: {
+        enabled: true,
+        token_tracking_required: true,
+        feedback_capture_required: true
+      },
+      user_data: {
+        raw_message_storage: "disabled_by_default",
+        consent_required_for_marketing: true
+      }
+    });
+
+    await expect(
+      handleProjectReadinessList(runtime, {
+        projectKeys: ["booking_assistant"]
+      })
+    ).resolves.toEqual({
+      status: "listed",
+      readiness: [
+        {
+          projectKey: "booking_assistant",
+          manifestImported: true,
+          aiKeyConfigured: false,
+          tokenPolicyConfigured: false,
+          tokenTrackingRequired: true,
+          feedbackCaptureRequired: true,
+          rawMessageStorage: "disabled_by_default"
+        }
+      ]
+    });
+
+    await handleAiKeyReferenceRegistration(runtime, {
+      projectKey: "booking_assistant",
+      provider: "openai",
+      secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+      displayName: "Booking Assistant OpenAI key",
+      allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
+      defaultModel: "gpt-5.4-mini",
+      monthlyBudgetUsd: 250
+    });
+    await handleTokenPolicySave(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot",
+      preferredModel: "gpt-5.4",
+      fallbackModel: "gpt-5.4-mini",
+      dailyBudgetUsd: 20,
+      monthlyBudgetUsd: 250,
+      maxTokensPerRequest: 2000,
+      emergencyMode: false
+    });
+
+    await expect(
+      handleProjectReadinessList(runtime, {
+        projectKeys: ["booking_assistant"],
+        assistantKey: "support_bot"
+      })
+    ).resolves.toEqual({
+      status: "listed",
+      readiness: [
+        {
+          projectKey: "booking_assistant",
+          manifestImported: true,
+          aiKeyConfigured: true,
+          tokenPolicyConfigured: true,
+          tokenTrackingRequired: true,
+          feedbackCaptureRequired: true,
+          rawMessageStorage: "disabled_by_default"
+        }
+      ]
     });
   });
 
