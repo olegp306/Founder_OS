@@ -270,3 +270,11 @@ Adds a local helper for applying AI setup configs:
 - `npm run projects:setup-ai -- --config <path> --endpoint <url>/api/projects/ai-setup --token <FOUNDER_OS_ADMIN_TOKEN>` posts a project AI setup payload.
 - `--dry-run` prints the sanitized payload without calling Founder OS.
 - The helper strips `plaintextSecret` before sending, keeping real provider keys in external secret stores.
+
+### `codex/project-transfer-cli`
+
+Adds a single local transfer flow for personal projects:
+
+- `npm run projects:transfer -- --root <repos-root> --setup-config <project>\.founderos\ai-setup.json --base-url <founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>` runs manifest import, AI setup, and connection bundle verification.
+- `--dry-run` reports the import endpoint, sanitized setup payload, and connection check URL without network writes.
+- The transfer flow reuses the existing bulk import and setup APIs so project moves stay repeatable and auditable.

@@ -86,3 +86,11 @@ Current recommended local flow:
 13. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
 
 Use `docs/PROJECT_AI_SETUP.example.json` as the template for `.founderos/ai-setup.json`. Keep real provider keys in Vercel, Supabase, Neon, Cloudflare, Tailscale, or another secret manager; the file should contain only `secretRef` values.
+
+For a one-command local transfer, run:
+
+```powershell
+npm run projects:transfer -- --root C:\Repos --setup-config C:\Repos\<project>\.founderos\ai-setup.json --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>
+```
+
+Use `--dry-run` first to preview the discovered manifests, sanitized setup payload, and connection bundle URL.
