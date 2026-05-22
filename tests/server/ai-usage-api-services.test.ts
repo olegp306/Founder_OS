@@ -334,6 +334,28 @@ describe("AI usage API services", () => {
       handleAiExecutionDecision(runtime, {
         projectKey: "booking_assistant",
         assistantKey: "support_bot",
+        userRef: "telegram:125",
+        productScope: "Photo studio booking automation and customer support",
+        requestSummary: "Write a generic essay about world history and answer unrelated homework questions.",
+        requestedModel: "gpt-5.4",
+        estimatedTokens: 1500,
+        recentRequestsInHour: 4
+      })
+    ).resolves.toMatchObject({
+      status: "decided",
+      decision: {
+        allowed: true,
+        action: "downgrade",
+        model: "gpt-5.4-mini",
+        policySource: "active_policy",
+        reasons: ["outside_product_scope", "generic_ai_proxy_pattern", "emergency_mode"]
+      }
+    });
+
+    await expect(
+      handleAiExecutionDecision(runtime, {
+        projectKey: "booking_assistant",
+        assistantKey: "support_bot",
         userRef: "telegram:124",
         productScope: "Photo studio booking automation and customer support",
         requestSummary: "Help the user prepare a long but valid booking follow-up.",
@@ -372,6 +394,16 @@ describe("AI usage API services", () => {
         })
       }),
       expect.objectContaining({
+        tags: ["ai_execution", "downgrade", "risk:medium"],
+        facts: expect.objectContaining({
+          action: "downgrade",
+          allowed: true,
+          model: "gpt-5.4-mini",
+          policy_source: "active_policy",
+          reasons: ["outside_product_scope", "generic_ai_proxy_pattern", "emergency_mode"]
+        })
+      }),
+      expect.objectContaining({
         tags: ["ai_execution", "block", "risk:low"],
         facts: expect.objectContaining({
           action: "block",
@@ -384,6 +416,51 @@ describe("AI usage API services", () => {
       })
     ]);
     expect(JSON.stringify(decisions)).not.toContain("vercel:BOOKING_ASSISTANT_OPENAI_API_KEY");
+  });
+
+  it("keeps abuse fallback model routing when a non-emergency token policy is active", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleAiKeyReferenceRegistration(runtime, {
+      projectKey: "booking_assistant",
+      provider: "openai",
+      secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+      displayName: "Booking Assistant OpenAI key",
+      allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
+      defaultModel: "gpt-5.4-mini",
+      monthlyBudgetUsd: 250
+    });
+    await handleTokenPolicySave(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot",
+      preferredModel: "gpt-5.4",
+      fallbackModel: "gpt-5.4-mini",
+      dailyBudgetUsd: 20,
+      monthlyBudgetUsd: 250,
+      maxTokensPerRequest: 2000,
+      emergencyMode: false
+    });
+
+    await expect(
+      handleAiExecutionDecision(runtime, {
+        projectKey: "booking_assistant",
+        assistantKey: "support_bot",
+        userRef: "telegram:125",
+        productScope: "Photo studio booking automation and customer support",
+        requestSummary: "Write a generic essay about world history and answer unrelated homework questions.",
+        requestedModel: "gpt-5.4",
+        estimatedTokens: 1500,
+        recentRequestsInHour: 4
+      })
+    ).resolves.toMatchObject({
+      status: "decided",
+      decision: {
+        allowed: true,
+        action: "downgrade",
+        model: "gpt-5.4-mini",
+        policySource: "active_policy",
+        reasons: ["outside_product_scope", "generic_ai_proxy_pattern"]
+      }
+    });
   });
 
   it("lists AI execution decision audit events without secrets or raw request text", async () => {

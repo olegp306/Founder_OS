@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createFounderOsRuntime } from "@/server/founder-os-runtime";
+import { handleTokenPolicySave } from "@/server/api-services";
 import {
   handleAiExecutionDecision,
-  handleAiKeyReferenceRegistration
+  handleAiKeyReferenceRegistration,
+  handleProjectManifestOnboarding
 } from "@/server/project-ai-api-services";
 import {
   buildAiControlDashboardViewModel,
@@ -10,6 +12,64 @@ import {
 } from "@/server/dashboard-services";
 
 describe("dashboard services", () => {
+  it("builds project transfer readiness for the dashboard", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "booking_assistant",
+      name: "Booking Assistant",
+      status: "active",
+      owner: "olegp306",
+      assistant: {
+        enabled: true,
+        token_tracking_required: true,
+        feedback_capture_required: true
+      },
+      user_data: {
+        raw_message_storage: "disabled_by_default",
+        consent_required_for_marketing: true
+      }
+    });
+    await handleAiKeyReferenceRegistration(runtime, {
+      projectKey: "booking_assistant",
+      provider: "openai",
+      secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+      displayName: "Booking Assistant OpenAI key",
+      allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
+      defaultModel: "gpt-5.4-mini",
+      monthlyBudgetUsd: 250
+    });
+    await handleTokenPolicySave(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot",
+      preferredModel: "gpt-5.4",
+      fallbackModel: "gpt-5.4-mini",
+      dailyBudgetUsd: 20,
+      monthlyBudgetUsd: 250,
+      maxTokensPerRequest: 2000,
+      emergencyMode: false
+    });
+
+    const viewModel = await buildAiControlDashboardViewModel(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot"
+    });
+
+    expect(viewModel.projectReadiness).toEqual({
+      projectKey: "booking_assistant",
+      items: [
+        { label: "Manifest", ready: true },
+        { label: "AI key", ready: true },
+        { label: "Token policy", ready: true },
+        { label: "Token tracking", ready: true },
+        { label: "Feedback capture", ready: true },
+        { label: "Raw messages", ready: true, detail: "disabled_by_default" }
+      ],
+      readyCount: 6,
+      totalCount: 6
+    });
+    expect(JSON.stringify(viewModel)).not.toContain("vercel:BOOKING_ASSISTANT_OPENAI_API_KEY");
+  });
+
   it("builds AI control dashboard metrics from runtime execution decisions", async () => {
     const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
     await handleAiKeyReferenceRegistration(runtime, {

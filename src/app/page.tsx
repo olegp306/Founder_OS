@@ -20,6 +20,7 @@ const guardrails = [
 ];
 
 const dashboardProjectKey = "booking_assistant";
+const dashboardAssistantKey = "support_bot";
 
 export default async function HomePage() {
   const runtime = getFounderOsRuntime();
@@ -29,7 +30,8 @@ export default async function HomePage() {
   }
 
   const dashboard = await buildAiControlDashboardViewModel(runtime, {
-    projectKey: dashboardProjectKey
+    projectKey: dashboardProjectKey,
+    assistantKey: dashboardAssistantKey
   });
 
   return (
@@ -89,6 +91,22 @@ export default async function HomePage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="readiness-table" aria-label="Project transfer readiness">
+        <div className="section-heading">
+          <h2>Project Transfer Readiness</h2>
+          <span>{dashboard.projectReadiness.readyCount}/{dashboard.projectReadiness.totalCount}</span>
+        </div>
+        <div className="readiness-grid">
+          {dashboard.projectReadiness.items.map((item) => (
+            <div className="readiness-row" data-ready={item.ready} key={item.label}>
+              <strong>{item.ready ? "ready" : "missing"}</strong>
+              <span>{item.label}</span>
+              <code>{item.detail ?? dashboard.projectReadiness.projectKey}</code>
+            </div>
+          ))}
         </div>
       </section>
 

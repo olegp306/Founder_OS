@@ -195,7 +195,12 @@ export async function handleAiExecutionDecision(runtime: FounderOsRuntime, paylo
     };
   }
 
-  const requestedModel = selectExecutionModel(input.requestedModel, assessment, policyDecision);
+  const requestedModel = selectExecutionModel(
+    input.requestedModel,
+    assessment,
+    policyDecision,
+    policy
+  );
   const control = resolveProjectAiControl(runtime.projectOnboarding, {
     projectKey: input.projectKey,
     requestedModel
@@ -357,14 +362,15 @@ function recordAiExecutionDecision(
 function selectExecutionModel(
   requestedModel: string,
   assessment: ReturnType<typeof assessAiUsageRequest>,
-  policyDecision?: ReturnType<typeof getSafeTokenPolicy>
+  policyDecision?: ReturnType<typeof getSafeTokenPolicy>,
+  policy?: { fallbackModel: string }
 ): string | undefined {
   if (!policyDecision) {
     return assessment.modelDirective === "fallback" ? undefined : requestedModel;
   }
 
   if (assessment.modelDirective === "fallback") {
-    return policyDecision.model;
+    return policy?.fallbackModel ?? policyDecision.model;
   }
 
   return policyDecision.model;

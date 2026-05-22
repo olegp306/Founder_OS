@@ -221,3 +221,12 @@ Adds project transfer readiness checks for AI control:
 - `/api/projects/readiness` lists imported project readiness by project key and optional assistant key.
 - Readiness now includes `tokenPolicyConfigured` alongside manifest import, AI key reference, token tracking, feedback capture, and raw-message policy.
 - Bulk import readiness uses the same enrichment so newly imported projects show whether token policy still needs configuration.
+
+### `codex/dashboard-project-readiness`
+
+Surfaces transfer readiness in the internal dashboard:
+
+- The home page now shows Project Transfer Readiness with manifest, AI key, token policy, token tracking, feedback capture, and raw-message status.
+- The dashboard view model builds readiness from `/api/projects/readiness` service logic so UI and API stay aligned.
+- Demo dashboard seed now onboards the sample project and token policy before generating safe AI execution signals.
+- AI execution model selection preserves abuse fallback routing even when a non-emergency token policy is active.

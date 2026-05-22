@@ -1,9 +1,12 @@
 import type { FounderOsRuntime } from "@/server/founder-os-runtime";
+import { handleTokenPolicySave } from "@/server/api-services";
 import {
   handleAiExecutionDecision,
   handleAiExecutionDecisionAuditList,
   handleAiExecutionSummary,
-  handleAiKeyReferenceRegistration
+  handleAiKeyReferenceRegistration,
+  handleProjectManifestOnboarding,
+  handleProjectReadinessList
 } from "@/server/project-ai-api-services";
 
 export type DashboardMetric = {
@@ -20,22 +23,42 @@ export type DashboardSignal = {
   estimatedTokens: string;
 };
 
+export type DashboardReadinessItem = {
+  label: string;
+  ready: boolean;
+  detail?: string;
+};
+
+export type DashboardProjectReadiness = {
+  projectKey: string;
+  items: DashboardReadinessItem[];
+  readyCount: number;
+  totalCount: number;
+};
+
 export type AiControlDashboardViewModel = {
   projectKey?: string;
   metrics: DashboardMetric[];
   recentSignals: DashboardSignal[];
+  projectReadiness: DashboardProjectReadiness;
 };
 
 export async function buildAiControlDashboardViewModel(
   runtime: FounderOsRuntime,
-  input: { projectKey?: string } = {}
+  input: { projectKey?: string; assistantKey?: string } = {}
 ): Promise<AiControlDashboardViewModel> {
-  const [{ summary }, { decisions }] = await Promise.all([
+  const [{ summary }, { decisions }, readinessResult] = await Promise.all([
     handleAiExecutionSummary(runtime, input),
     handleAiExecutionDecisionAuditList(runtime, {
       projectKey: input.projectKey,
       limit: 5
-    })
+    }),
+    input.projectKey
+      ? handleProjectReadinessList(runtime, {
+          projectKeys: [input.projectKey],
+          assistantKey: input.assistantKey
+        })
+      : Promise.resolve({ readiness: [] })
   ]);
   const total = summary.totalDecisions;
   const downgradeCount = Number(summary.actionCounts.downgrade ?? 0);
@@ -73,7 +96,11 @@ export async function buildAiControlDashboardViewModel(
         ? String(decision.reasons[0])
         : "none",
       estimatedTokens: formatCompactNumber(Number(decision.estimatedTokens ?? 0))
-    }))
+    })),
+    projectReadiness: buildDashboardProjectReadiness(
+      input.projectKey,
+      readinessResult.readiness[0]
+    )
   };
 }
 
@@ -92,6 +119,22 @@ export async function seedAiControlDashboardDemoData(
     return { status: "skipped" as const };
   }
 
+  await handleProjectManifestOnboarding(runtime, {
+    project_id: input.projectKey,
+    name: "Booking Assistant",
+    status: "active",
+    owner: "olegp306",
+    assistant: {
+      enabled: true,
+      token_tracking_required: true,
+      feedback_capture_required: true
+    },
+    user_data: {
+      raw_message_storage: "disabled_by_default",
+      consent_required_for_marketing: true
+    }
+  });
+
   await handleAiKeyReferenceRegistration(runtime, {
     projectKey: input.projectKey,
     provider: "openai",
@@ -100,6 +143,17 @@ export async function seedAiControlDashboardDemoData(
     allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
     defaultModel: "gpt-5.4-mini",
     monthlyBudgetUsd: 250
+  });
+
+  await handleTokenPolicySave(runtime, {
+    projectKey: input.projectKey,
+    assistantKey: "support_bot",
+    preferredModel: "gpt-5.4",
+    fallbackModel: "gpt-5.4-mini",
+    dailyBudgetUsd: 20,
+    monthlyBudgetUsd: 250,
+    maxTokensPerRequest: 8000,
+    emergencyMode: false
   });
 
   await Promise.all([
@@ -136,6 +190,41 @@ export async function seedAiControlDashboardDemoData(
   ]);
 
   return { status: "seeded" as const };
+}
+
+function buildDashboardProjectReadiness(
+  projectKey: string | undefined,
+  readiness:
+    | {
+        projectKey: string;
+        manifestImported: boolean;
+        aiKeyConfigured: boolean;
+        tokenPolicyConfigured: boolean;
+        tokenTrackingRequired: boolean;
+        feedbackCaptureRequired: boolean;
+        rawMessageStorage: string;
+      }
+    | undefined
+): DashboardProjectReadiness {
+  const items: DashboardReadinessItem[] = [
+    { label: "Manifest", ready: readiness?.manifestImported ?? false },
+    { label: "AI key", ready: readiness?.aiKeyConfigured ?? false },
+    { label: "Token policy", ready: readiness?.tokenPolicyConfigured ?? false },
+    { label: "Token tracking", ready: readiness?.tokenTrackingRequired ?? false },
+    { label: "Feedback capture", ready: readiness?.feedbackCaptureRequired ?? false },
+    {
+      label: "Raw messages",
+      ready: readiness?.rawMessageStorage === "disabled_by_default",
+      detail: readiness?.rawMessageStorage ?? "unknown"
+    }
+  ];
+
+  return {
+    projectKey: readiness?.projectKey ?? projectKey ?? "unknown",
+    items,
+    readyCount: items.filter((item) => item.ready).length,
+    totalCount: items.length
+  };
 }
 
 function formatCompactNumber(value: number): string {

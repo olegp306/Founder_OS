@@ -55,6 +55,7 @@ Set `FOUNDER_OS_ENABLE_DASHBOARD_DEMO=true` only when you need the local AI cont
 - Configure `/api/token-policy` for each connected project/assistant before production traffic. `/api/ai-execution/decide` applies the active token policy before exposing provider, model, or secret reference details to the product.
 - Use token policy emergency mode for central fallback-model enforcement during cost spikes or provider incidents. Policy changes are recorded as `token.policy.changed` audit events.
 - Use `/api/projects/readiness?projectKeys=<project>&assistantKey=<assistant>` after onboarding to confirm manifest import, AI key reference, and token policy configuration before connecting production AI traffic.
+- The internal dashboard mirrors the same readiness checks for the configured dashboard project so missing transfer steps are visible before live AI usage begins.
 - Use `/api/ai-execution/audit?projectKey=<project>` to inspect recent AI execution decisions without exposing secrets or raw request text.
 - Use `/api/ai-execution/summary?projectKey=<project>` for a compact project-level view of allow, downgrade, block, risk, reasons, and estimated tokens under risk.
 

@@ -68,6 +68,7 @@ h2 {
 .readiness-panel,
 .metric-card,
 .work-surface,
+.readiness-table,
 .signal-table {
   border: 1px solid #d9dee5;
   border-radius: 8px;
@@ -132,6 +133,7 @@ h2 {
 }
 
 .surface-column,
+.readiness-table,
 .signal-table {
   padding: 22px;
   background: #ffffff;
@@ -188,6 +190,44 @@ h2 {
   background: #2f6f66;
 }
 
+.readiness-table {
+  margin-top: 22px;
+}
+
+.readiness-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.readiness-row {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+  min-height: 74px;
+  padding: 13px;
+  border: 1px solid #e5e9ee;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.readiness-row strong {
+  color: #2f6f66;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.readiness-row[data-ready="false"] strong {
+  color: #a3412f;
+}
+
+.readiness-row code {
+  grid-column: 2;
+  color: #616b76;
+  overflow-wrap: anywhere;
+}
+
 .signal-table {
   margin-top: 22px;
 }
@@ -229,7 +269,13 @@ h2 {
   }
 
   .route-row,
-  .table-row {
+  .table-row,
+  .readiness-grid,
+  .readiness-row {
     grid-template-columns: 1fr;
+  }
+
+  .readiness-row code {
+    grid-column: auto;
   }
 }
