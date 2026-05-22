@@ -114,3 +114,14 @@ Moves engagement API logic into a dedicated service layer:
 - `/api/campaigns/telegram-dry-run`
 
 These route handlers now delegate to `src/server/engagement-api-services.ts`. `/api/health` reports `serviceBackedRoutes`.
+
+### `codex/project-ai-onboarding`
+
+Adds the private MVP onboarding layer:
+
+- `/api/projects/onboard` imports Founder OS project manifests.
+- `/api/ai-keys` registers AI key references by project without storing plaintext secrets.
+- `/api/ai-control/resolve` resolves allowed provider, model, secret reference, and budget metadata for connected projects.
+- `/api/health` reports `privateMvpReadiness`.
+
+This is the minimum layer needed to start moving current founder-owned projects into Founder OS while keeping real API keys in external secret stores.

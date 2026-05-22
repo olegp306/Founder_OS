@@ -45,3 +45,5 @@ Set `FOUNDER_OS_FORCE_MEMORY=true` only for local development or smoke tests. Do
 - Keep raw conversation storage disabled by default.
 - Rotate `FOUNDER_OS_ADMIN_TOKEN` immediately if it is exposed.
 - Use separate database credentials for local, staging, and production.
+- Store AI provider keys in the deployment platform or a secret manager. Founder OS should store only `secretRef` values such as `vercel:PROJECT_OPENAI_API_KEY`.
+- Connected products should ask `/api/ai-control/resolve` which provider, model, secret reference, and budget metadata to use before high-cost AI work.

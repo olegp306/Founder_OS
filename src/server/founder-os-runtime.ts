@@ -1,6 +1,7 @@
 import { InMemoryCampaignStore } from "@/domain/campaigns/campaign-center";
 import { InMemoryEventStore } from "@/domain/events/event-ingestion";
 import { InMemoryProfileStore } from "@/domain/profiles/profile-builder";
+import { InMemoryProjectOnboardingStore } from "@/domain/projects/project-onboarding";
 import { InMemoryProfileOperationsStore } from "@/domain/profiles/profile-operations";
 import { InMemoryTokenControlStore } from "@/domain/token-control/token-control-service";
 import { MemoryRepositorySet } from "@/persistence/memory/repositories";
@@ -19,6 +20,7 @@ export type FounderOsRuntime = {
   profileOps: InMemoryProfileOperationsStore;
   tokens: InMemoryTokenControlStore;
   campaigns: InMemoryCampaignStore;
+  projectOnboarding: InMemoryProjectOnboardingStore;
   repositories: RepositorySet;
 };
 
@@ -47,6 +49,7 @@ export function createFounderOsRuntime(env: {
     profileOps: new InMemoryProfileOperationsStore(),
     tokens,
     campaigns: new InMemoryCampaignStore(),
+    projectOnboarding: new InMemoryProjectOnboardingStore(),
     repositories: new MemoryRepositorySet(events, tokens)
   };
 }

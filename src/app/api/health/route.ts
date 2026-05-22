@@ -15,8 +15,17 @@ export async function GET() {
       "/api/feedback",
       "/api/segments/evaluate",
       "/api/campaigns/preview",
-      "/api/campaigns/telegram-dry-run"
+      "/api/campaigns/telegram-dry-run",
+      "/api/projects/onboard",
+      "/api/ai-keys",
+      "/api/ai-control/resolve"
     ],
+    privateMvpReadiness: {
+      projectOnboarding: true,
+      aiKeyReferences: true,
+      aiControlResolution: true,
+      plaintextSecretsStored: false
+    },
     environment: parseFounderOsEnv({
       DATABASE_URL: process.env.DATABASE_URL,
       FOUNDER_OS_ADMIN_EMAIL: process.env.FOUNDER_OS_ADMIN_EMAIL,
