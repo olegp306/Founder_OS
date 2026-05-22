@@ -163,3 +163,12 @@ Adds a single AI execution preflight for connected products:
 - Downgrade decisions resolve to the configured fallback/default model before product execution.
 - Blocked abuse requests do not expose provider, model, or secret references.
 - Missing AI key references fail closed with `ai_key_not_configured`.
+
+### `codex/ai-execution-decision-audit`
+
+Adds AI execution decision auditability:
+
+- Every `/api/ai-execution/decide` call records a structured `assistant.ai_execution.decided` event.
+- Audit facts include project, assistant, action, risk level, reasons, requested model, selected model, provider, and estimated tokens.
+- Audit events deliberately exclude raw request text and `secretRef` values.
+- `/api/ai-execution/audit` lists recent decisions for monitoring downgrades, blocks, and cost-control actions.

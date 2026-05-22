@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { assessAiUsageRequest } from "@/domain/ai-usage/abuse-protection";
+import type { StructuredEvent } from "@/domain/events/event-ingestion";
 import {
   buildProjectImportReadiness,
   importProjectManifests
@@ -69,6 +70,11 @@ export const aiUsageAssessmentSchema = z.object({
 
 export const aiExecutionDecisionSchema = aiUsageAssessmentSchema;
 
+export const aiExecutionDecisionAuditListSchema = z.object({
+  projectKey: z.string().min(2).optional(),
+  limit: z.number().int().min(1).max(100).default(25)
+});
+
 export const bulkProjectImportSchema = z.object({
   manifests: z.array(
     z.object({
@@ -116,18 +122,21 @@ export async function handleAiExecutionDecision(runtime: FounderOsRuntime, paylo
   const assessment = assessAiUsageRequest(input);
 
   if (!assessment.allowed) {
+    const decision = {
+      allowed: false,
+      action: assessment.recommendedAction,
+      provider: undefined,
+      model: undefined,
+      secretRef: undefined,
+      monthlyBudgetUsd: undefined,
+      reasons: assessment.reasons,
+      userFacingResponse: assessment.userFacingResponse
+    };
+    recordAiExecutionDecision(runtime, input, assessment, decision);
+
     return {
       status: "decided" as const,
-      decision: {
-        allowed: false,
-        action: assessment.recommendedAction,
-        provider: undefined,
-        model: undefined,
-        secretRef: undefined,
-        monthlyBudgetUsd: undefined,
-        reasons: assessment.reasons,
-        userFacingResponse: assessment.userFacingResponse
-      }
+      decision
     };
   }
 
@@ -139,34 +148,111 @@ export async function handleAiExecutionDecision(runtime: FounderOsRuntime, paylo
   });
 
   if (!control.allowed) {
+    const decision = {
+      allowed: false,
+      action: "block" as const,
+      provider: undefined,
+      model: undefined,
+      secretRef: undefined,
+      monthlyBudgetUsd: undefined,
+      reasons: control.reasons,
+      userFacingResponse: assessment.userFacingResponse
+    };
+    recordAiExecutionDecision(runtime, input, assessment, decision);
+
     return {
       status: "decided" as const,
-      decision: {
-        allowed: false,
-        action: "block" as const,
-        provider: undefined,
-        model: undefined,
-        secretRef: undefined,
-        monthlyBudgetUsd: undefined,
-        reasons: control.reasons,
-        userFacingResponse: assessment.userFacingResponse
-      }
+      decision
     };
   }
 
+  const decision = {
+    allowed: true,
+    action: assessment.recommendedAction,
+    provider: control.provider,
+    model: control.model,
+    secretRef: control.secretRef,
+    monthlyBudgetUsd: control.monthlyBudgetUsd,
+    reasons: [...assessment.reasons, ...control.reasons],
+    userFacingResponse: assessment.userFacingResponse
+  };
+  recordAiExecutionDecision(runtime, input, assessment, decision);
+
   return {
     status: "decided" as const,
-    decision: {
-      allowed: true,
-      action: assessment.recommendedAction,
-      provider: control.provider,
-      model: control.model,
-      secretRef: control.secretRef,
-      monthlyBudgetUsd: control.monthlyBudgetUsd,
-      reasons: [...assessment.reasons, ...control.reasons],
-      userFacingResponse: assessment.userFacingResponse
-    }
+    decision
   };
+}
+
+export async function handleAiExecutionDecisionAuditList(
+  runtime: FounderOsRuntime,
+  payload: unknown
+) {
+  const input = aiExecutionDecisionAuditListSchema.parse(payload ?? {});
+  const events = runtime.events
+    .all()
+    .filter((event) => event.event === "assistant.ai_execution.decided")
+    .filter((event) => !input.projectKey || event.project === input.projectKey)
+    .slice(-input.limit)
+    .reverse();
+
+  return {
+    status: "listed" as const,
+    decisions: events.map((event) => ({
+      occurredAt: event.occurredAt,
+      projectKey: event.project,
+      assistantKey: event.facts.assistant_key,
+      personRef: event.personRef,
+      action: event.facts.action,
+      allowed: event.facts.allowed,
+      riskLevel: event.facts.risk_level,
+      reasons: event.facts.reasons,
+      requestedModel: event.facts.requested_model,
+      model: event.facts.model,
+      provider: event.facts.provider,
+      estimatedTokens: event.facts.estimated_tokens
+    }))
+  };
+}
+
+function recordAiExecutionDecision(
+  runtime: FounderOsRuntime,
+  input: z.infer<typeof aiExecutionDecisionSchema>,
+  assessment: ReturnType<typeof assessAiUsageRequest>,
+  decision: {
+    allowed: boolean;
+    action: string;
+    provider?: string;
+    model?: string;
+    reasons: string[];
+  }
+) {
+  const now = new Date().toISOString();
+  const event: StructuredEvent = {
+    idempotencyKey: `ai-execution:${input.projectKey}:${input.assistantKey}:${now}`,
+    event: "assistant.ai_execution.decided",
+    source: "founder_os",
+    personRef: input.userRef,
+    project: input.projectKey,
+    summary: `AI execution decision: ${decision.action} for ${input.projectKey}/${input.assistantKey}.`,
+    tags: ["ai_execution", decision.action, `risk:${assessment.riskLevel}`],
+    facts: {
+      action: decision.action,
+      allowed: decision.allowed,
+      assistant_key: input.assistantKey,
+      estimated_tokens: input.estimatedTokens,
+      model: decision.model,
+      model_directive: assessment.modelDirective,
+      provider: decision.provider,
+      reasons: decision.reasons,
+      requested_model: input.requestedModel,
+      risk_level: assessment.riskLevel
+    },
+    occurredAt: now,
+    storedAt: now
+  };
+
+  runtime.events.append(event);
 }
 
 export async function handleBulkProjectImport(runtime: FounderOsRuntime, payload: unknown) {
