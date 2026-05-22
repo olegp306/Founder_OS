@@ -28,6 +28,26 @@ This project should be ready to expose:
 
 Founder OS stores structured facts, tags, summaries, consent, usage events, and audit history. Raw conversations are not stored centrally by default.
 
+## User Value And Quality Bar
+
+The main value of Founder OS is quality control across all founder-owned products.
+
+Users are the most important asset. Every product, bot, assistant, campaign, and support flow should be designed to make users feel understood, helped, respected, and well served.
+
+Founder OS projects should continuously improve:
+
+- Product usefulness.
+- Speed and clarity of support.
+- Relevance of recommendations and offers.
+- User trust and retention.
+- Conversion quality without harming the user experience.
+
+User understanding should come from consent-safe structured facts, tags, summaries, usage signals, feedback, and product context. Use that understanding to provide better service, better timing, better product decisions, and more relevant contextual offers.
+
+Do not spam users. Do not send generic campaigns when a contextual, user-relevant message is possible. Marketing should feel helpful, timely, and aligned with the user's actual needs.
+
+Quality signals, user delight signals, churn risks, repeated frustrations, and monetization opportunities should be routed into Founder OS for review and improvement.
+
 ## Operational Secrecy
 
 Founder OS relationships are confidential by default.
