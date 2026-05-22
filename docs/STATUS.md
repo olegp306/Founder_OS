@@ -238,3 +238,11 @@ Adds token spend summary for connected products:
 - `/api/token-usage/summary` summarizes usage by project and configurable time window.
 - The summary reports event count, total tokens, total cost, spend per hour, tokens per hour, and projected daily spend.
 - Usage is grouped by assistant, model, and environment so token spend spikes can be traced to the responsible surface.
+
+### `codex/dashboard-token-spend`
+
+Surfaces token spend in the internal dashboard:
+
+- The dashboard now shows total token cost, total tokens, and projected daily spend for the configured project window.
+- Top model and environment breakdowns come from the same token usage summary service used by `/api/token-usage/summary`.
+- The local demo seed now includes safe token usage events and is guarded against concurrent duplicate seeding.

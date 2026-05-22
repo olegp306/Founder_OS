@@ -110,6 +110,63 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section className="spend-table" aria-label="Token spend">
+        <div className="section-heading">
+          <h2>Token Spend</h2>
+          <span>{dashboard.tokenSpend.windowHours}h window</span>
+        </div>
+        <div className="spend-summary">
+          <article className="spend-card">
+            <span>Total cost</span>
+            <strong>{dashboard.tokenSpend.totalCost}</strong>
+          </article>
+          <article className="spend-card">
+            <span>Total tokens</span>
+            <strong>{dashboard.tokenSpend.totalTokens}</strong>
+          </article>
+          <article className="spend-card">
+            <span>Projected daily</span>
+            <strong>{dashboard.tokenSpend.projectedDailySpend}</strong>
+          </article>
+        </div>
+        <div className="spend-breakdowns">
+          <div className="spend-list">
+            <h3>Top Models</h3>
+            {dashboard.tokenSpend.topModels.map((model) => (
+              <div className="spend-row" key={model.key}>
+                <code>{model.key}</code>
+                <span>{model.totalTokens}</span>
+                <strong>{model.totalCost}</strong>
+              </div>
+            ))}
+            {dashboard.tokenSpend.topModels.length === 0 ? (
+              <div className="spend-row">
+                <code>none</code>
+                <span>0</span>
+                <strong>$0.00</strong>
+              </div>
+            ) : null}
+          </div>
+          <div className="spend-list">
+            <h3>Environments</h3>
+            {dashboard.tokenSpend.topEnvironments.map((environment) => (
+              <div className="spend-row" key={environment.key}>
+                <code>{environment.key}</code>
+                <span>{environment.totalTokens}</span>
+                <strong>{environment.totalCost}</strong>
+              </div>
+            ))}
+            {dashboard.tokenSpend.topEnvironments.length === 0 ? (
+              <div className="spend-row">
+                <code>none</code>
+                <span>0</span>
+                <strong>$0.00</strong>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
       <section className="signal-table" aria-label="Recent AI execution signals">
         <div className="section-heading">
           <h2>Recent Signals</h2>

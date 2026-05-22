@@ -1,5 +1,9 @@
 import type { FounderOsRuntime } from "@/server/founder-os-runtime";
-import { handleTokenPolicySave } from "@/server/api-services";
+import {
+  handleTokenPolicySave,
+  handleTokenUsageRecord,
+  handleTokenUsageSummary
+} from "@/server/api-services";
 import {
   handleAiExecutionDecision,
   handleAiExecutionDecisionAuditList,
@@ -36,18 +40,41 @@ export type DashboardProjectReadiness = {
   totalCount: number;
 };
 
+export type DashboardSpendBreakdown = {
+  key: string;
+  totalCost: string;
+  totalTokens: string;
+};
+
+export type DashboardTokenSpend = {
+  projectKey: string;
+  windowHours: number;
+  totalCost: string;
+  totalTokens: string;
+  projectedDailySpend: string;
+  topModels: DashboardSpendBreakdown[];
+  topEnvironments: DashboardSpendBreakdown[];
+};
+
 export type AiControlDashboardViewModel = {
   projectKey?: string;
   metrics: DashboardMetric[];
   recentSignals: DashboardSignal[];
   projectReadiness: DashboardProjectReadiness;
+  tokenSpend: DashboardTokenSpend;
 };
+
+const demoSeedOperations = new WeakMap<
+  FounderOsRuntime,
+  Map<string, Promise<{ status: "seeded" | "skipped" }>>
+>();
 
 export async function buildAiControlDashboardViewModel(
   runtime: FounderOsRuntime,
-  input: { projectKey?: string; assistantKey?: string } = {}
+  input: { projectKey?: string; assistantKey?: string; tokenWindowHours?: number } = {}
 ): Promise<AiControlDashboardViewModel> {
-  const [{ summary }, { decisions }, readinessResult] = await Promise.all([
+  const tokenWindowHours = input.tokenWindowHours ?? 1;
+  const [{ summary }, { decisions }, readinessResult, tokenSpendResult] = await Promise.all([
     handleAiExecutionSummary(runtime, input),
     handleAiExecutionDecisionAuditList(runtime, {
       projectKey: input.projectKey,
@@ -58,7 +85,23 @@ export async function buildAiControlDashboardViewModel(
           projectKeys: [input.projectKey],
           assistantKey: input.assistantKey
         })
-      : Promise.resolve({ readiness: [] })
+      : Promise.resolve({ readiness: [] }),
+    input.projectKey
+      ? handleTokenUsageSummary(runtime, {
+          projectKey: input.projectKey,
+          windowHours: tokenWindowHours
+        })
+      : Promise.resolve({
+          summary: {
+            projectKey: "unknown",
+            windowHours: tokenWindowHours,
+            totalCostUsd: 0,
+            totalTokens: 0,
+            projectedDailySpendUsd: 0,
+            byModel: [],
+            byEnvironment: []
+          }
+        })
   ]);
   const total = summary.totalDecisions;
   const downgradeCount = Number(summary.actionCounts.downgrade ?? 0);
@@ -100,11 +143,31 @@ export async function buildAiControlDashboardViewModel(
     projectReadiness: buildDashboardProjectReadiness(
       input.projectKey,
       readinessResult.readiness[0]
-    )
+    ),
+    tokenSpend: buildDashboardTokenSpend(tokenSpendResult.summary)
   };
 }
 
 export async function seedAiControlDashboardDemoData(
+  runtime: FounderOsRuntime,
+  input: { projectKey: string }
+) {
+  const existingOperation = demoSeedOperations.get(runtime)?.get(input.projectKey);
+  if (existingOperation) {
+    return existingOperation;
+  }
+
+  const operation = seedAiControlDashboardDemoDataOnce(runtime, input).finally(() => {
+    demoSeedOperations.get(runtime)?.delete(input.projectKey);
+  });
+  const runtimeOperations = demoSeedOperations.get(runtime) ?? new Map();
+  runtimeOperations.set(input.projectKey, operation);
+  demoSeedOperations.set(runtime, runtimeOperations);
+
+  return operation;
+}
+
+async function seedAiControlDashboardDemoDataOnce(
   runtime: FounderOsRuntime,
   input: { projectKey: string }
 ) {
@@ -189,6 +252,39 @@ export async function seedAiControlDashboardDemoData(
     })
   ]);
 
+  await Promise.all([
+    handleTokenUsageRecord(runtime, {
+      projectKey: input.projectKey,
+      assistantKey: "support_bot",
+      environment: "production",
+      model: "gpt-5.4",
+      inputTokens: 800,
+      outputTokens: 400,
+      costUsd: 0.01,
+      occurredAt: new Date().toISOString()
+    }),
+    handleTokenUsageRecord(runtime, {
+      projectKey: input.projectKey,
+      assistantKey: "support_bot",
+      environment: "production",
+      model: "gpt-5.4-mini",
+      inputTokens: 2100,
+      outputTokens: 900,
+      costUsd: 0.025,
+      occurredAt: new Date().toISOString()
+    }),
+    handleTokenUsageRecord(runtime, {
+      projectKey: input.projectKey,
+      assistantKey: "support_bot",
+      environment: "production",
+      model: "gpt-5.4-mini",
+      inputTokens: 1100,
+      outputTokens: 400,
+      costUsd: 0.015,
+      occurredAt: new Date().toISOString()
+    })
+  ]);
+
   return { status: "seeded" as const };
 }
 
@@ -225,6 +321,42 @@ function buildDashboardProjectReadiness(
     readyCount: items.filter((item) => item.ready).length,
     totalCount: items.length
   };
+}
+
+function buildDashboardTokenSpend(summary: {
+  projectKey: string;
+  windowHours: number;
+  totalCostUsd: number;
+  totalTokens: number;
+  projectedDailySpendUsd: number;
+  byModel: Array<{ key: string; totalCostUsd: number; totalTokens: number }>;
+  byEnvironment: Array<{ key: string; totalCostUsd: number; totalTokens: number }>;
+}): DashboardTokenSpend {
+  return {
+    projectKey: summary.projectKey,
+    windowHours: summary.windowHours,
+    totalCost: formatUsd(summary.totalCostUsd),
+    totalTokens: formatCompactNumber(summary.totalTokens),
+    projectedDailySpend: formatUsd(summary.projectedDailySpendUsd),
+    topModels: summary.byModel.slice(0, 3).map(formatSpendBreakdown),
+    topEnvironments: summary.byEnvironment.slice(0, 3).map(formatSpendBreakdown)
+  };
+}
+
+function formatSpendBreakdown(item: {
+  key: string;
+  totalCostUsd: number;
+  totalTokens: number;
+}): DashboardSpendBreakdown {
+  return {
+    key: item.key,
+    totalCost: formatUsd(item.totalCostUsd),
+    totalTokens: formatCompactNumber(item.totalTokens)
+  };
+}
+
+function formatUsd(value: number): string {
+  return `$${value.toFixed(2)}`;
 }
 
 function formatCompactNumber(value: number): string {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createFounderOsRuntime } from "@/server/founder-os-runtime";
-import { handleTokenPolicySave } from "@/server/api-services";
+import { handleTokenPolicySave, handleTokenUsageRecord } from "@/server/api-services";
 import {
   handleAiExecutionDecision,
   handleAiKeyReferenceRegistration,
@@ -12,6 +12,50 @@ import {
 } from "@/server/dashboard-services";
 
 describe("dashboard services", () => {
+  it("builds token spend summary for the dashboard", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleTokenUsageRecord(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot",
+      environment: "production",
+      model: "gpt-5.4",
+      inputTokens: 1000,
+      outputTokens: 500,
+      costUsd: 3,
+      occurredAt: "2026-05-22T19:00:00.000Z"
+    });
+    await handleTokenUsageRecord(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot",
+      environment: "production",
+      model: "gpt-5.4-mini",
+      inputTokens: 800,
+      outputTokens: 200,
+      costUsd: 1,
+      occurredAt: "2026-05-22T20:00:00.000Z"
+    });
+
+    const viewModel = await buildAiControlDashboardViewModel(runtime, {
+      projectKey: "booking_assistant",
+      tokenWindowHours: 8
+    });
+
+    expect(viewModel.tokenSpend).toEqual({
+      projectKey: "booking_assistant",
+      windowHours: 8,
+      totalCost: "$4.00",
+      totalTokens: "2.5k",
+      projectedDailySpend: "$12.00",
+      topModels: [
+        { key: "gpt-5.4", totalCost: "$3.00", totalTokens: "1.5k" },
+        { key: "gpt-5.4-mini", totalCost: "$1.00", totalTokens: "1.0k" }
+      ],
+      topEnvironments: [
+        { key: "production", totalCost: "$4.00", totalTokens: "2.5k" }
+      ]
+    });
+  });
+
   it("builds project transfer readiness for the dashboard", async () => {
     const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
     await handleProjectManifestOnboarding(runtime, {
@@ -152,7 +196,10 @@ describe("dashboard services", () => {
   it("seeds safe demo execution data idempotently for local dashboard previews", async () => {
     const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
 
-    await seedAiControlDashboardDemoData(runtime, { projectKey: "booking_assistant" });
+    await Promise.all([
+      seedAiControlDashboardDemoData(runtime, { projectKey: "booking_assistant" }),
+      seedAiControlDashboardDemoData(runtime, { projectKey: "booking_assistant" })
+    ]);
     await seedAiControlDashboardDemoData(runtime, { projectKey: "booking_assistant" });
 
     const viewModel = await buildAiControlDashboardViewModel(runtime, {
@@ -166,6 +213,13 @@ describe("dashboard services", () => {
       { label: "Blocked requests", value: "1", detail: "requests denied before model execution" }
     ]);
     expect(viewModel.recentSignals).toHaveLength(3);
+    expect(viewModel.tokenSpend).toEqual(
+      expect.objectContaining({
+        totalCost: "$0.05",
+        totalTokens: "5.7k",
+        projectedDailySpend: "$1.20"
+      })
+    );
     expect(JSON.stringify(viewModel)).not.toContain("sk-");
     expect(JSON.stringify(viewModel)).not.toContain("vercel:BOOKING_ASSISTANT_OPENAI_API_KEY");
     expect(JSON.stringify(viewModel)).not.toContain("world history");
