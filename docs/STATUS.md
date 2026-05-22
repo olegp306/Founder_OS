@@ -172,3 +172,11 @@ Adds AI execution decision auditability:
 - Audit facts include project, assistant, action, risk level, reasons, requested model, selected model, provider, and estimated tokens.
 - Audit events deliberately exclude raw request text and `secretRef` values.
 - `/api/ai-execution/audit` lists recent decisions for monitoring downgrades, blocks, and cost-control actions.
+
+### `codex/ai-execution-summary`
+
+Adds project-level AI execution monitoring:
+
+- `/api/ai-execution/summary` aggregates execution decision events by project.
+- The summary reports total, allowed, blocked, action counts, risk counts, estimated tokens, estimated tokens under risk, top reasons, and last action.
+- Fast repeated execution decisions now use unique event idempotency keys so audit records are not collapsed accidentally.

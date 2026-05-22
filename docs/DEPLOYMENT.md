@@ -50,6 +50,7 @@ Set `FOUNDER_OS_FORCE_MEMORY=true` only for local development or smoke tests. Do
 - Connected assistants should call `/api/ai-usage/assess` before expensive or open-ended AI work. Respect `recommendedAction` and `modelDirective` to downgrade, rate-limit, block, or temporarily suspend abusive usage.
 - Prefer `/api/ai-execution/decide` for connected products that want one preflight call combining AI key resolution, model choice, budget metadata, and abuse enforcement.
 - Use `/api/ai-execution/audit?projectKey=<project>` to inspect recent AI execution decisions without exposing secrets or raw request text.
+- Use `/api/ai-execution/summary?projectKey=<project>` for a compact project-level view of allow, downgrade, block, risk, reasons, and estimated tokens under risk.
 
 ## Project Onboarding
 
@@ -65,3 +66,4 @@ Current recommended local flow:
 6. Configure connected assistants to call `/api/ai-usage/assess` before expensive or open-ended AI work.
 7. For new integrations, use `/api/ai-execution/decide` as the single AI preflight before model execution.
 8. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
+9. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.

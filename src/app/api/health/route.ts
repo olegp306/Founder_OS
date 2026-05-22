@@ -22,7 +22,8 @@ export async function GET() {
       "/api/ai-control/resolve",
       "/api/ai-usage/assess",
       "/api/ai-execution/decide",
-      "/api/ai-execution/audit"
+      "/api/ai-execution/audit",
+      "/api/ai-execution/summary"
     ],
     privateMvpReadiness: {
       projectOnboarding: true,
@@ -32,6 +33,7 @@ export async function GET() {
       aiUsageAbuseProtection: true,
       aiExecutionDecision: true,
       aiExecutionAudit: true,
+      aiExecutionSummary: true,
       plaintextSecretsStored: false
     },
     environment: parseFounderOsEnv({

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 import { assessAiUsageRequest } from "@/domain/ai-usage/abuse-protection";
 import type { StructuredEvent } from "@/domain/events/event-ingestion";
 import {
@@ -73,6 +74,10 @@ export const aiExecutionDecisionSchema = aiUsageAssessmentSchema;
 export const aiExecutionDecisionAuditListSchema = z.object({
   projectKey: z.string().min(2).optional(),
   limit: z.number().int().min(1).max(100).default(25)
+});
+
+export const aiExecutionSummarySchema = z.object({
+  projectKey: z.string().min(2).optional()
 });
 
 export const bulkProjectImportSchema = z.object({
@@ -215,6 +220,46 @@ export async function handleAiExecutionDecisionAuditList(
   };
 }
 
+export async function handleAiExecutionSummary(runtime: FounderOsRuntime, payload: unknown) {
+  const input = aiExecutionSummarySchema.parse(payload ?? {});
+  const decisions = runtime.events
+    .all()
+    .filter((event) => event.event === "assistant.ai_execution.decided")
+    .filter((event) => !input.projectKey || event.project === input.projectKey);
+
+  const actionCounts = countBy(decisions.map((event) => String(event.facts.action)));
+  const riskCounts = countBy(decisions.map((event) => String(event.facts.risk_level)));
+  const reasonCounts = countBy(
+    decisions.flatMap((event) =>
+      Array.isArray(event.facts.reasons) ? event.facts.reasons.map(String) : []
+    )
+  );
+  const estimatedTokensTotal = decisions.reduce(
+    (sum, event) => sum + Number(event.facts.estimated_tokens ?? 0),
+    0
+  );
+  const estimatedTokensUnderRisk = decisions
+    .filter((event) => event.facts.risk_level !== "low")
+    .reduce((sum, event) => sum + Number(event.facts.estimated_tokens ?? 0), 0);
+  const lastDecision = decisions.at(-1);
+
+  return {
+    status: "summarized" as const,
+    summary: {
+      projectKey: input.projectKey,
+      totalDecisions: decisions.length,
+      allowedDecisions: decisions.filter((event) => event.facts.allowed === true).length,
+      blockedDecisions: decisions.filter((event) => event.facts.allowed === false).length,
+      actionCounts,
+      riskCounts,
+      estimatedTokensTotal,
+      estimatedTokensUnderRisk,
+      topReasons: Object.entries(reasonCounts).map(([reason, count]) => ({ reason, count })),
+      lastAction: lastDecision?.facts.action
+    }
+  };
+}
+
 function recordAiExecutionDecision(
   runtime: FounderOsRuntime,
   input: z.infer<typeof aiExecutionDecisionSchema>,
@@ -229,7 +274,7 @@ function recordAiExecutionDecision(
 ) {
   const now = new Date().toISOString();
   const event: StructuredEvent = {
-    idempotencyKey: `ai-execution:${input.projectKey}:${input.assistantKey}:${now}`,
+    idempotencyKey: `ai-execution:${input.projectKey}:${input.assistantKey}:${randomUUID()}`,
     event: "assistant.ai_execution.decided",
     source: "founder_os",
     personRef: input.userRef,
@@ -253,6 +298,13 @@ function recordAiExecutionDecision(
   };
 
   runtime.events.append(event);
+}
+
+function countBy(values: string[]): Record<string, number> {
+  return values.reduce<Record<string, number>>((counts, value) => {
+    counts[value] = (counts[value] ?? 0) + 1;
+    return counts;
+  }, {});
 }
 
 export async function handleBulkProjectImport(runtime: FounderOsRuntime, payload: unknown) {
