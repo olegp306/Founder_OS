@@ -1,0 +1,56 @@
+﻿{
+    "schema_version":  "0.1",
+    "project_id":  "founder_os",
+    "name":  "Founder OS",
+    "status":  "active",
+    "category":  "control_plane",
+    "owner":  "olegp306",
+    "workspace":  "C:\\repos\\Founder_OS",
+    "repository":  {
+                       "provider":  "github",
+                       "name":  "olegp306/Founder_OS",
+                       "local_path":  "C:\\repos\\Founder_OS"
+                   },
+    "founder_os":  {
+                       "role":  "core",
+                       "managed_by_founder_os":  true,
+                       "register_in_founder_os":  true
+                   },
+    "assistant":  {
+                      "enabled":  true,
+                      "token_tracking_required":  true,
+                      "feedback_capture_required":  true,
+                      "telegram_feature_pipeline_required":  true,
+                      "tone_configurable":  true,
+                      "personalization_allowed":  "light_consent_safe"
+                  },
+    "user_data":  {
+                      "profile_policy":  "structured_facts_tags_summaries_only",
+                      "raw_message_storage":  "disabled_by_default",
+                      "consent_required_for_marketing":  true
+                  },
+    "events":  {
+                   "emit_project_events":  true,
+                   "emit_user_profile_events":  true,
+                   "emit_token_usage_events":  true,
+                   "emit_feedback_events":  true,
+                   "emit_feature_signal_events":  true
+               },
+    "deployment":  {
+                       "model":  "founder_control_plane",
+                       "targets":  [
+
+                                   ]
+                   },
+    "notes":  "Central system that will eventually read and manage the other Founder OS project manifests.",
+    "feature_intake":  {
+                           "destination":  "founder_os_feature_inbox",
+                           "source_channels":  [
+                                                   "telegram_assistant",
+                                                   "in_app_assistant",
+                                                   "support_helper"
+                                               ],
+                           "raw_conversations":  "disabled_by_default",
+                           "review_process":  "founder_brainstorm_before_roadmap"
+                       }
+}

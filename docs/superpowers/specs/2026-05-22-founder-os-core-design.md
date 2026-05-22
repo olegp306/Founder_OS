@@ -42,9 +42,11 @@ Receives structured events from products, bots, and assistants. Events are appen
 
 Consumes events and updates unified user profiles. It merges identities across Telegram, email, web accounts, and product accounts when a reliable link exists.
 
-4. Token Metering
+4. Token Control Plane
 
-Tracks token usage by product, assistant, user, tenant, environment, and time window. It supports cost dashboards, limits, alerts, and future billing.
+Tracks and controls token usage by product, assistant, user, tenant, environment, model, and time window. It supports cost dashboards, burn-rate monitoring, budget limits, alerts, model policies, emergency downgrades, kill switches, and future billing.
+
+The control plane must make it possible to see where tokens are going, how quickly they are being spent, and which projects or assistants are creating unexpected cost. It should also allow the founder to centrally change model policy for connected projects, for example downgrading a project from an expensive model to a cheaper one during a spike.
 
 5. Feedback and Idea Inbox
 
@@ -68,6 +70,9 @@ Initial entities:
 - `Consent`: permission to contact or process a user for a specific purpose and channel.
 - `Event`: structured activity emitted by a product or bot.
 - `TokenUsageEvent`: normalized usage and cost record.
+- `TokenPolicy`: allowed model, fallback model, budget limits, rate limits, and emergency behavior for a project, assistant, environment, or user segment.
+- `TokenAlert`: budget, burn-rate, anomaly, or policy breach notification.
+- `TokenPolicyChange`: audit record for model, limit, throttling, or emergency-mode changes.
 - `FeedbackItem`: suggestion, complaint, feature request, or support signal.
 - `Segment`: dynamic or static group of people.
 - `Campaign`: message workflow sent through an allowed channel.
@@ -172,7 +177,7 @@ The first implementation should include:
 - Unified user profiles.
 - Identity mapping for Telegram and web users.
 - Consent records.
-- Token usage events and dashboard.
+- Token usage events, dashboard, limits, alerts, and model policy controls.
 - Feedback and idea inbox.
 - Basic Telegram campaign sending through approved bots.
 - Manual admin dashboard for reviewing users, projects, usage, and ideas.
@@ -196,6 +201,23 @@ These are intentionally deferred until implementation planning:
 - Whether token metering starts as internal tables or OpenMeter integration.
 - Whether campaigns are implemented directly or through a queue provider.
 
+## Token Control Plane Requirements
+
+MVP token control should start with internal Postgres tables and application-level policy checks. External metering systems such as OpenMeter can be integrated later if the internal model becomes too limited.
+
+Required MVP behaviors:
+
+- Record every normalized token usage event with project, assistant, environment, model, input tokens, output tokens, cost, and timestamp.
+- Show token spend by project, assistant, model, environment, and time window.
+- Calculate burn rate for recent windows and estimate projected daily or monthly spend.
+- Define token policies for projects and assistants, including preferred model, fallback model, daily budget, monthly budget, per-request maximum, and emergency mode.
+- Detect budget breaches, sudden spikes, and usage outside policy.
+- Create alerts for budget, burn-rate, anomaly, and policy breach conditions.
+- Allow a founder to change model policy centrally and keep an audit trail of the change.
+- Allow emergency actions such as project throttle, model downgrade, or temporary assistant disablement.
+
+Connected products should ask Founder OS for their active token policy or receive a cached policy payload. If Founder OS is unavailable, products should use their last known safe policy and fail closed for non-critical high-cost actions.
+
 ## Success Criteria
 
 Founder OS is successful when the founder can:
@@ -203,6 +225,8 @@ Founder OS is successful when the founder can:
 - See all active products and bots in one place.
 - See unified user profiles across products.
 - Understand token usage and cost per project and assistant.
+- Detect and stop abnormal token spend before it creates a large bill.
+- Centrally adjust model policy for connected products and assistants.
 - Review user feedback and assistant-summarized ideas.
 - Launch a compliant Telegram campaign to a selected segment.
 - Avoid storing raw conversations centrally.
