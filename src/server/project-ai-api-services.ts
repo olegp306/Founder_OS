@@ -95,6 +95,11 @@ export const projectReadinessListSchema = z.object({
   assistantKey: z.string().min(2).optional()
 });
 
+export const projectConnectionBundleSchema = z.object({
+  projectKey: z.string().min(2),
+  assistantKey: z.string().min(2)
+});
+
 export async function handleProjectManifestOnboarding(
   runtime: FounderOsRuntime,
   payload: unknown
@@ -416,5 +421,114 @@ export async function handleProjectReadinessList(
   return {
     status: "listed" as const,
     readiness
+  };
+}
+
+export async function handleProjectConnectionBundle(
+  runtime: FounderOsRuntime,
+  payload: unknown
+) {
+  const input = projectConnectionBundleSchema.parse(payload);
+  const project = runtime.projectOnboarding.project(input.projectKey);
+  const aiKeyReferences = runtime.projectOnboarding
+    .aiKeysForProject(input.projectKey)
+    .map((key) => ({
+      provider: key.provider,
+      secretRef: key.secretRef,
+      displayName: key.displayName,
+      allowedModels: key.allowedModels,
+      defaultModel: key.defaultModel,
+      monthlyBudgetUsd: key.monthlyBudgetUsd,
+      status: key.status
+    }));
+  const { readiness } = await handleProjectReadinessList(runtime, {
+    projectKeys: [input.projectKey],
+    assistantKey: input.assistantKey
+  });
+  const projectReadiness = readiness[0];
+  const policy = await runtime.repositories.tokenPolicies.find({
+    projectKey: input.projectKey,
+    assistantKey: input.assistantKey
+  });
+  const nextSteps = [
+    ...(projectReadiness.manifestImported ? [] : ["Import .founderos/project.json"]),
+    ...(projectReadiness.aiKeyConfigured ? [] : ["Register AI key reference in Founder OS"]),
+    ...(projectReadiness.tokenPolicyConfigured ? [] : ["Configure token policy for this assistant"]),
+    ...(projectReadiness.tokenTrackingRequired ? [] : ["Enable token tracking in the project manifest"]),
+    ...(projectReadiness.feedbackCaptureRequired ? [] : ["Enable feedback capture in the project manifest"]),
+    ...(projectReadiness.rawMessageStorage === "disabled_by_default"
+      ? []
+      : ["Disable raw message storage by default"])
+  ];
+
+  return {
+    status: "built" as const,
+    bundle: {
+      projectKey: input.projectKey,
+      assistantKey: input.assistantKey,
+      ready: nextSteps.length === 0,
+      project: {
+        name: project?.name ?? input.projectKey,
+        status: project?.status ?? "unknown",
+        owner: project?.owner ?? "unknown"
+      },
+      environment: [
+        { name: "FOUNDER_OS_BASE_URL", required: true, valueHint: "https://<founder-os-host>" },
+        { name: "FOUNDER_OS_ADMIN_TOKEN", required: true, valueHint: "secret-manager-ref" },
+        { name: "FOUNDER_OS_PROJECT_KEY", required: true, valueHint: input.projectKey },
+        { name: "FOUNDER_OS_ASSISTANT_KEY", required: true, valueHint: input.assistantKey }
+      ],
+      routes: [
+        {
+          method: "POST",
+          path: "/api/ai-execution/decide",
+          purpose: "preflight model, budget, and abuse control before provider execution"
+        },
+        {
+          method: "POST",
+          path: "/api/token-usage",
+          purpose: "record token usage after provider execution"
+        },
+        {
+          method: "GET",
+          path: "/api/token-usage/summary",
+          purpose: "inspect token spend, burn rate, and projected daily spend"
+        },
+        {
+          method: "GET",
+          path: "/api/projects/readiness",
+          purpose: "verify project transfer readiness"
+        }
+      ],
+      aiKeyReferences,
+      readiness: {
+        manifestImported: projectReadiness.manifestImported,
+        aiKeyConfigured: projectReadiness.aiKeyConfigured,
+        tokenPolicyConfigured: projectReadiness.tokenPolicyConfigured,
+        tokenTrackingRequired: projectReadiness.tokenTrackingRequired,
+        feedbackCaptureRequired: projectReadiness.feedbackCaptureRequired,
+        rawMessageStorage: projectReadiness.rawMessageStorage
+      },
+      tokenPolicy: policy
+        ? {
+            configured: true,
+            preferredModel: policy.preferredModel,
+            fallbackModel: policy.fallbackModel,
+            dailyBudgetUsd: policy.dailyBudgetUsd,
+            monthlyBudgetUsd: policy.monthlyBudgetUsd,
+            maxTokensPerRequest: policy.maxTokensPerRequest,
+            emergencyMode: policy.emergencyMode
+          }
+        : {
+            configured: false,
+            preferredModel: undefined,
+            fallbackModel: undefined,
+            dailyBudgetUsd: undefined,
+            monthlyBudgetUsd: undefined,
+            maxTokensPerRequest: undefined,
+            emergencyMode: undefined
+          },
+      nextSteps
+    }
   };
 }

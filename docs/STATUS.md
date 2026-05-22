@@ -246,3 +246,11 @@ Surfaces token spend in the internal dashboard:
 - The dashboard now shows total token cost, total tokens, and projected daily spend for the configured project window.
 - Top model and environment breakdowns come from the same token usage summary service used by `/api/token-usage/summary`.
 - The local demo seed now includes safe token usage events and is guarded against concurrent duplicate seeding.
+
+### `codex/project-connection-bundle`
+
+Adds a safe connection bundle for moving personal projects into Founder OS:
+
+- `/api/projects/connection` returns the project key, assistant key, required environment variable names, integration routes, readiness state, AI key references, and token policy summary.
+- The bundle includes only `secretRef` metadata and never stores or returns plaintext provider keys.
+- `/api/health` now reports the connection bundle route as part of the private onboarding surface.

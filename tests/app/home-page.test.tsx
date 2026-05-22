@@ -16,6 +16,8 @@ describe("Founder OS home page", () => {
     expect(html).toContain("Downgrade rate");
     expect(html).toContain("/api/ai-execution/decide");
     expect(html).toContain("/api/ai-execution/summary");
+    expect(html).toContain("/api/projects/connection");
+    expect(html).toContain("Connection Bundle");
     expect(html).toContain("Project Transfer Readiness");
     expect(html).toContain("Token Spend");
     expect(html).toContain("Token policy");

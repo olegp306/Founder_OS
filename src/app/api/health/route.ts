@@ -23,6 +23,7 @@ export async function GET() {
       "/api/campaigns/telegram-dry-run",
       "/api/projects/onboard",
       "/api/projects/bulk-import",
+      "/api/projects/connection",
       "/api/ai-keys",
       "/api/ai-control/resolve",
       "/api/ai-usage/assess",
@@ -39,6 +40,7 @@ export async function GET() {
       aiExecutionDecision: true,
       aiExecutionAudit: true,
       aiExecutionSummary: true,
+      projectConnectionBundle: true,
       plaintextSecretsStored: false
     },
     environment: parseFounderOsEnv({

@@ -7,6 +7,7 @@ import {
   handleAiExecutionSummary,
   handleAiKeyReferenceRegistration,
   handleAiUsageAssessment,
+  handleProjectConnectionBundle,
   handleProjectManifestOnboarding,
   handleProjectReadinessList
 } from "@/server/project-ai-api-services";
@@ -279,6 +280,111 @@ describe("AI usage API services", () => {
         }
       ]
     });
+  });
+
+  it("builds a safe project connection bundle for connected products", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "booking_assistant",
+      name: "Booking Assistant",
+      status: "active",
+      owner: "olegp306",
+      repository: {
+        provider: "github",
+        name: "olegp306/booking_assistant",
+        local_path: "C:\\Repos\\booking_assistant"
+      },
+      assistant: {
+        enabled: true,
+        token_tracking_required: true,
+        feedback_capture_required: true
+      },
+      user_data: {
+        raw_message_storage: "disabled_by_default",
+        consent_required_for_marketing: true
+      }
+    });
+    await handleAiKeyReferenceRegistration(runtime, {
+      projectKey: "booking_assistant",
+      provider: "openai",
+      secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+      displayName: "Booking Assistant OpenAI key",
+      allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
+      defaultModel: "gpt-5.4-mini",
+      monthlyBudgetUsd: 250,
+      plaintextSecret: "sk-do-not-store"
+    });
+    await handleTokenPolicySave(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot",
+      preferredModel: "gpt-5.4",
+      fallbackModel: "gpt-5.4-mini",
+      dailyBudgetUsd: 20,
+      monthlyBudgetUsd: 250,
+      maxTokensPerRequest: 2000,
+      emergencyMode: false
+    });
+
+    const result = await handleProjectConnectionBundle(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot"
+    });
+
+    expect(result).toEqual({
+      status: "built",
+      bundle: {
+        projectKey: "booking_assistant",
+        assistantKey: "support_bot",
+        ready: true,
+        project: {
+          name: "Booking Assistant",
+          status: "active",
+          owner: "olegp306"
+        },
+        environment: [
+          { name: "FOUNDER_OS_BASE_URL", required: true, valueHint: "https://<founder-os-host>" },
+          { name: "FOUNDER_OS_ADMIN_TOKEN", required: true, valueHint: "secret-manager-ref" },
+          { name: "FOUNDER_OS_PROJECT_KEY", required: true, valueHint: "booking_assistant" },
+          { name: "FOUNDER_OS_ASSISTANT_KEY", required: true, valueHint: "support_bot" }
+        ],
+        routes: [
+          { method: "POST", path: "/api/ai-execution/decide", purpose: "preflight model, budget, and abuse control before provider execution" },
+          { method: "POST", path: "/api/token-usage", purpose: "record token usage after provider execution" },
+          { method: "GET", path: "/api/token-usage/summary", purpose: "inspect token spend, burn rate, and projected daily spend" },
+          { method: "GET", path: "/api/projects/readiness", purpose: "verify project transfer readiness" }
+        ],
+        aiKeyReferences: [
+          {
+            provider: "openai",
+            secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+            displayName: "Booking Assistant OpenAI key",
+            allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
+            defaultModel: "gpt-5.4-mini",
+            monthlyBudgetUsd: 250,
+            status: "active"
+          }
+        ],
+        readiness: {
+          manifestImported: true,
+          aiKeyConfigured: true,
+          tokenPolicyConfigured: true,
+          tokenTrackingRequired: true,
+          feedbackCaptureRequired: true,
+          rawMessageStorage: "disabled_by_default"
+        },
+        tokenPolicy: {
+          configured: true,
+          preferredModel: "gpt-5.4",
+          fallbackModel: "gpt-5.4-mini",
+          dailyBudgetUsd: 20,
+          monthlyBudgetUsd: 250,
+          maxTokensPerRequest: 2000,
+          emergencyMode: false
+        },
+        nextSteps: []
+      }
+    });
+    expect(JSON.stringify(result)).not.toContain("sk-do-not-store");
   });
 
   it("applies central token policy to AI execution decisions before provider execution", async () => {
