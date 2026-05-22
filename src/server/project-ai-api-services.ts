@@ -67,6 +67,8 @@ export const aiUsageAssessmentSchema = z.object({
   recentRequestsInHour: z.number().int().min(0)
 });
 
+export const aiExecutionDecisionSchema = aiUsageAssessmentSchema;
+
 export const bulkProjectImportSchema = z.object({
   manifests: z.array(
     z.object({
@@ -106,6 +108,64 @@ export async function handleAiUsageAssessment(_runtime: FounderOsRuntime, payloa
   return {
     status: "assessed" as const,
     assessment: assessAiUsageRequest(aiUsageAssessmentSchema.parse(payload))
+  };
+}
+
+export async function handleAiExecutionDecision(runtime: FounderOsRuntime, payload: unknown) {
+  const input = aiExecutionDecisionSchema.parse(payload);
+  const assessment = assessAiUsageRequest(input);
+
+  if (!assessment.allowed) {
+    return {
+      status: "decided" as const,
+      decision: {
+        allowed: false,
+        action: assessment.recommendedAction,
+        provider: undefined,
+        model: undefined,
+        secretRef: undefined,
+        monthlyBudgetUsd: undefined,
+        reasons: assessment.reasons,
+        userFacingResponse: assessment.userFacingResponse
+      }
+    };
+  }
+
+  const requestedModel =
+    assessment.modelDirective === "fallback" ? undefined : input.requestedModel;
+  const control = resolveProjectAiControl(runtime.projectOnboarding, {
+    projectKey: input.projectKey,
+    requestedModel
+  });
+
+  if (!control.allowed) {
+    return {
+      status: "decided" as const,
+      decision: {
+        allowed: false,
+        action: "block" as const,
+        provider: undefined,
+        model: undefined,
+        secretRef: undefined,
+        monthlyBudgetUsd: undefined,
+        reasons: control.reasons,
+        userFacingResponse: assessment.userFacingResponse
+      }
+    };
+  }
+
+  return {
+    status: "decided" as const,
+    decision: {
+      allowed: true,
+      action: assessment.recommendedAction,
+      provider: control.provider,
+      model: control.model,
+      secretRef: control.secretRef,
+      monthlyBudgetUsd: control.monthlyBudgetUsd,
+      reasons: [...assessment.reasons, ...control.reasons],
+      userFacingResponse: assessment.userFacingResponse
+    }
   };
 }
 

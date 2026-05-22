@@ -154,3 +154,12 @@ Adds the first AI usage abuse-protection preflight:
 - The assessment detects outside-product-scope requests, generic AI proxy patterns, prompt-injection/system-extraction attempts, bulk automation, and high-volume low-intent usage.
 - Responses return enforcement guidance: allow, downgrade, rate-limit, block, or temporary suspend.
 - The API returns product-safe user-facing copy without exposing internal scoring or thresholds.
+
+### `codex/ai-execution-policy-resolution`
+
+Adds a single AI execution preflight for connected products:
+
+- `/api/ai-execution/decide` combines AI key/model resolution with AI usage abuse assessment.
+- Downgrade decisions resolve to the configured fallback/default model before product execution.
+- Blocked abuse requests do not expose provider, model, or secret references.
+- Missing AI key references fail closed with `ai_key_not_configured`.

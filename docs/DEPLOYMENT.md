@@ -48,6 +48,7 @@ Set `FOUNDER_OS_FORCE_MEMORY=true` only for local development or smoke tests. Do
 - Store AI provider keys in the deployment platform or a secret manager. Founder OS should store only `secretRef` values such as `vercel:PROJECT_OPENAI_API_KEY`.
 - Connected products should ask `/api/ai-control/resolve` which provider, model, secret reference, and budget metadata to use before high-cost AI work.
 - Connected assistants should call `/api/ai-usage/assess` before expensive or open-ended AI work. Respect `recommendedAction` and `modelDirective` to downgrade, rate-limit, block, or temporarily suspend abusive usage.
+- Prefer `/api/ai-execution/decide` for connected products that want one preflight call combining AI key resolution, model choice, budget metadata, and abuse enforcement.
 
 ## Project Onboarding
 
@@ -61,3 +62,4 @@ Current recommended local flow:
 4. Register each project's AI key reference with `/api/ai-keys`.
 5. Configure the connected project to call `/api/ai-control/resolve` before high-cost AI work.
 6. Configure connected assistants to call `/api/ai-usage/assess` before expensive or open-ended AI work.
+7. For new integrations, use `/api/ai-execution/decide` as the single AI preflight before model execution.

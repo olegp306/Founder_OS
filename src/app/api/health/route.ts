@@ -20,7 +20,8 @@ export async function GET() {
       "/api/projects/bulk-import",
       "/api/ai-keys",
       "/api/ai-control/resolve",
-      "/api/ai-usage/assess"
+      "/api/ai-usage/assess",
+      "/api/ai-execution/decide"
     ],
     privateMvpReadiness: {
       projectOnboarding: true,
@@ -28,6 +29,7 @@ export async function GET() {
       aiKeyReferences: true,
       aiControlResolution: true,
       aiUsageAbuseProtection: true,
+      aiExecutionDecision: true,
       plaintextSecretsStored: false
     },
     environment: parseFounderOsEnv({
