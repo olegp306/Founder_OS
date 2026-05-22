@@ -46,6 +46,8 @@ Set `FOUNDER_OS_ENABLE_DASHBOARD_DEMO=true` only when you need the local AI cont
 
 Project onboarding services use `runtime.repositories.projects`. In Prisma mode, project manifests, repository metadata, project controls, and AI key references are persisted through Prisma delegates; in memory mode, the same service contract uses the local in-process store.
 
+When `DATABASE_URL` is set and `FOUNDER_OS_FORCE_MEMORY` is not `true`, the runtime uses Prisma repositories. Token usage and token policy APIs still accept project and assistant keys; the Prisma repository layer resolves those keys to database ids before writing.
+
 ## Production Guardrails
 
 - Keep campaign sending in dry-run until Telegram bot tokens and approval UI are configured.

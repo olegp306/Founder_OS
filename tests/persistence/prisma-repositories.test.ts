@@ -65,6 +65,126 @@ describe("Prisma repository set", () => {
     });
   });
 
+  it("resolves project and assistant keys when recording token usage with Prisma", async () => {
+    const prisma = {
+      project: {
+        findUnique: vi.fn().mockResolvedValue({ id: "project_1", key: "booking_photoshop_studio" })
+      },
+      assistant: {
+        findFirst: vi.fn().mockResolvedValue({ id: "assistant_1", key: "booking_assistant" })
+      },
+      tokenUsageEvent: {
+        create: vi.fn().mockResolvedValue({
+          id: "usage_1",
+          project: { key: "booking_photoshop_studio" },
+          assistant: { key: "booking_assistant" },
+          environment: "PRODUCTION",
+          model: "gpt-5.4",
+          inputTokens: 1400,
+          outputTokens: 620,
+          totalTokens: 2020,
+          costUsd: "0.0124",
+          occurredAt: new Date("2026-05-22T19:45:00.000Z")
+        })
+      }
+    };
+    const repositories = new PrismaRepositorySet(prisma);
+
+    await expect(
+      repositories.tokenUsage.record({
+        projectKey: "booking_photoshop_studio",
+        assistantKey: "booking_assistant",
+        environment: "production",
+        model: "gpt-5.4",
+        inputTokens: 1400,
+        outputTokens: 620,
+        costUsd: 0.0124,
+        occurredAt: "2026-05-22T19:45:00.000Z"
+      })
+    ).resolves.toMatchObject({
+      projectKey: "booking_photoshop_studio",
+      assistantKey: "booking_assistant",
+      totalTokens: 2020
+    });
+
+    expect(prisma.project.findUnique).toHaveBeenCalledWith({
+      where: { key: "booking_photoshop_studio" },
+      select: { id: true, key: true }
+    });
+    expect(prisma.assistant.findFirst).toHaveBeenCalledWith({
+      where: {
+        projectId: "project_1",
+        key: "booking_assistant"
+      },
+      select: { id: true, key: true }
+    });
+    expect(prisma.tokenUsageEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        projectId: "project_1",
+        assistantId: "assistant_1",
+        totalTokens: 2020
+      }),
+      include: {
+        project: { select: { key: true } },
+        assistant: { select: { key: true } }
+      }
+    });
+  });
+
+  it("resolves project and assistant keys when saving token policies with Prisma", async () => {
+    const prisma = {
+      project: {
+        findUnique: vi.fn().mockResolvedValue({ id: "project_1", key: "booking_photoshop_studio" })
+      },
+      assistant: {
+        findFirst: vi.fn().mockResolvedValue({ id: "assistant_1", key: "booking_assistant" })
+      },
+      tokenPolicy: {
+        create: vi.fn().mockResolvedValue({
+          project: { key: "booking_photoshop_studio" },
+          assistant: { key: "booking_assistant" },
+          preferredModel: "gpt-5.4",
+          fallbackModel: "gpt-5.4-mini",
+          dailyBudgetUsd: "25",
+          monthlyBudgetUsd: "500",
+          maxTokensPerRequest: 8000,
+          emergencyMode: true
+        }),
+        findFirst: vi.fn()
+      }
+    };
+    const repositories = new PrismaRepositorySet(prisma);
+
+    await expect(
+      repositories.tokenPolicies.save({
+        projectKey: "booking_photoshop_studio",
+        assistantKey: "booking_assistant",
+        preferredModel: "gpt-5.4",
+        fallbackModel: "gpt-5.4-mini",
+        dailyBudgetUsd: 25,
+        monthlyBudgetUsd: 500,
+        maxTokensPerRequest: 8000,
+        emergencyMode: true
+      })
+    ).resolves.toMatchObject({
+      projectKey: "booking_photoshop_studio",
+      assistantKey: "booking_assistant",
+      emergencyMode: true
+    });
+
+    expect(prisma.tokenPolicy.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        projectId: "project_1",
+        assistantId: "assistant_1",
+        emergencyAction: "DOWNGRADE_MODEL"
+      }),
+      include: {
+        project: { select: { key: true } },
+        assistant: { select: { key: true } }
+      }
+    });
+  });
+
   it("persists project onboarding through Prisma delegates", async () => {
     const project = {
       id: "project_1",

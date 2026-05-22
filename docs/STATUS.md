@@ -311,3 +311,11 @@ Adds database-backed project onboarding persistence:
 - Extends Prisma schema with project category/workspace fields, repository onboarding metadata, project controls, and AI key references.
 - Prisma project repositories now upsert projects, repository metadata, controls, and AI key references through Prisma delegates instead of the temporary in-process bridge.
 - Project onboarding reads now load projects, repositories, controls, and key references from Prisma-shaped delegates for production persistence.
+
+### `codex/runtime-prisma-repositories`
+
+Enables Prisma repositories in the runtime:
+
+- `createFounderOsRuntime` now uses `PrismaRepositorySet` when `DATABASE_URL` is configured and memory mode is not forced.
+- Runtime construction accepts an injectable Prisma-like client for tests while production uses the shared Prisma client singleton.
+- Prisma token usage and token policy repositories now resolve project and assistant keys to database ids, so existing API payloads work in Prisma mode.
