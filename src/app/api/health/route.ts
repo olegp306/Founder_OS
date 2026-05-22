@@ -9,6 +9,7 @@ export async function GET() {
     status: "ok",
     persistenceMode: runtime.persistenceMode,
     repositoryKind: runtime.repositories.kind,
+    repositoryBackedRoutes: ["/api/events", "/api/token-policy", "/api/token-usage"],
     environment: parseFounderOsEnv({
       DATABASE_URL: process.env.DATABASE_URL,
       FOUNDER_OS_ADMIN_EMAIL: process.env.FOUNDER_OS_ADMIN_EMAIL,

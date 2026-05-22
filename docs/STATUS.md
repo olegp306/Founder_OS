@@ -92,3 +92,13 @@ Adds repository contracts that let API routes migrate away from direct in-memory
 - `/api/health` reports `repositoryKind`.
 
 The current API routes still use existing domain stores directly; follow-up branches can migrate routes one capability at a time to the repository set.
+
+### `codex/api-repository-migration`
+
+Migrates the first API routes to the repository set:
+
+- `/api/events`
+- `/api/token-policy`
+- `/api/token-usage`
+
+The route handlers now delegate to `src/server/api-services.ts`, which validates payloads and writes through `runtime.repositories`. `/api/health` reports `repositoryBackedRoutes`.

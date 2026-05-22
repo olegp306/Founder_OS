@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ZodError } from "zod";
-import { ingestStructuredEvent } from "@/domain/events/event-ingestion";
+import { handleStructuredEventIngestion } from "@/server/api-services";
 import { getFounderOsRuntime } from "@/server/founder-os-runtime";
 
 export async function POST(request: NextRequest) {
@@ -8,21 +8,7 @@ export async function POST(request: NextRequest) {
   const payload = await request.json();
 
   try {
-    const result = await ingestStructuredEvent({
-      events: runtime.events,
-      profiles: runtime.profiles,
-      payload
-    });
-
-    return NextResponse.json({
-      status: result.status,
-      event: {
-        source: result.event.source,
-        idempotencyKey: result.event.idempotencyKey,
-        name: result.event.event,
-        storedAt: result.event.storedAt
-      }
-    });
+    return NextResponse.json(await handleStructuredEventIngestion(runtime, payload));
   } catch (error) {
     if (error instanceof ZodError) {
       return NextResponse.json(
