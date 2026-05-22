@@ -303,3 +303,11 @@ Routes project onboarding through the repository set:
 - Memory repositories share the runtime project onboarding store for backwards-compatible local behavior.
 - Project onboarding, AI key registration, readiness, project list, connection bundle, bulk import, AI setup, and AI execution control now call `runtime.repositories.projects`.
 - Prisma repository set includes a temporary project onboarding bridge until dedicated project onboarding tables and adapters are added.
+
+### `codex/prisma-project-onboarding`
+
+Adds database-backed project onboarding persistence:
+
+- Extends Prisma schema with project category/workspace fields, repository onboarding metadata, project controls, and AI key references.
+- Prisma project repositories now upsert projects, repository metadata, controls, and AI key references through Prisma delegates instead of the temporary in-process bridge.
+- Project onboarding reads now load projects, repositories, controls, and key references from Prisma-shaped delegates for production persistence.

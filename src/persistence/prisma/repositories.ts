@@ -1,6 +1,5 @@
 import type { StructuredEvent } from "@/domain/events/event-ingestion";
 import {
-  InMemoryProjectOnboardingStore,
   type AiKeyReference,
   type OnboardedProject,
   type OnboardedRepository,
@@ -16,6 +15,23 @@ import {
 } from "@/persistence/prisma/mappers";
 
 type PrismaLike = {
+  project?: {
+    upsert(input: unknown): Promise<unknown>;
+    findUnique(input: unknown): Promise<unknown>;
+    findMany(input: unknown): Promise<unknown[]>;
+  };
+  repository?: {
+    upsert(input: unknown): Promise<unknown>;
+    findFirst(input: unknown): Promise<unknown>;
+  };
+  projectControl?: {
+    upsert(input: unknown): Promise<unknown>;
+    findFirst(input: unknown): Promise<unknown>;
+  };
+  aiKeyReference?: {
+    upsert(input: unknown): Promise<unknown>;
+    findMany(input: unknown): Promise<unknown[]>;
+  };
   event?: {
     findUnique(input: unknown): Promise<unknown>;
     create(input: unknown): Promise<unknown>;
@@ -36,14 +52,11 @@ export class PrismaRepositorySet implements RepositorySet {
   readonly tokenPolicies: PrismaTokenPolicyRepository;
   readonly projects: PrismaProjectOnboardingRepository;
 
-  constructor(
-    private readonly prisma: PrismaLike,
-    private readonly projectStore = new InMemoryProjectOnboardingStore()
-  ) {
+  constructor(private readonly prisma: PrismaLike) {
     this.events = new PrismaEventRepository(prisma);
     this.tokenUsage = new PrismaTokenUsageRepository(prisma);
     this.tokenPolicies = new PrismaTokenPolicyRepository(prisma);
-    this.projects = new PrismaProjectOnboardingRepository(this.projectStore);
+    this.projects = new PrismaProjectOnboardingRepository(prisma);
   }
 }
 
@@ -151,37 +164,273 @@ class PrismaTokenPolicyRepository {
 }
 
 class PrismaProjectOnboardingRepository {
-  constructor(private readonly store: InMemoryProjectOnboardingStore) {}
+  constructor(private readonly prisma: PrismaLike) {}
 
   async saveProject(input: {
     project: OnboardedProject;
     repository?: OnboardedRepository;
     controls: ProjectControls;
   }) {
-    return this.store.saveProject(input);
+    if (!this.prisma.project || !this.prisma.projectControl) {
+      throw new Error("Prisma project onboarding delegates are unavailable");
+    }
+
+    const project = await this.prisma.project.upsert({
+      where: { key: input.project.key },
+      update: {
+        name: input.project.name,
+        owner: input.project.owner,
+        category: input.project.category,
+        workspace: input.project.workspace,
+        status: mapProjectStatusToPrisma(input.project.status)
+      },
+      create: {
+        key: input.project.key,
+        name: input.project.name,
+        owner: input.project.owner,
+        category: input.project.category,
+        workspace: input.project.workspace,
+        runtime: "founder_os_connected",
+        status: mapProjectStatusToPrisma(input.project.status)
+      }
+    }) as { id: string };
+
+    if (input.repository) {
+      if (!this.prisma.repository) {
+        throw new Error("Prisma repository delegate is unavailable");
+      }
+
+      await this.prisma.repository.upsert({
+        where: {
+          projectId_name: {
+            projectId: project.id,
+            name: input.repository.name
+          }
+        },
+        update: {
+          provider: input.repository.provider,
+          localPath: input.repository.localPath
+        },
+        create: {
+          projectId: project.id,
+          provider: input.repository.provider,
+          name: input.repository.name,
+          localPath: input.repository.localPath
+        }
+      });
+    }
+
+    await this.prisma.projectControl.upsert({
+      where: { projectId: project.id },
+      update: {
+        assistantEnabled: input.controls.assistantEnabled,
+        tokenTrackingRequired: input.controls.tokenTrackingRequired,
+        feedbackCaptureRequired: input.controls.feedbackCaptureRequired,
+        rawMessageStorage: input.controls.rawMessageStorage,
+        consentRequiredForMarketing: input.controls.consentRequiredForMarketing
+      },
+      create: {
+        projectId: project.id,
+        assistantEnabled: input.controls.assistantEnabled,
+        tokenTrackingRequired: input.controls.tokenTrackingRequired,
+        feedbackCaptureRequired: input.controls.feedbackCaptureRequired,
+        rawMessageStorage: input.controls.rawMessageStorage,
+        consentRequiredForMarketing: input.controls.consentRequiredForMarketing
+      }
+    });
+
+    return input;
   }
 
   async saveAiKey(key: AiKeyReference) {
-    return this.store.saveAiKey(key);
+    if (!this.prisma.project || !this.prisma.aiKeyReference) {
+      throw new Error("Prisma AI key reference delegates are unavailable");
+    }
+
+    const project = await this.prisma.project.findUnique({
+      where: { key: key.projectKey },
+      select: { id: true }
+    }) as { id: string } | undefined;
+
+    if (!project) {
+      throw new Error(`Project ${key.projectKey} must be onboarded before registering AI keys`);
+    }
+
+    await this.prisma.aiKeyReference.upsert({
+      where: {
+        projectId_secretRef: {
+          projectId: project.id,
+          secretRef: key.secretRef
+        }
+      },
+      update: {
+        provider: key.provider,
+        displayName: key.displayName,
+        allowedModels: key.allowedModels,
+        defaultModel: key.defaultModel,
+        monthlyBudgetUsd: key.monthlyBudgetUsd,
+        status: key.status
+      },
+      create: {
+        projectId: project.id,
+        provider: key.provider,
+        secretRef: key.secretRef,
+        displayName: key.displayName,
+        allowedModels: key.allowedModels,
+        defaultModel: key.defaultModel,
+        monthlyBudgetUsd: key.monthlyBudgetUsd,
+        status: key.status
+      }
+    });
+
+    return key;
   }
 
   async aiKeysForProject(projectKey: string) {
-    return this.store.aiKeysForProject(projectKey);
+    if (!this.prisma.aiKeyReference) {
+      throw new Error("Prisma AI key reference delegate is unavailable");
+    }
+
+    const rows = await this.prisma.aiKeyReference.findMany({
+      where: { project: { key: projectKey } },
+      orderBy: { displayName: "asc" }
+    });
+
+    return rows.map((row) => mapPrismaAiKey(projectKey, row));
   }
 
   async allProjects() {
-    return this.store.allProjects();
+    if (!this.prisma.project) {
+      throw new Error("Prisma project delegate is unavailable");
+    }
+
+    const rows = await this.prisma.project.findMany({
+      orderBy: { key: "asc" }
+    });
+
+    return rows.map(mapPrismaProject);
   }
 
   async project(projectKey: string) {
-    return this.store.project(projectKey);
+    if (!this.prisma.project) {
+      throw new Error("Prisma project delegate is unavailable");
+    }
+
+    const row = await this.prisma.project.findUnique({
+      where: { key: projectKey }
+    });
+
+    return row ? mapPrismaProject(row) : undefined;
   }
 
   async repository(projectKey: string) {
-    return this.store.repository(projectKey);
+    if (!this.prisma.repository) {
+      throw new Error("Prisma repository delegate is unavailable");
+    }
+
+    const row = await this.prisma.repository.findFirst({
+      where: { project: { key: projectKey } },
+      orderBy: { createdAt: "asc" }
+    });
+
+    return row ? mapPrismaRepository(projectKey, row) : undefined;
   }
 
   async projectControls(projectKey: string) {
-    return this.store.projectControls(projectKey);
+    if (!this.prisma.projectControl) {
+      throw new Error("Prisma projectControl delegate is unavailable");
+    }
+
+    const row = await this.prisma.projectControl.findFirst({
+      where: { project: { key: projectKey } }
+    });
+
+    return row ? mapPrismaProjectControls(projectKey, row) : undefined;
   }
+}
+
+function mapProjectStatusToPrisma(status: string) {
+  const normalized = status.toUpperCase();
+  return normalized === "PAUSED" || normalized === "ARCHIVED" ? normalized : "ACTIVE";
+}
+
+function mapPrismaStatus(status: unknown) {
+  return String(status ?? "ACTIVE").toLowerCase();
+}
+
+function mapPrismaProject(row: unknown): OnboardedProject {
+  const project = row as {
+    key: string;
+    name: string;
+    status?: string;
+    owner: string;
+    category?: string | null;
+    workspace?: string | null;
+  };
+
+  return {
+    key: project.key,
+    name: project.name,
+    status: mapPrismaStatus(project.status),
+    owner: project.owner,
+    category: project.category ?? undefined,
+    workspace: project.workspace ?? undefined
+  };
+}
+
+function mapPrismaRepository(projectKey: string, row: unknown): OnboardedRepository {
+  const repository = row as {
+    provider: string;
+    name: string;
+    localPath?: string | null;
+  };
+
+  return {
+    projectKey,
+    provider: repository.provider,
+    name: repository.name,
+    localPath: repository.localPath ?? undefined
+  };
+}
+
+function mapPrismaProjectControls(projectKey: string, row: unknown): ProjectControls {
+  const controls = row as {
+    assistantEnabled: boolean;
+    tokenTrackingRequired: boolean;
+    feedbackCaptureRequired: boolean;
+    rawMessageStorage: string;
+    consentRequiredForMarketing: boolean;
+  };
+
+  return {
+    projectKey,
+    assistantEnabled: controls.assistantEnabled,
+    tokenTrackingRequired: controls.tokenTrackingRequired,
+    feedbackCaptureRequired: controls.feedbackCaptureRequired,
+    rawMessageStorage: controls.rawMessageStorage,
+    consentRequiredForMarketing: controls.consentRequiredForMarketing
+  };
+}
+
+function mapPrismaAiKey(projectKey: string, row: unknown): AiKeyReference {
+  const key = row as {
+    provider: AiKeyReference["provider"];
+    secretRef: string;
+    displayName: string;
+    allowedModels: unknown;
+    defaultModel: string;
+    monthlyBudgetUsd: unknown;
+    status: AiKeyReference["status"];
+  };
+
+  return {
+    projectKey,
+    provider: key.provider,
+    secretRef: key.secretRef,
+    displayName: key.displayName,
+    allowedModels: Array.isArray(key.allowedModels) ? key.allowedModels.map(String) : [],
+    defaultModel: key.defaultModel,
+    monthlyBudgetUsd: Number(key.monthlyBudgetUsd),
+    status: key.status
+  };
 }
