@@ -3,6 +3,8 @@ import { InMemoryEventStore } from "@/domain/events/event-ingestion";
 import { InMemoryProfileStore } from "@/domain/profiles/profile-builder";
 import { InMemoryProfileOperationsStore } from "@/domain/profiles/profile-operations";
 import { InMemoryTokenControlStore } from "@/domain/token-control/token-control-service";
+import { MemoryRepositorySet } from "@/persistence/memory/repositories";
+import type { RepositorySet } from "@/persistence/repositories";
 
 const globalForFounderOs = globalThis as typeof globalThis & {
   founderOsRuntime?: FounderOsRuntime;
@@ -17,6 +19,7 @@ export type FounderOsRuntime = {
   profileOps: InMemoryProfileOperationsStore;
   tokens: InMemoryTokenControlStore;
   campaigns: InMemoryCampaignStore;
+  repositories: RepositorySet;
 };
 
 export function selectPersistenceMode(env: {
@@ -34,13 +37,17 @@ export function createFounderOsRuntime(env: {
   DATABASE_URL?: string;
   FOUNDER_OS_FORCE_MEMORY?: string;
 }): FounderOsRuntime {
+  const events = new InMemoryEventStore();
+  const tokens = new InMemoryTokenControlStore();
+
   return {
     persistenceMode: selectPersistenceMode(env),
-    events: new InMemoryEventStore(),
+    events,
     profiles: new InMemoryProfileStore(),
     profileOps: new InMemoryProfileOperationsStore(),
-    tokens: new InMemoryTokenControlStore(),
-    campaigns: new InMemoryCampaignStore()
+    tokens,
+    campaigns: new InMemoryCampaignStore(),
+    repositories: new MemoryRepositorySet(events, tokens)
   };
 }
 

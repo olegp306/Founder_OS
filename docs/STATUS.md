@@ -81,3 +81,14 @@ Adds the first persistence foundation after the MVP baseline:
 - `/api/health` now reports `persistenceMode`.
 
 This branch is DB-ready but does not yet run migrations against a live production database.
+
+### `codex/repository-adapters`
+
+Adds repository contracts that let API routes migrate away from direct in-memory stores:
+
+- Shared repository interfaces for structured events, token usage, and token policies.
+- Memory repository set for local/dev and smoke tests.
+- Prisma repository set for database-backed writes and lookups.
+- `/api/health` reports `repositoryKind`.
+
+The current API routes still use existing domain stores directly; follow-up branches can migrate routes one capability at a time to the repository set.

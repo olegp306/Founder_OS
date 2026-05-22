@@ -37,6 +37,8 @@ Founder OS selects persistence mode at runtime:
 
 Set `FOUNDER_OS_FORCE_MEMORY=true` only for local development or smoke tests. Do not use forced memory mode in production.
 
+`/api/health` reports both `persistenceMode` and `repositoryKind` so deploy checks can confirm whether the app is running with memory repositories or database-backed repositories.
+
 ## Production Guardrails
 
 - Keep campaign sending in dry-run until Telegram bot tokens and approval UI are configured.
