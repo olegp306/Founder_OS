@@ -69,6 +69,7 @@ h2 {
 .metric-card,
 .work-surface,
 .readiness-table,
+.projects-table,
 .transfer-flow,
 .spend-table,
 .signal-table {
@@ -138,6 +139,7 @@ h2 {
 
 .surface-column,
 .readiness-table,
+.projects-table,
 .transfer-flow,
 .spend-table,
 .signal-table {
@@ -231,6 +233,42 @@ h2 {
 .readiness-row code {
   grid-column: 2;
   color: #616b76;
+  overflow-wrap: anywhere;
+}
+
+.projects-table {
+  margin-top: 22px;
+}
+
+.projects-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.project-row {
+  display: grid;
+  grid-template-columns: 82px minmax(160px, 1fr) minmax(160px, 1fr) 80px;
+  gap: 12px;
+  align-items: center;
+  min-height: 54px;
+  padding: 13px;
+  border: 1px solid #e5e9ee;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.project-row strong {
+  color: #2f6f66;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.project-row[data-ready="false"] strong {
+  color: #a3412f;
+}
+
+.project-row code {
+  color: #234fc7;
   overflow-wrap: anywhere;
 }
 
@@ -392,6 +430,7 @@ h3 {
   .spend-breakdowns,
   .spend-row,
   .transfer-grid,
+  .project-row,
   .readiness-grid,
   .readiness-row {
     grid-template-columns: 1fr;

@@ -112,6 +112,31 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section className="projects-table" aria-label="Connected projects">
+        <div className="section-heading">
+          <h2>Connected Projects</h2>
+          <span>{dashboard.connectedProjects.length}</span>
+        </div>
+        <div className="projects-grid">
+          {dashboard.connectedProjects.map((project) => (
+            <div className="project-row" data-ready={project.ready} key={project.projectKey}>
+              <strong>{project.ready ? "ready" : "setup"}</strong>
+              <span>{project.name}</span>
+              <code>{project.projectKey}</code>
+              <span>{project.readiness}</span>
+            </div>
+          ))}
+          {dashboard.connectedProjects.length === 0 ? (
+            <div className="project-row empty-row" data-ready="false">
+              <strong>none</strong>
+              <span>No imported projects yet</span>
+              <code>projects:transfer</code>
+              <span>0/6</span>
+            </div>
+          ) : null}
+        </div>
+      </section>
+
       <section className="transfer-flow" aria-label="Project transfer flow">
         <div className="section-heading">
           <h2>Transfer Flow</h2>

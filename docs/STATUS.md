@@ -286,3 +286,11 @@ Surfaces the project transfer flow in the internal dashboard:
 - The dashboard now shows the local `projects:transfer` command for the configured project and assistant.
 - Required environment variable names, connected route paths, and connection-bundle next steps are visible without exposing `secretRef` values.
 - Demo dashboard data now reaches the ready transfer state, so local previews show the full move-project flow.
+
+### `codex/project-list-dashboard`
+
+Adds project listing for multi-project transfer visibility:
+
+- `/api/projects` lists imported projects with safe repository metadata, readiness counts, and missing setup labels.
+- The internal dashboard now shows Connected Projects so multiple personal projects can be tracked beyond the default demo project.
+- Project list output excludes AI key `secretRef` values while still showing readiness state.

@@ -10,6 +10,7 @@ import {
   handleAiExecutionSummary,
   handleAiKeyReferenceRegistration,
   handleProjectConnectionBundle,
+  handleProjectList,
   handleProjectManifestOnboarding,
   handleProjectReadinessList
 } from "@/server/project-ai-api-services";
@@ -67,6 +68,15 @@ export type DashboardTransferFlow = {
   nextSteps: string[];
 };
 
+export type DashboardConnectedProject = {
+  projectKey: string;
+  name: string;
+  status: string;
+  ready: boolean;
+  readiness: string;
+  missing: string[];
+};
+
 export type AiControlDashboardViewModel = {
   projectKey?: string;
   metrics: DashboardMetric[];
@@ -74,6 +84,7 @@ export type AiControlDashboardViewModel = {
   projectReadiness: DashboardProjectReadiness;
   tokenSpend: DashboardTokenSpend;
   transferFlow: DashboardTransferFlow;
+  connectedProjects: DashboardConnectedProject[];
 };
 
 const demoSeedOperations = new WeakMap<
@@ -87,7 +98,14 @@ export async function buildAiControlDashboardViewModel(
 ): Promise<AiControlDashboardViewModel> {
   const tokenWindowHours = input.tokenWindowHours ?? 1;
   const assistantKey = input.assistantKey ?? "unknown";
-  const [{ summary }, { decisions }, readinessResult, tokenSpendResult, transferResult] = await Promise.all([
+  const [
+    { summary },
+    { decisions },
+    readinessResult,
+    tokenSpendResult,
+    transferResult,
+    projectListResult
+  ] = await Promise.all([
     handleAiExecutionSummary(runtime, input),
     handleAiExecutionDecisionAuditList(runtime, {
       projectKey: input.projectKey,
@@ -129,7 +147,8 @@ export async function buildAiControlDashboardViewModel(
             routes: [],
             nextSteps: ["Select project and assistant keys"]
           }
-        })
+        }),
+    handleProjectList(runtime, { assistantKey: input.assistantKey })
   ]);
   const total = summary.totalDecisions;
   const downgradeCount = Number(summary.actionCounts.downgrade ?? 0);
@@ -173,7 +192,15 @@ export async function buildAiControlDashboardViewModel(
       readinessResult.readiness[0]
     ),
     tokenSpend: buildDashboardTokenSpend(tokenSpendResult.summary),
-    transferFlow: buildDashboardTransferFlow(transferResult.bundle)
+    transferFlow: buildDashboardTransferFlow(transferResult.bundle),
+    connectedProjects: projectListResult.projects.map((project) => ({
+      projectKey: project.projectKey,
+      name: project.name,
+      status: project.status,
+      ready: project.ready,
+      readiness: `${project.readyCount}/${project.totalCount}`,
+      missing: project.missing
+    }))
   };
 }
 

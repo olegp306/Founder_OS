@@ -104,6 +104,10 @@ export const projectConnectionBundleSchema = z.object({
   assistantKey: z.string().min(2)
 });
 
+export const projectListSchema = z.object({
+  assistantKey: z.string().min(2).optional()
+});
+
 export const projectAiSetupSchema = z.object({
   projectKey: z.string().min(2),
   assistantKey: z.string().min(2),
@@ -438,6 +442,59 @@ export async function handleProjectReadinessList(
   };
 }
 
+export async function handleProjectList(runtime: FounderOsRuntime, payload: unknown) {
+  const input = projectListSchema.parse(payload ?? {});
+  const projects = runtime.projectOnboarding.allProjects();
+  const { readiness } = projects.length === 0
+    ? { readiness: [] }
+    : await handleProjectReadinessList(runtime, {
+        projectKeys: projects.map((project) => project.key),
+        assistantKey: input.assistantKey
+      });
+  const readinessByProject = new Map(
+    readiness.map((item) => [item.projectKey, item])
+  );
+
+  return {
+    status: "listed" as const,
+    projects: projects.map((project) => {
+      const projectReadiness = readinessByProject.get(project.key);
+      const missing = readinessMissingLabels(projectReadiness);
+
+      return {
+        projectKey: project.key,
+        name: project.name,
+        status: project.status,
+        owner: project.owner,
+        category: project.category,
+        workspace: project.workspace,
+        repository: summarizeRepository(runtime.projectOnboarding.repository(project.key)),
+        readyCount: 6 - missing.length,
+        totalCount: 6,
+        ready: missing.length === 0,
+        missing
+      };
+    })
+  };
+}
+
+function summarizeRepository(repository:
+  | {
+      provider: string;
+      name: string;
+      localPath?: string;
+    }
+  | undefined
+) {
+  return repository
+    ? {
+        provider: repository.provider,
+        name: repository.name,
+        localPath: repository.localPath
+      }
+    : undefined;
+}
+
 export async function handleProjectConnectionBundle(
   runtime: FounderOsRuntime,
   payload: unknown
@@ -545,6 +602,27 @@ export async function handleProjectConnectionBundle(
       nextSteps
     }
   };
+}
+
+function readinessMissingLabels(readiness:
+  | {
+      manifestImported: boolean;
+      aiKeyConfigured: boolean;
+      tokenPolicyConfigured: boolean;
+      tokenTrackingRequired: boolean;
+      feedbackCaptureRequired: boolean;
+      rawMessageStorage: string;
+    }
+  | undefined
+): string[] {
+  return [
+    ...(readiness?.manifestImported ? [] : ["Manifest"]),
+    ...(readiness?.aiKeyConfigured ? [] : ["AI key"]),
+    ...(readiness?.tokenPolicyConfigured ? [] : ["Token policy"]),
+    ...(readiness?.tokenTrackingRequired ? [] : ["Token tracking"]),
+    ...(readiness?.feedbackCaptureRequired ? [] : ["Feedback capture"]),
+    ...(readiness?.rawMessageStorage === "disabled_by_default" ? [] : ["Raw messages"])
+  ];
 }
 
 export async function handleProjectAiSetup(

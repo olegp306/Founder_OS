@@ -89,8 +89,16 @@ export class InMemoryProjectOnboardingStore {
     return this.aiKeys.get(projectKey) ?? [];
   }
 
+  allProjects(): OnboardedProject[] {
+    return [...this.projects.values()].sort((left, right) => left.key.localeCompare(right.key));
+  }
+
   project(projectKey: string): OnboardedProject | undefined {
     return this.projects.get(projectKey);
+  }
+
+  repository(projectKey: string): OnboardedRepository | undefined {
+    return this.repositories.get(projectKey);
   }
 
   projectControls(projectKey: string): ProjectControls | undefined {
