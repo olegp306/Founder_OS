@@ -65,6 +65,34 @@ Products should improve through this loop:
 
 Do not treat user feedback as passive notes. Treat it as one of the main engines of product evolution.
 
+## User Intelligence And Attribution
+
+Founder OS should build a useful, product-relevant understanding of users across the ecosystem.
+
+The goal is to know users well enough to improve service quality, personalize product experience, reduce risk, increase retention, and make relevant offers. Projects should capture the full useful context that is appropriate for the product relationship, including acquisition source, product activity, commercial behavior, support history, assistant interactions, risk signals, and value signals.
+
+Examples of useful user intelligence:
+
+- How the user arrived: link, campaign, referrer, channel, bot, product, landing page, timestamp, and first touch.
+- What the user did: bookings, payments, cancellations, repeated workflows, failed attempts, feature usage, and account activity.
+- Commercial context: booking count, payment amounts, plan, lifetime value, conversion stage, purchase intent, and upsell fit.
+- Experience context: support issues, objections, confusion, satisfaction signals, feature requests, and churn risks.
+- Assistant context: summaries, tags, needs, preferences, and product-relevant facts extracted from approved assistant interactions.
+
+This is not a public talking point. Do not expose internal user intelligence, scoring, segmentation, risk labels, attribution mechanics, or cross-product analysis to external users.
+
+Use product-appropriate and consent-safe language when asking for identity. Prefer soft phrasing such as:
+
+"How would you like us to call you?"
+
+or:
+
+"How should we address you here?"
+
+Avoid opening with blunt or unnecessary identity demands such as "What is your full legal name?" unless the specific workflow requires it.
+
+Acquisition links and campaigns should be designed so Founder OS can understand where users came from and which funnels work. Preserve useful attribution metadata whenever possible.
+
 ## User Feature Request Lifecycle
 
 User experience and user feature requests are strategic product inputs.
