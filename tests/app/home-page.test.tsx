@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 import HomePage from "@/app/page";
 
 describe("Founder OS home page", () => {
-  it("surfaces the AI execution control dashboard", () => {
-    const html = renderToStaticMarkup(<HomePage />);
+  it("surfaces the AI execution control dashboard", async () => {
+    const html = renderToStaticMarkup(await HomePage());
 
     expect(html).toContain("AI Execution Control");
     expect(html).toContain("Tokens under risk");
@@ -14,5 +14,6 @@ describe("Founder OS home page", () => {
     expect(html).toContain("/api/ai-execution/summary");
     expect(html).toContain("No raw prompts");
     expect(html).toContain("No secret refs");
+    expect(html).toContain("No execution decisions recorded for booking_assistant");
   });
 });

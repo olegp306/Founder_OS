@@ -212,6 +212,11 @@ h2 {
   text-transform: uppercase;
 }
 
+.empty-row {
+  color: #616b76;
+  background: #f8fafb;
+}
+
 @media (max-width: 980px) {
   .shell {
     padding: 28px;

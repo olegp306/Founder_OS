@@ -1,11 +1,6 @@
 import React from "react";
-
-const controlMetrics = [
-  { label: "Execution decisions", value: "68", detail: "latest verified test surface" },
-  { label: "Tokens under risk", value: "4.5k", detail: "estimated from guarded requests" },
-  { label: "Downgrade rate", value: "33%", detail: "fallback model enforcement" },
-  { label: "Blocked requests", value: "1", detail: "prompt extraction prevented" }
-];
+import { buildAiControlDashboardViewModel } from "@/server/dashboard-services";
+import { getFounderOsRuntime } from "@/server/founder-os-runtime";
 
 const routeContracts = [
   ["/api/ai-execution/decide", "Single preflight for provider, model, budget, abuse action"],
@@ -21,13 +16,13 @@ const guardrails = [
   "Fallback model on downgrade"
 ];
 
-const recentSignals = [
-  ["allow", "low", "gpt-5.4", "booking support", "1.2k"],
-  ["downgrade", "medium", "gpt-5.4-mini", "outside product scope", "3.0k"],
-  ["block", "high", "none", "system extraction attempt", "1.5k"]
-];
+const dashboardProjectKey = "booking_assistant";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const dashboard = await buildAiControlDashboardViewModel(getFounderOsRuntime(), {
+    projectKey: dashboardProjectKey
+  });
+
   return (
     <main className="shell">
       <section className="dashboard-header" aria-label="Founder OS status">
@@ -47,7 +42,7 @@ export default function HomePage() {
       </section>
 
       <section className="metric-grid" aria-label="AI execution metrics">
-        {controlMetrics.map((metric) => (
+        {dashboard.metrics.map((metric) => (
           <article className="metric-card" key={metric.label}>
             <span>{metric.label}</span>
             <strong>{metric.value}</strong>
@@ -101,15 +96,24 @@ export default function HomePage() {
             <span>Reason</span>
             <span>Est. tokens</span>
           </div>
-          {recentSignals.map(([action, risk, model, reason, tokens]) => (
-            <div className="table-row" role="row" key={`${action}-${reason}`}>
-              <strong>{action}</strong>
-              <span>{risk}</span>
-              <code>{model}</code>
-              <span>{reason}</span>
-              <span>{tokens}</span>
+          {dashboard.recentSignals.map((signal) => (
+            <div className="table-row" role="row" key={`${signal.action}-${signal.reason}-${signal.estimatedTokens}`}>
+              <strong>{signal.action}</strong>
+              <span>{signal.risk}</span>
+              <code>{signal.model}</code>
+              <span>{signal.reason}</span>
+              <span>{signal.estimatedTokens}</span>
             </div>
           ))}
+          {dashboard.recentSignals.length === 0 ? (
+            <div className="table-row empty-row" role="row">
+              <strong>none</strong>
+              <span>none</span>
+              <code>none</code>
+              <span>No execution decisions recorded for {dashboardProjectKey}</span>
+              <span>0</span>
+            </div>
+          ) : null}
         </div>
       </section>
     </main>

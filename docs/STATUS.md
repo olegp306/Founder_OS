@@ -188,3 +188,11 @@ Adds the first internal dashboard surface:
 - The home page now presents AI Execution Control instead of a static MVP landing status.
 - Dashboard sections show execution metrics, control routes, guardrails, and safe recent execution signals.
 - The UI calls out summary, audit, decide, and AI key reference contracts for connected projects.
+
+### `codex/live-ai-dashboard-data`
+
+Connects the dashboard to runtime data:
+
+- Adds a dashboard service that builds AI control metrics from execution summary and audit data.
+- The home page now reads dashboard metrics and recent signals from the Founder OS runtime instead of hard-coded values.
+- Empty runtime state renders an explicit no-decisions row while keeping route contracts and guardrails visible.
