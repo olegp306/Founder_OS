@@ -1,5 +1,9 @@
 import { z } from "zod";
 import {
+  buildProjectImportReadiness,
+  importProjectManifests
+} from "@/domain/projects/project-bulk-import";
+import {
   onboardProjectManifest,
   registerAiKeyReference,
   resolveProjectAiControl
@@ -51,6 +55,15 @@ export const aiControlResolveSchema = z.object({
   requestedModel: z.string().min(2).optional()
 });
 
+export const bulkProjectImportSchema = z.object({
+  manifests: z.array(
+    z.object({
+      path: z.string().min(1),
+      content: z.string().min(1)
+    })
+  )
+});
+
 export async function handleProjectManifestOnboarding(
   runtime: FounderOsRuntime,
   payload: unknown
@@ -75,4 +88,15 @@ export async function handleProjectAiControlResolve(
     status: "resolved" as const,
     control: resolveProjectAiControl(runtime.projectOnboarding, aiControlResolveSchema.parse(payload))
   };
+}
+
+export async function handleBulkProjectImport(runtime: FounderOsRuntime, payload: unknown) {
+  const input = bulkProjectImportSchema.parse(payload);
+  const report = importProjectManifests(runtime.projectOnboarding, input.manifests);
+  const readiness = buildProjectImportReadiness(
+    runtime.projectOnboarding,
+    report.imported.map((item) => item.projectKey)
+  );
+
+  return { status: "imported" as const, report, readiness };
 }

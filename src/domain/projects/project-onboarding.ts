@@ -88,6 +88,14 @@ export class InMemoryProjectOnboardingStore {
   aiKeysForProject(projectKey: string): AiKeyReference[] {
     return this.aiKeys.get(projectKey) ?? [];
   }
+
+  project(projectKey: string): OnboardedProject | undefined {
+    return this.projects.get(projectKey);
+  }
+
+  projectControls(projectKey: string): ProjectControls | undefined {
+    return this.controls.get(projectKey);
+  }
 }
 
 export function onboardProjectManifest(

@@ -47,3 +47,15 @@ Set `FOUNDER_OS_FORCE_MEMORY=true` only for local development or smoke tests. Do
 - Use separate database credentials for local, staging, and production.
 - Store AI provider keys in the deployment platform or a secret manager. Founder OS should store only `secretRef` values such as `vercel:PROJECT_OPENAI_API_KEY`.
 - Connected products should ask `/api/ai-control/resolve` which provider, model, secret reference, and budget metadata to use before high-cost AI work.
+
+## Project Onboarding
+
+Use `/api/projects/onboard` for a single project manifest or `/api/projects/bulk-import` for a batch of discovered manifests. Bulk import expects explicit manifest paths and contents; it does not scan arbitrary server paths by itself.
+
+Current recommended local flow:
+
+1. Add `.founderos/project.json` to each founder-owned project.
+2. Run a local helper or script to collect those manifest files from `C:\Repos`.
+3. Submit the collected manifests to `/api/projects/bulk-import`.
+4. Register each project's AI key reference with `/api/ai-keys`.
+5. Configure the connected project to call `/api/ai-control/resolve` before high-cost AI work.

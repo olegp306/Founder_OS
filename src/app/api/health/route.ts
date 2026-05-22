@@ -17,11 +17,13 @@ export async function GET() {
       "/api/campaigns/preview",
       "/api/campaigns/telegram-dry-run",
       "/api/projects/onboard",
+      "/api/projects/bulk-import",
       "/api/ai-keys",
       "/api/ai-control/resolve"
     ],
     privateMvpReadiness: {
       projectOnboarding: true,
+      bulkProjectImport: true,
       aiKeyReferences: true,
       aiControlResolution: true,
       plaintextSecretsStored: false

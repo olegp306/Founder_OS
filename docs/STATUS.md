@@ -125,3 +125,14 @@ Adds the private MVP onboarding layer:
 - `/api/health` reports `privateMvpReadiness`.
 
 This is the minimum layer needed to start moving current founder-owned projects into Founder OS while keeping real API keys in external secret stores.
+
+### `codex/bulk-project-import`
+
+Adds batch onboarding for existing projects:
+
+- `/api/projects/bulk-import` accepts a list of discovered `.founderos/project.json` files and imports all valid manifests.
+- Import reports split results into `imported`, `skipped`, and `invalid`.
+- Readiness output shows whether each imported project has a manifest, AI key reference, token tracking, feedback capture, and raw-message policy.
+- `/api/health` reports `bulkProjectImport`.
+
+The API accepts explicit manifest file contents instead of scanning server disks by itself. A local CLI/helper can be added later to scan `C:\Repos` and submit the discovered manifests.
