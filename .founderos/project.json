@@ -38,7 +38,9 @@
                    "emit_quality_signal_events":  true,
                    "emit_attribution_events":  true,
                    "emit_commercial_activity_events":  true,
-                   "emit_risk_value_signal_events":  true
+                   "emit_risk_value_signal_events":  true,
+                   "emit_abuse_signal_events":  true,
+                   "emit_cost_control_events":  true
                },
     "deployment":  {
                        "model":  "founder_control_plane",
@@ -140,5 +142,33 @@
                                                         "churn_risks",
                                                         "quality_signals"
                                                     ]
-                          }
+                          },
+    "ai_usage_abuse_protection":  {
+                                      "enabled":  true,
+                                      "prevent_general_ai_proxy_use":  true,
+                                      "product_scope_required":  true,
+                                      "detect_off_topic_general_requests":  true,
+                                      "detect_generic_search_or_homework_use":  true,
+                                      "detect_prompt_injection_and_system_extraction":  true,
+                                      "detect_high_volume_low_product_intent":  true,
+                                      "detect_automation_or_bulk_queries":  true,
+                                      "detect_resale_or_proxy_patterns":  true,
+                                      "abuse_score_required":  true,
+                                      "progressive_enforcement":  [
+                                                                      "redirect_to_product_scope",
+                                                                      "rate_limit",
+                                                                      "quota_limit",
+                                                                      "downgrade_to_cheaper_model",
+                                                                      "mark_user_risk",
+                                                                      "notify_admin",
+                                                                      "temporary_suspend",
+                                                                      "ban_for_repeated_or_severe_abuse"
+                                                                  ],
+                                      "admin_alert_required":  true,
+                                      "cheaper_model_downgrade_allowed":  true,
+                                      "temporary_suspension_allowed":  true,
+                                      "ban_allowed_for_repeated_or_severe_abuse":  true,
+                                      "expose_scores_or_thresholds_to_user":  false,
+                                      "user_facing_response":  "This assistant can help with supported product tasks, but cannot help with unrelated or abusive use."
+                                  }
 }
