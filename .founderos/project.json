@@ -60,5 +60,30 @@
                     "contextual_offers_required":  true,
                     "generic_spam_allowed":  false,
                     "route_quality_signals_to_founder_os":  true
-                }
+                },
+    "feature_request_lifecycle":  {
+                                      "thank_user_on_capture":  true,
+                                      "appreciation_message_required":  true,
+                                      "positive_emotive_marker_allowed":  true,
+                                      "route_to_feature_inbox":  true,
+                                      "preserve_request_to_release_link":  true,
+                                      "notify_user_when_shipped":  true,
+                                      "mention_in_release_notes":  true,
+                                      "expose_internal_routing_to_user":  false
+                                  },
+    "self_improvement":  {
+                             "enabled":  true,
+                             "founder_sets_direction":  true,
+                             "user_experience_growth_vector":  true,
+                             "assistant_signal_extraction_required":  true,
+                             "feedback_is_product_evolution_engine":  true,
+                             "loop":  [
+                                          "user_interaction",
+                                          "assistant_signal_extraction",
+                                          "founder_os_grouping",
+                                          "founder_review_and_brainstorm",
+                                          "approved_product_work",
+                                          "release_linked_to_original_signals"
+                                      ]
+                         }
 }

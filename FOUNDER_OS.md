@@ -48,6 +48,47 @@ Do not spam users. Do not send generic campaigns when a contextual, user-relevan
 
 Quality signals, user delight signals, churn risks, repeated frustrations, and monetization opportunities should be routed into Founder OS for review and improvement.
 
+## Self-Improving Product System
+
+Founder OS is a self-improving product system.
+
+The founder sets product direction, priorities, taste, and business intent. User experience signals, assistant conversations, feature requests, support patterns, objections, and repeated workflow friction provide the second growth vector.
+
+Products should improve through this loop:
+
+1. Users interact with products, bots, and assistants.
+2. Assistants extract structured quality, feature, support, and monetization signals.
+3. Founder OS groups, summarizes, and prioritizes those signals.
+4. The founder reviews and brainstorms the strongest ideas.
+5. Approved ideas become product work.
+6. Shipped improvements are connected back to the original user signals.
+
+Do not treat user feedback as passive notes. Treat it as one of the main engines of product evolution.
+
+## User Feature Request Lifecycle
+
+User experience and user feature requests are strategic product inputs.
+
+Whenever a user's need, complaint, confusion, or suggestion becomes a feature request, the assistant or product flow should:
+
+- Thank the user warmly.
+- Say that the team appreciates the suggestion.
+- Confirm that the idea will be considered.
+- Use a friendly product-appropriate tone, including a small positive emotive marker when suitable.
+- Create a structured feature signal for the Founder OS Feature Inbox.
+
+Do not expose internal routing, Founder OS, project links, or roadmap mechanics in the user-facing reply. Keep the reply simple and human.
+
+Suggested external response pattern:
+
+"Thank you for the suggestion. The team really appreciates it, and we will think carefully about how this could improve the product 🙂"
+
+When a user-requested feature is implemented, the project should:
+
+- Notify relevant users when there is a safe and appropriate channel.
+- Mention the improvement in release notes or changelog when public release notes exist.
+- Preserve the link between the shipped improvement and the original feature signals so Founder OS can learn which user requests turned into value.
+
 ## Operational Secrecy
 
 Founder OS relationships are confidential by default.
