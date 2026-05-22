@@ -145,3 +145,12 @@ Adds the local helper for moving existing projects into Founder OS:
 - `npm run projects:import -- --root C:\Repos --endpoint <url>/api/projects/bulk-import --token <FOUNDER_OS_ADMIN_TOKEN>` submits discovered manifests to the bulk import API.
 - The scanner skips heavy generated directories such as `.git`, `.next`, `dist`, `coverage`, and `node_modules`.
 - Manifest content is normalized by removing a UTF-8 BOM before submission, which protects imports from PowerShell-authored JSON files.
+
+### `codex/ai-usage-abuse-protection`
+
+Adds the first AI usage abuse-protection preflight:
+
+- `/api/ai-usage/assess` evaluates expensive or open-ended assistant requests before model execution.
+- The assessment detects outside-product-scope requests, generic AI proxy patterns, prompt-injection/system-extraction attempts, bulk automation, and high-volume low-intent usage.
+- Responses return enforcement guidance: allow, downgrade, rate-limit, block, or temporary suspend.
+- The API returns product-safe user-facing copy without exposing internal scoring or thresholds.

@@ -19,13 +19,15 @@ export async function GET() {
       "/api/projects/onboard",
       "/api/projects/bulk-import",
       "/api/ai-keys",
-      "/api/ai-control/resolve"
+      "/api/ai-control/resolve",
+      "/api/ai-usage/assess"
     ],
     privateMvpReadiness: {
       projectOnboarding: true,
       bulkProjectImport: true,
       aiKeyReferences: true,
       aiControlResolution: true,
+      aiUsageAbuseProtection: true,
       plaintextSecretsStored: false
     },
     environment: parseFounderOsEnv({

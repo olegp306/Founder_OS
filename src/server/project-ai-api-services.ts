@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { assessAiUsageRequest } from "@/domain/ai-usage/abuse-protection";
 import {
   buildProjectImportReadiness,
   importProjectManifests
@@ -55,6 +56,17 @@ export const aiControlResolveSchema = z.object({
   requestedModel: z.string().min(2).optional()
 });
 
+export const aiUsageAssessmentSchema = z.object({
+  projectKey: z.string().min(2),
+  assistantKey: z.string().min(2),
+  userRef: z.string().optional(),
+  productScope: z.string().min(10),
+  requestSummary: z.string().min(2),
+  requestedModel: z.string().min(2),
+  estimatedTokens: z.number().int().min(0),
+  recentRequestsInHour: z.number().int().min(0)
+});
+
 export const bulkProjectImportSchema = z.object({
   manifests: z.array(
     z.object({
@@ -87,6 +99,13 @@ export async function handleProjectAiControlResolve(
   return {
     status: "resolved" as const,
     control: resolveProjectAiControl(runtime.projectOnboarding, aiControlResolveSchema.parse(payload))
+  };
+}
+
+export async function handleAiUsageAssessment(_runtime: FounderOsRuntime, payload: unknown) {
+  return {
+    status: "assessed" as const,
+    assessment: assessAiUsageRequest(aiUsageAssessmentSchema.parse(payload))
   };
 }
 
