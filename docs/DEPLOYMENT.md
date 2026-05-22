@@ -26,7 +26,7 @@ Do not commit real environment values. Store production values in the hosting pr
 
 1. Create the Postgres database.
 2. Add environment variables in Vercel.
-3. Run Prisma migrations from the deployment pipeline once migrations exist.
+3. Run `npm run prisma:migrate:deploy` from the deployment pipeline.
 4. Deploy the Next.js app.
 5. Put the dashboard behind Cloudflare Access or Tailscale before connecting real product integrations.
 6. Configure connected products to call Founder OS APIs with `Authorization: Bearer <FOUNDER_OS_ADMIN_TOKEN>`.
@@ -47,6 +47,8 @@ Set `FOUNDER_OS_ENABLE_DASHBOARD_DEMO=true` only when you need the local AI cont
 Project onboarding services use `runtime.repositories.projects`. In Prisma mode, project manifests, repository metadata, project controls, and AI key references are persisted through Prisma delegates; in memory mode, the same service contract uses the local in-process store.
 
 When `DATABASE_URL` is set and `FOUNDER_OS_FORCE_MEMORY` is not `true`, the runtime uses Prisma repositories. Token usage and token policy APIs still accept project and assistant keys; the Prisma repository layer resolves those keys to database ids before writing.
+
+Use `npm run prisma:migrate:deploy` against each fresh Postgres database before routing connected products to Founder OS. The initial migration creates the private control-plane tables for projects, repositories, project controls, AI key references, events, token usage, token policies, profiles, consents, feedback, segments, campaigns, and audit logs.
 
 ## Production Guardrails
 

@@ -319,3 +319,11 @@ Enables Prisma repositories in the runtime:
 - `createFounderOsRuntime` now uses `PrismaRepositorySet` when `DATABASE_URL` is configured and memory mode is not forced.
 - Runtime construction accepts an injectable Prisma-like client for tests while production uses the shared Prisma client singleton.
 - Prisma token usage and token policy repositories now resolve project and assistant keys to database ids, so existing API payloads work in Prisma mode.
+
+### `codex/prisma-core-migration`
+
+Adds deployable database migrations:
+
+- Adds the initial Prisma migration SQL generated from the current Founder OS schema.
+- Adds `npm run prisma:migrate:deploy` for deployment pipelines.
+- Adds migration coverage so the core project, AI key reference, project control, token usage, and foreign-key tables stay represented in versioned SQL.
