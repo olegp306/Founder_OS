@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { parseFounderOsEnv } from "@/domain/readiness/readiness";
+import { getFounderOsRuntime } from "@/server/founder-os-runtime";
 
 export async function GET() {
+  const runtime = getFounderOsRuntime();
+
   return NextResponse.json({
     status: "ok",
+    persistenceMode: runtime.persistenceMode,
     environment: parseFounderOsEnv({
       DATABASE_URL: process.env.DATABASE_URL,
       FOUNDER_OS_ADMIN_EMAIL: process.env.FOUNDER_OS_ADMIN_EMAIL,

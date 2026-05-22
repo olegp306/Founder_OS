@@ -17,7 +17,7 @@ Completed capability areas:
 
 In progress:
 
-- Database-backed persistence.
+- Database-backed persistence adapters and migrations.
 - Token Control Plane persistence and admin dashboard.
 - Feature-branch and pull-request workflow for all follow-up work.
 
@@ -67,3 +67,17 @@ The production readiness slice added:
 - Backup and recovery guidance for Postgres and secrets.
 
 The 80% gate has been reached. New feature work should now use `codex/` feature branches, pushes to `origin`, and draft pull requests for user merge.
+
+## Post-80% Feature Branches
+
+### `codex/persistence-foundation`
+
+Adds the first persistence foundation after the MVP baseline:
+
+- Runtime persistence mode selection.
+- Memory mode override for local smoke tests.
+- Prisma client singleton.
+- Prisma mapper functions for structured events, token usage, and token policies.
+- `/api/health` now reports `persistenceMode`.
+
+This branch is DB-ready but does not yet run migrations against a live production database.

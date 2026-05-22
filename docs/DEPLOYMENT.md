@@ -15,6 +15,7 @@ Founder OS is intended to deploy as a private internal control plane.
 - `DATABASE_URL`: Postgres connection string.
 - `FOUNDER_OS_ADMIN_EMAIL`: owner email for internal display and audit context.
 - `FOUNDER_OS_ADMIN_TOKEN`: long random bearer token for protected API access.
+- `FOUNDER_OS_FORCE_MEMORY`: optional local/testing override. Set to `true` to keep runtime stores in memory even when `DATABASE_URL` is present.
 
 Do not commit real environment values. Store production values in the hosting provider secret store.
 
@@ -26,6 +27,15 @@ Do not commit real environment values. Store production values in the hosting pr
 4. Deploy the Next.js app.
 5. Put the dashboard behind Cloudflare Access or Tailscale before connecting real product integrations.
 6. Configure connected products to call Founder OS APIs with `Authorization: Bearer <FOUNDER_OS_ADMIN_TOKEN>`.
+
+## Persistence Mode
+
+Founder OS selects persistence mode at runtime:
+
+- `memory`: default when `DATABASE_URL` is absent, useful for local smoke tests.
+- `prisma`: selected when `DATABASE_URL` is configured.
+
+Set `FOUNDER_OS_FORCE_MEMORY=true` only for local development or smoke tests. Do not use forced memory mode in production.
 
 ## Production Guardrails
 
