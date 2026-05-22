@@ -262,3 +262,11 @@ Adds one-step AI setup for transferred projects:
 - `/api/projects/ai-setup` registers an AI key reference and token policy for a project/assistant in one admin call.
 - The setup response immediately returns the refreshed connection bundle so the connected project can apply environment names and route contracts.
 - Plaintext provider keys remain excluded from responses; products continue to use external secret stores through `secretRef` values.
+
+### `codex/project-ai-setup-cli`
+
+Adds a local helper for applying AI setup configs:
+
+- `npm run projects:setup-ai -- --config <path> --endpoint <url>/api/projects/ai-setup --token <FOUNDER_OS_ADMIN_TOKEN>` posts a project AI setup payload.
+- `--dry-run` prints the sanitized payload without calling Founder OS.
+- The helper strips `plaintextSecret` before sending, keeping real provider keys in external secret stores.

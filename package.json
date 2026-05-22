@@ -8,6 +8,7 @@
     "build": "next build",
     "projects:import": "tsx scripts/import-projects.ts",
     "projects:scan": "tsx scripts/import-projects.ts --dry-run",
+    "projects:setup-ai": "tsx scripts/setup-project-ai.ts",
     "prisma:validate": "prisma validate",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

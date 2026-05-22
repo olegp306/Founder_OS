@@ -15,6 +15,8 @@ Founder OS is intended to deploy as a private internal control plane.
 - `DATABASE_URL`: Postgres connection string.
 - `FOUNDER_OS_ADMIN_EMAIL`: owner email for internal display and audit context.
 - `FOUNDER_OS_ADMIN_TOKEN`: long random bearer token for protected API access.
+- `FOUNDER_OS_AI_SETUP_ENDPOINT`: optional local helper override for `/api/projects/ai-setup`.
+- `FOUNDER_OS_PROJECT_AI_SETUP_CONFIG`: optional local helper path to a project AI setup JSON file.
 - `FOUNDER_OS_FORCE_MEMORY`: optional local/testing override. Set to `true` to keep runtime stores in memory even when `DATABASE_URL` is present.
 - `FOUNDER_OS_ENABLE_DASHBOARD_DEMO`: optional local dashboard preview seed. Set to `true` only for local smoke tests or demos; do not enable in production.
 
@@ -72,7 +74,7 @@ Current recommended local flow:
 1. Add `.founderos/project.json` to each founder-owned project.
 2. Run `npm run projects:scan -- --root C:\Repos` to preview discovered manifests.
 3. Run `npm run projects:import -- --root C:\Repos --endpoint https://<founder-os-host>/api/projects/bulk-import --token <FOUNDER_OS_ADMIN_TOKEN>` to submit them.
-4. Register each project's AI key reference and token policy together with `/api/projects/ai-setup`.
+4. Register each project's AI key reference and token policy together with `/api/projects/ai-setup`, or run `npm run projects:setup-ai -- --config <project>\.founderos\ai-setup.json --endpoint https://<founder-os-host>/api/projects/ai-setup --token <FOUNDER_OS_ADMIN_TOKEN>`.
 5. If needed, update key references with `/api/ai-keys` or token policy with `/api/token-policy`.
 6. Check `/api/projects/readiness?projectKeys=<project>&assistantKey=<assistant>` and confirm `manifestImported`, `aiKeyConfigured`, and `tokenPolicyConfigured` are true.
 7. Fetch `/api/projects/connection?projectKey=<project>&assistantKey=<assistant>` and apply the returned environment variable names, route contracts, key references, and next steps.
@@ -82,3 +84,5 @@ Current recommended local flow:
 11. Review `/api/token-usage/summary` for token spend and burn-rate monitoring.
 12. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
 13. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
+
+Use `docs/PROJECT_AI_SETUP.example.json` as the template for `.founderos/ai-setup.json`. Keep real provider keys in Vercel, Supabase, Neon, Cloudflare, Tailscale, or another secret manager; the file should contain only `secretRef` values.
