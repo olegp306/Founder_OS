@@ -111,6 +111,25 @@ describe("dashboard services", () => {
       readyCount: 6,
       totalCount: 6
     });
+    expect(viewModel.transferFlow).toEqual({
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot",
+      ready: true,
+      command: "npm run projects:transfer -- --root C:\\Repos --setup-config C:\\Repos\\booking_assistant\\.founderos\\ai-setup.json --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>",
+      requiredEnvironment: [
+        "FOUNDER_OS_BASE_URL",
+        "FOUNDER_OS_ADMIN_TOKEN",
+        "FOUNDER_OS_PROJECT_KEY",
+        "FOUNDER_OS_ASSISTANT_KEY"
+      ],
+      routes: [
+        "/api/ai-execution/decide",
+        "/api/token-usage",
+        "/api/token-usage/summary",
+        "/api/projects/readiness"
+      ],
+      nextSteps: []
+    });
     expect(JSON.stringify(viewModel)).not.toContain("vercel:BOOKING_ASSISTANT_OPENAI_API_KEY");
   });
 
@@ -157,7 +176,8 @@ describe("dashboard services", () => {
     });
 
     const viewModel = await buildAiControlDashboardViewModel(runtime, {
-      projectKey: "booking_assistant"
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot"
     });
 
     expect(viewModel.metrics).toEqual([
@@ -203,7 +223,8 @@ describe("dashboard services", () => {
     await seedAiControlDashboardDemoData(runtime, { projectKey: "booking_assistant" });
 
     const viewModel = await buildAiControlDashboardViewModel(runtime, {
-      projectKey: "booking_assistant"
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot"
     });
 
     expect(viewModel.metrics).toEqual([
@@ -218,6 +239,12 @@ describe("dashboard services", () => {
         totalCost: "$0.05",
         totalTokens: "5.7k",
         projectedDailySpend: "$1.20"
+      })
+    );
+    expect(viewModel.transferFlow).toEqual(
+      expect.objectContaining({
+        ready: true,
+        nextSteps: []
       })
     );
     expect(JSON.stringify(viewModel)).not.toContain("sk-");

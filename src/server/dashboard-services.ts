@@ -9,6 +9,7 @@ import {
   handleAiExecutionDecisionAuditList,
   handleAiExecutionSummary,
   handleAiKeyReferenceRegistration,
+  handleProjectConnectionBundle,
   handleProjectManifestOnboarding,
   handleProjectReadinessList
 } from "@/server/project-ai-api-services";
@@ -56,12 +57,23 @@ export type DashboardTokenSpend = {
   topEnvironments: DashboardSpendBreakdown[];
 };
 
+export type DashboardTransferFlow = {
+  projectKey: string;
+  assistantKey: string;
+  ready: boolean;
+  command: string;
+  requiredEnvironment: string[];
+  routes: string[];
+  nextSteps: string[];
+};
+
 export type AiControlDashboardViewModel = {
   projectKey?: string;
   metrics: DashboardMetric[];
   recentSignals: DashboardSignal[];
   projectReadiness: DashboardProjectReadiness;
   tokenSpend: DashboardTokenSpend;
+  transferFlow: DashboardTransferFlow;
 };
 
 const demoSeedOperations = new WeakMap<
@@ -74,7 +86,8 @@ export async function buildAiControlDashboardViewModel(
   input: { projectKey?: string; assistantKey?: string; tokenWindowHours?: number } = {}
 ): Promise<AiControlDashboardViewModel> {
   const tokenWindowHours = input.tokenWindowHours ?? 1;
-  const [{ summary }, { decisions }, readinessResult, tokenSpendResult] = await Promise.all([
+  const assistantKey = input.assistantKey ?? "unknown";
+  const [{ summary }, { decisions }, readinessResult, tokenSpendResult, transferResult] = await Promise.all([
     handleAiExecutionSummary(runtime, input),
     handleAiExecutionDecisionAuditList(runtime, {
       projectKey: input.projectKey,
@@ -100,6 +113,21 @@ export async function buildAiControlDashboardViewModel(
             projectedDailySpendUsd: 0,
             byModel: [],
             byEnvironment: []
+          }
+        }),
+    input.projectKey && input.assistantKey
+      ? handleProjectConnectionBundle(runtime, {
+          projectKey: input.projectKey,
+          assistantKey: input.assistantKey
+        })
+      : Promise.resolve({
+          bundle: {
+            projectKey: input.projectKey ?? "unknown",
+            assistantKey,
+            ready: false,
+            environment: [],
+            routes: [],
+            nextSteps: ["Select project and assistant keys"]
           }
         })
   ]);
@@ -144,7 +172,8 @@ export async function buildAiControlDashboardViewModel(
       input.projectKey,
       readinessResult.readiness[0]
     ),
-    tokenSpend: buildDashboardTokenSpend(tokenSpendResult.summary)
+    tokenSpend: buildDashboardTokenSpend(tokenSpendResult.summary),
+    transferFlow: buildDashboardTransferFlow(transferResult.bundle)
   };
 }
 
@@ -340,6 +369,25 @@ function buildDashboardTokenSpend(summary: {
     projectedDailySpend: formatUsd(summary.projectedDailySpendUsd),
     topModels: summary.byModel.slice(0, 3).map(formatSpendBreakdown),
     topEnvironments: summary.byEnvironment.slice(0, 3).map(formatSpendBreakdown)
+  };
+}
+
+function buildDashboardTransferFlow(bundle: {
+  projectKey: string;
+  assistantKey: string;
+  ready: boolean;
+  environment: Array<{ name: string }>;
+  routes: Array<{ path: string }>;
+  nextSteps: string[];
+}): DashboardTransferFlow {
+  return {
+    projectKey: bundle.projectKey,
+    assistantKey: bundle.assistantKey,
+    ready: bundle.ready,
+    command: `npm run projects:transfer -- --root C:\\Repos --setup-config C:\\Repos\\${bundle.projectKey}\\.founderos\\ai-setup.json --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>`,
+    requiredEnvironment: bundle.environment.map((item) => item.name),
+    routes: bundle.routes.map((route) => route.path),
+    nextSteps: bundle.nextSteps
   };
 }
 

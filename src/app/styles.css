@@ -69,6 +69,7 @@ h2 {
 .metric-card,
 .work-surface,
 .readiness-table,
+.transfer-flow,
 .spend-table,
 .signal-table {
   border: 1px solid #d9dee5;
@@ -137,6 +138,7 @@ h2 {
 
 .surface-column,
 .readiness-table,
+.transfer-flow,
 .spend-table,
 .signal-table {
   padding: 22px;
@@ -230,6 +232,52 @@ h2 {
   grid-column: 2;
   color: #616b76;
   overflow-wrap: anywhere;
+}
+
+.transfer-flow {
+  margin-top: 22px;
+}
+
+.transfer-command {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #e5e9ee;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.transfer-command span,
+.transfer-list span {
+  color: #616b76;
+}
+
+.transfer-command code,
+.transfer-list code {
+  color: #234fc7;
+  overflow-wrap: anywhere;
+}
+
+.transfer-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.transfer-list {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 132px;
+  padding: 16px;
+  border: 1px solid #e5e9ee;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.transfer-list strong {
+  color: #2f6f66;
 }
 
 .spend-table {
@@ -343,6 +391,7 @@ h3 {
   .spend-summary,
   .spend-breakdowns,
   .spend-row,
+  .transfer-grid,
   .readiness-grid,
   .readiness-row {
     grid-template-columns: 1fr;

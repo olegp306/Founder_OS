@@ -20,6 +20,8 @@ describe("Founder OS home page", () => {
     expect(html).toContain("/api/projects/ai-setup");
     expect(html).toContain("Connection Bundle");
     expect(html).toContain("Project Transfer Readiness");
+    expect(html).toContain("Transfer Flow");
+    expect(html).toContain("projects:transfer");
     expect(html).toContain("Token Spend");
     expect(html).toContain("Token policy");
     expect(html).toContain("No raw prompts");

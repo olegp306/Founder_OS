@@ -278,3 +278,11 @@ Adds a single local transfer flow for personal projects:
 - `npm run projects:transfer -- --root <repos-root> --setup-config <project>\.founderos\ai-setup.json --base-url <founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>` runs manifest import, AI setup, and connection bundle verification.
 - `--dry-run` reports the import endpoint, sanitized setup payload, and connection check URL without network writes.
 - The transfer flow reuses the existing bulk import and setup APIs so project moves stay repeatable and auditable.
+
+### `codex/dashboard-transfer-flow`
+
+Surfaces the project transfer flow in the internal dashboard:
+
+- The dashboard now shows the local `projects:transfer` command for the configured project and assistant.
+- Required environment variable names, connected route paths, and connection-bundle next steps are visible without exposing `secretRef` values.
+- Demo dashboard data now reaches the ready transfer state, so local previews show the full move-project flow.

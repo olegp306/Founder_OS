@@ -112,6 +112,39 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section className="transfer-flow" aria-label="Project transfer flow">
+        <div className="section-heading">
+          <h2>Transfer Flow</h2>
+          <span>{dashboard.transferFlow.ready ? "ready" : "needs setup"}</span>
+        </div>
+        <div className="transfer-command">
+          <span>Local command</span>
+          <code>{dashboard.transferFlow.command}</code>
+        </div>
+        <div className="transfer-grid">
+          <div className="transfer-list">
+            <h3>Required Environment</h3>
+            {dashboard.transferFlow.requiredEnvironment.map((name) => (
+              <code key={name}>{name}</code>
+            ))}
+          </div>
+          <div className="transfer-list">
+            <h3>Routes</h3>
+            {dashboard.transferFlow.routes.map((route) => (
+              <code key={route}>{route}</code>
+            ))}
+          </div>
+          <div className="transfer-list">
+            <h3>Next Steps</h3>
+            {dashboard.transferFlow.nextSteps.length === 0 ? (
+              <strong>Ready to connect</strong>
+            ) : (
+              dashboard.transferFlow.nextSteps.map((step) => <span key={step}>{step}</span>)
+            )}
+          </div>
+        </div>
+      </section>
+
       <section className="spend-table" aria-label="Token spend">
         <div className="section-heading">
           <h2>Token Spend</h2>
