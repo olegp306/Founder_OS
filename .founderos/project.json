@@ -34,7 +34,8 @@
                    "emit_user_profile_events":  true,
                    "emit_token_usage_events":  true,
                    "emit_feedback_events":  true,
-                   "emit_feature_signal_events":  true
+                   "emit_feature_signal_events":  true,
+                   "emit_quality_signal_events":  true
                },
     "deployment":  {
                        "model":  "founder_control_plane",
@@ -52,5 +53,12 @@
                                                ],
                            "raw_conversations":  "disabled_by_default",
                            "review_process":  "founder_brainstorm_before_roadmap"
-                       }
+                       },
+    "quality":  {
+                    "primary_value":  "user_value_and_quality_control",
+                    "user_centricity_required":  true,
+                    "contextual_offers_required":  true,
+                    "generic_spam_allowed":  false,
+                    "route_quality_signals_to_founder_os":  true
+                }
 }
