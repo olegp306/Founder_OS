@@ -180,3 +180,11 @@ Adds project-level AI execution monitoring:
 - `/api/ai-execution/summary` aggregates execution decision events by project.
 - The summary reports total, allowed, blocked, action counts, risk counts, estimated tokens, estimated tokens under risk, top reasons, and last action.
 - Fast repeated execution decisions now use unique event idempotency keys so audit records are not collapsed accidentally.
+
+### `codex/ai-control-dashboard`
+
+Adds the first internal dashboard surface:
+
+- The home page now presents AI Execution Control instead of a static MVP landing status.
+- Dashboard sections show execution metrics, control routes, guardrails, and safe recent execution signals.
+- The UI calls out summary, audit, decide, and AI key reference contracts for connected projects.
