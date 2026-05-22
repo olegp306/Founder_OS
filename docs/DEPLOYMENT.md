@@ -56,6 +56,7 @@ Set `FOUNDER_OS_ENABLE_DASHBOARD_DEMO=true` only when you need the local AI cont
 - Use token policy emergency mode for central fallback-model enforcement during cost spikes or provider incidents. Policy changes are recorded as `token.policy.changed` audit events.
 - Use `/api/projects/readiness?projectKeys=<project>&assistantKey=<assistant>` after onboarding to confirm manifest import, AI key reference, and token policy configuration before connecting production AI traffic.
 - The internal dashboard mirrors the same readiness checks for the configured dashboard project so missing transfer steps are visible before live AI usage begins.
+- Use `/api/token-usage/summary?projectKey=<project>&windowHours=<hours>` to inspect token spend, burn rate, projected daily spend, and usage split by assistant, model, and environment.
 - Use `/api/ai-execution/audit?projectKey=<project>` to inspect recent AI execution decisions without exposing secrets or raw request text.
 - Use `/api/ai-execution/summary?projectKey=<project>` for a compact project-level view of allow, downgrade, block, risk, reasons, and estimated tokens under risk.
 
@@ -74,5 +75,6 @@ Current recommended local flow:
 7. Configure the connected project to call `/api/ai-control/resolve` before high-cost AI work.
 8. Configure connected assistants to call `/api/ai-usage/assess` before expensive or open-ended AI work.
 9. For new integrations, use `/api/ai-execution/decide` as the single AI preflight before model execution.
-10. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
-11. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
+10. Review `/api/token-usage/summary` for token spend and burn-rate monitoring.
+11. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
+12. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.

@@ -4,6 +4,7 @@ import {
   handleStructuredEventIngestion,
   handleTokenPolicyLookup,
   handleTokenPolicySave,
+  handleTokenUsageSummary,
   handleTokenUsageRecord
 } from "@/server/api-services";
 
@@ -131,6 +132,71 @@ describe("API services backed by repositories", () => {
       policy: {
         fallbackModel: "gpt-5.4-mini",
         emergencyMode: true
+      }
+    });
+  });
+
+  it("summarizes token usage by assistant, model, and environment", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleTokenUsageRecord(runtime, {
+      projectKey: "booking_photoshop_studio",
+      assistantKey: "booking_assistant",
+      environment: "production",
+      model: "gpt-5.4",
+      inputTokens: 1000,
+      outputTokens: 500,
+      costUsd: 3,
+      occurredAt: "2026-05-22T19:00:00.000Z"
+    });
+    await handleTokenUsageRecord(runtime, {
+      projectKey: "booking_photoshop_studio",
+      assistantKey: "booking_assistant",
+      environment: "production",
+      model: "gpt-5.4-mini",
+      inputTokens: 800,
+      outputTokens: 200,
+      costUsd: 1,
+      occurredAt: "2026-05-22T20:00:00.000Z"
+    });
+    await handleTokenUsageRecord(runtime, {
+      projectKey: "booking_photoshop_studio",
+      assistantKey: "feedback_assistant",
+      environment: "staging",
+      model: "gpt-5.4-mini",
+      inputTokens: 300,
+      outputTokens: 200,
+      costUsd: 0.5,
+      occurredAt: "2026-05-22T20:30:00.000Z"
+    });
+
+    await expect(
+      handleTokenUsageSummary(runtime, {
+        projectKey: "booking_photoshop_studio",
+        windowHours: 6
+      })
+    ).resolves.toEqual({
+      status: "summarized",
+      summary: {
+        projectKey: "booking_photoshop_studio",
+        windowHours: 6,
+        eventCount: 3,
+        totalTokens: 3000,
+        totalCostUsd: 4.5,
+        spendPerHourUsd: 0.75,
+        tokensPerHour: 500,
+        projectedDailySpendUsd: 18,
+        byAssistant: [
+          { key: "booking_assistant", totalTokens: 2500, totalCostUsd: 4, eventCount: 2 },
+          { key: "feedback_assistant", totalTokens: 500, totalCostUsd: 0.5, eventCount: 1 }
+        ],
+        byModel: [
+          { key: "gpt-5.4", totalTokens: 1500, totalCostUsd: 3, eventCount: 1 },
+          { key: "gpt-5.4-mini", totalTokens: 1500, totalCostUsd: 1.5, eventCount: 2 }
+        ],
+        byEnvironment: [
+          { key: "production", totalTokens: 2500, totalCostUsd: 4, eventCount: 2 },
+          { key: "staging", totalTokens: 500, totalCostUsd: 0.5, eventCount: 1 }
+        ]
       }
     });
   });

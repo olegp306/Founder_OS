@@ -230,3 +230,11 @@ Surfaces transfer readiness in the internal dashboard:
 - The dashboard view model builds readiness from `/api/projects/readiness` service logic so UI and API stay aligned.
 - Demo dashboard seed now onboards the sample project and token policy before generating safe AI execution signals.
 - AI execution model selection preserves abuse fallback routing even when a non-emergency token policy is active.
+
+### `codex/token-usage-summary`
+
+Adds token spend summary for connected products:
+
+- `/api/token-usage/summary` summarizes usage by project and configurable time window.
+- The summary reports event count, total tokens, total cost, spend per hour, tokens per hour, and projected daily spend.
+- Usage is grouped by assistant, model, and environment so token spend spikes can be traced to the responsible surface.

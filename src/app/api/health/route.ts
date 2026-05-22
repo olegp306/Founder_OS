@@ -9,7 +9,12 @@ export async function GET() {
     status: "ok",
     persistenceMode: runtime.persistenceMode,
     repositoryKind: runtime.repositories.kind,
-    repositoryBackedRoutes: ["/api/events", "/api/token-policy", "/api/token-usage"],
+    repositoryBackedRoutes: [
+      "/api/events",
+      "/api/token-policy",
+      "/api/token-usage",
+      "/api/token-usage/summary"
+    ],
     serviceBackedRoutes: [
       "/api/consents",
       "/api/feedback",

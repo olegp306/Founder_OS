@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { rejectUnsafeRawPayload, type StructuredEvent } from "@/domain/events/event-ingestion";
-import type { TokenUsageInput } from "@/domain/token-control/token-control";
+import {
+  summarizeTokenBurnRate,
+  type NormalizedTokenUsageEvent,
+  type TokenUsageInput
+} from "@/domain/token-control/token-control";
 import type { FounderOsRuntime } from "@/server/founder-os-runtime";
 
 export const structuredEventSchema = z.object({
@@ -36,6 +40,11 @@ export const tokenPolicyRequestSchema = z.object({
   monthlyBudgetUsd: z.number().min(0),
   maxTokensPerRequest: z.number().int().min(1),
   emergencyMode: z.boolean().default(false)
+});
+
+export const tokenUsageSummarySchema = z.object({
+  projectKey: z.string().min(2),
+  windowHours: z.number().min(1).max(24 * 31).default(24)
 });
 
 export async function handleStructuredEventIngestion(
@@ -97,6 +106,36 @@ export async function handleTokenUsageRecord(runtime: FounderOsRuntime, payload:
           maxTokensPerRequest: policy.maxTokensPerRequest
         }
       : null
+  };
+}
+
+export async function handleTokenUsageSummary(runtime: FounderOsRuntime, payload: unknown) {
+  const input = tokenUsageSummarySchema.parse(payload ?? {});
+  const usage = await runtime.repositories.tokenUsage.findByProject(input.projectKey);
+  const events = usage as NormalizedTokenUsageEvent[];
+  const burnRate = summarizeTokenBurnRate({
+    windowHours: input.windowHours,
+    events: events.map((event) => ({
+      costUsd: event.costUsd,
+      totalTokens: event.totalTokens
+    }))
+  });
+
+  return {
+    status: "summarized" as const,
+    summary: {
+      projectKey: input.projectKey,
+      windowHours: input.windowHours,
+      eventCount: events.length,
+      totalTokens: sum(events, (event) => event.totalTokens),
+      totalCostUsd: roundMoney(sum(events, (event) => event.costUsd)),
+      spendPerHourUsd: roundMoney(burnRate.spendPerHourUsd),
+      tokensPerHour: burnRate.tokensPerHour,
+      projectedDailySpendUsd: roundMoney(burnRate.projectedDailySpendUsd),
+      byAssistant: groupUsage(events, (event) => event.assistantKey),
+      byModel: groupUsage(events, (event) => event.model),
+      byEnvironment: groupUsage(events, (event) => event.environment)
+    }
   };
 }
 
@@ -167,6 +206,40 @@ async function recordTokenPolicyChange(
   };
 
   await runtime.repositories.events.append(event);
+}
+
+function groupUsage(
+  events: NormalizedTokenUsageEvent[],
+  keyFor: (event: NormalizedTokenUsageEvent) => string
+) {
+  const groups = new Map<string, { totalTokens: number; totalCostUsd: number; eventCount: number }>();
+
+  for (const event of events) {
+    const key = keyFor(event);
+    const current = groups.get(key) ?? { totalTokens: 0, totalCostUsd: 0, eventCount: 0 };
+    groups.set(key, {
+      totalTokens: current.totalTokens + event.totalTokens,
+      totalCostUsd: current.totalCostUsd + event.costUsd,
+      eventCount: current.eventCount + 1
+    });
+  }
+
+  return [...groups.entries()]
+    .map(([key, value]) => ({
+      key,
+      totalTokens: value.totalTokens,
+      totalCostUsd: roundMoney(value.totalCostUsd),
+      eventCount: value.eventCount
+    }))
+    .sort((left, right) => right.totalCostUsd - left.totalCostUsd || left.key.localeCompare(right.key));
+}
+
+function sum<T>(items: T[], valueFor: (item: T) => number): number {
+  return items.reduce((total, item) => total + valueFor(item), 0);
+}
+
+function roundMoney(value: number): number {
+  return Math.round(value * 10000) / 10000;
 }
 
 function eventResponse(event: {
