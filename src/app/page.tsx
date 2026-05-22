@@ -6,6 +6,7 @@ import {
 import { getFounderOsRuntime } from "@/server/founder-os-runtime";
 
 const routeContracts = [
+  ["/api/projects/ai-setup", "Register key references and token policy in one setup step"],
   ["/api/projects/connection", "Connection Bundle for moving a project into Founder OS"],
   ["/api/ai-execution/decide", "Single preflight for provider, model, budget, abuse action"],
   ["/api/ai-execution/summary", "Project-level allow, downgrade, block, risk, and token overview"],

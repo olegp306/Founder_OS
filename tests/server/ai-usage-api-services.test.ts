@@ -8,6 +8,7 @@ import {
   handleAiKeyReferenceRegistration,
   handleAiUsageAssessment,
   handleProjectConnectionBundle,
+  handleProjectAiSetup,
   handleProjectManifestOnboarding,
   handleProjectReadinessList
 } from "@/server/project-ai-api-services";
@@ -385,6 +386,82 @@ describe("AI usage API services", () => {
       }
     });
     expect(JSON.stringify(result)).not.toContain("sk-do-not-store");
+  });
+
+  it("configures AI key references and token policy in one setup step", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "booking_assistant",
+      name: "Booking Assistant",
+      status: "active",
+      owner: "olegp306",
+      assistant: {
+        enabled: true,
+        token_tracking_required: true,
+        feedback_capture_required: true
+      },
+      user_data: {
+        raw_message_storage: "disabled_by_default",
+        consent_required_for_marketing: true
+      }
+    });
+
+    const result = await handleProjectAiSetup(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot",
+      aiKey: {
+        provider: "openai",
+        secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+        displayName: "Booking Assistant OpenAI key",
+        allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
+        defaultModel: "gpt-5.4-mini",
+        monthlyBudgetUsd: 250,
+        plaintextSecret: "sk-never-return"
+      },
+      tokenPolicy: {
+        preferredModel: "gpt-5.4",
+        fallbackModel: "gpt-5.4-mini",
+        dailyBudgetUsd: 20,
+        monthlyBudgetUsd: 250,
+        maxTokensPerRequest: 2000,
+        emergencyMode: false
+      }
+    });
+
+    expect(result).toEqual({
+      status: "configured",
+      key: {
+        projectKey: "booking_assistant",
+        provider: "openai",
+        secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+        displayName: "Booking Assistant OpenAI key",
+        allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
+        defaultModel: "gpt-5.4-mini",
+        monthlyBudgetUsd: 250,
+        status: "active"
+      },
+      policy: {
+        projectKey: "booking_assistant",
+        assistantKey: "support_bot",
+        preferredModel: "gpt-5.4",
+        fallbackModel: "gpt-5.4-mini",
+        dailyBudgetUsd: 20,
+        monthlyBudgetUsd: 250,
+        maxTokensPerRequest: 2000,
+        emergencyMode: false
+      },
+      bundle: expect.objectContaining({
+        projectKey: "booking_assistant",
+        assistantKey: "support_bot",
+        ready: true,
+        tokenPolicy: expect.objectContaining({
+          configured: true,
+          preferredModel: "gpt-5.4"
+        }),
+        nextSteps: []
+      })
+    });
+    expect(JSON.stringify(result)).not.toContain("sk-never-return");
   });
 
   it("applies central token policy to AI execution decisions before provider execution", async () => {

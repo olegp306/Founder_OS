@@ -7,6 +7,10 @@ import {
   importProjectManifests
 } from "@/domain/projects/project-bulk-import";
 import {
+  handleTokenPolicySave,
+  tokenPolicyRequestSchema
+} from "@/server/api-services";
+import {
   onboardProjectManifest,
   registerAiKeyReference,
   resolveProjectAiControl
@@ -98,6 +102,16 @@ export const projectReadinessListSchema = z.object({
 export const projectConnectionBundleSchema = z.object({
   projectKey: z.string().min(2),
   assistantKey: z.string().min(2)
+});
+
+export const projectAiSetupSchema = z.object({
+  projectKey: z.string().min(2),
+  assistantKey: z.string().min(2),
+  aiKey: aiKeyReferenceSchema.omit({ projectKey: true }),
+  tokenPolicy: tokenPolicyRequestSchema.omit({
+    projectKey: true,
+    assistantKey: true
+  })
 });
 
 export async function handleProjectManifestOnboarding(
@@ -530,5 +544,32 @@ export async function handleProjectConnectionBundle(
           },
       nextSteps
     }
+  };
+}
+
+export async function handleProjectAiSetup(
+  runtime: FounderOsRuntime,
+  payload: unknown
+) {
+  const input = projectAiSetupSchema.parse(payload);
+  const key = registerAiKeyReference(runtime.projectOnboarding, {
+    projectKey: input.projectKey,
+    ...input.aiKey
+  });
+  const { policy } = await handleTokenPolicySave(runtime, {
+    projectKey: input.projectKey,
+    assistantKey: input.assistantKey,
+    ...input.tokenPolicy
+  });
+  const { bundle } = await handleProjectConnectionBundle(runtime, {
+    projectKey: input.projectKey,
+    assistantKey: input.assistantKey
+  });
+
+  return {
+    status: "configured" as const,
+    key,
+    policy,
+    bundle
   };
 }

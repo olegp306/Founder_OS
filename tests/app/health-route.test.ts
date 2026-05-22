@@ -7,6 +7,8 @@ describe("health route", () => {
     const body = await response.json();
 
     expect(body.serviceBackedRoutes).toContain("/api/projects/connection");
+    expect(body.serviceBackedRoutes).toContain("/api/projects/ai-setup");
     expect(body.privateMvpReadiness.projectConnectionBundle).toBe(true);
+    expect(body.privateMvpReadiness.projectAiSetup).toBe(true);
   });
 });

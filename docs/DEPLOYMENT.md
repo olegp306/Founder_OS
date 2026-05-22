@@ -49,6 +49,7 @@ Set `FOUNDER_OS_ENABLE_DASHBOARD_DEMO=true` only when you need the local AI cont
 - Rotate `FOUNDER_OS_ADMIN_TOKEN` immediately if it is exposed.
 - Use separate database credentials for local, staging, and production.
 - Store AI provider keys in the deployment platform or a secret manager. Founder OS should store only `secretRef` values such as `vercel:PROJECT_OPENAI_API_KEY`.
+- Use `/api/projects/ai-setup` after manifest import to register the project's AI key reference and token policy in one protected admin call.
 - Use `/api/projects/connection?projectKey=<project>&assistantKey=<assistant>` after onboarding to get the safe integration bundle for the connected project.
 - Connected products should ask `/api/ai-control/resolve` which provider, model, secret reference, and budget metadata to use before high-cost AI work.
 - Connected assistants should call `/api/ai-usage/assess` before expensive or open-ended AI work. Respect `recommendedAction` and `modelDirective` to downgrade, rate-limit, block, or temporarily suspend abusive usage.
@@ -71,8 +72,8 @@ Current recommended local flow:
 1. Add `.founderos/project.json` to each founder-owned project.
 2. Run `npm run projects:scan -- --root C:\Repos` to preview discovered manifests.
 3. Run `npm run projects:import -- --root C:\Repos --endpoint https://<founder-os-host>/api/projects/bulk-import --token <FOUNDER_OS_ADMIN_TOKEN>` to submit them.
-4. Register each project's AI key reference with `/api/ai-keys`.
-5. Configure each project's token policy with `/api/token-policy`.
+4. Register each project's AI key reference and token policy together with `/api/projects/ai-setup`.
+5. If needed, update key references with `/api/ai-keys` or token policy with `/api/token-policy`.
 6. Check `/api/projects/readiness?projectKeys=<project>&assistantKey=<assistant>` and confirm `manifestImported`, `aiKeyConfigured`, and `tokenPolicyConfigured` are true.
 7. Fetch `/api/projects/connection?projectKey=<project>&assistantKey=<assistant>` and apply the returned environment variable names, route contracts, key references, and next steps.
 8. Configure the connected project to call `/api/ai-control/resolve` before high-cost AI work.

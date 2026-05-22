@@ -254,3 +254,11 @@ Adds a safe connection bundle for moving personal projects into Founder OS:
 - `/api/projects/connection` returns the project key, assistant key, required environment variable names, integration routes, readiness state, AI key references, and token policy summary.
 - The bundle includes only `secretRef` metadata and never stores or returns plaintext provider keys.
 - `/api/health` now reports the connection bundle route as part of the private onboarding surface.
+
+### `codex/project-ai-setup`
+
+Adds one-step AI setup for transferred projects:
+
+- `/api/projects/ai-setup` registers an AI key reference and token policy for a project/assistant in one admin call.
+- The setup response immediately returns the refreshed connection bundle so the connected project can apply environment names and route contracts.
+- Plaintext provider keys remain excluded from responses; products continue to use external secret stores through `secretRef` values.
