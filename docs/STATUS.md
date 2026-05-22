@@ -294,3 +294,12 @@ Adds project listing for multi-project transfer visibility:
 - `/api/projects` lists imported projects with safe repository metadata, readiness counts, and missing setup labels.
 - The internal dashboard now shows Connected Projects so multiple personal projects can be tracked beyond the default demo project.
 - Project list output excludes AI key `secretRef` values while still showing readiness state.
+
+### `codex/project-onboarding-repositories`
+
+Routes project onboarding through the repository set:
+
+- Adds a `projects` repository contract for manifests, repository metadata, AI key references, and project controls.
+- Memory repositories share the runtime project onboarding store for backwards-compatible local behavior.
+- Project onboarding, AI key registration, readiness, project list, connection bundle, bulk import, AI setup, and AI execution control now call `runtime.repositories.projects`.
+- Prisma repository set includes a temporary project onboarding bridge until dedicated project onboarding tables and adapters are added.

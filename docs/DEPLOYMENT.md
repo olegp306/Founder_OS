@@ -44,6 +44,8 @@ Set `FOUNDER_OS_ENABLE_DASHBOARD_DEMO=true` only when you need the local AI cont
 
 `/api/health` reports both `persistenceMode` and `repositoryKind` so deploy checks can confirm whether the app is running with memory repositories or database-backed repositories.
 
+Project onboarding services now use `runtime.repositories.projects`, which keeps the service layer ready for database-backed project onboarding. The current Prisma repository set still uses a temporary in-process project onboarding bridge until dedicated project, repository, project-control, and AI-key-reference tables are wired in.
+
 ## Production Guardrails
 
 - Keep campaign sending in dry-run until Telegram bot tokens and approval UI are configured.
@@ -98,3 +100,5 @@ Use `--dry-run` first to preview the discovered manifests, sanitized setup paylo
 The internal dashboard also shows the same transfer command, required environment variable names, route paths, and remaining connection-bundle next steps for the configured dashboard project.
 
 Use `/api/projects?assistantKey=<assistant>` or the Connected Projects dashboard section to review imported projects and see which ones still need AI key references, token policies, token tracking, feedback capture, or raw-message policy fixes.
+
+Until project onboarding persistence is fully migrated to Prisma tables, keep an exported copy of onboarding manifests and `.founderos/ai-setup.json` files so the project registry can be replayed after a process restart.

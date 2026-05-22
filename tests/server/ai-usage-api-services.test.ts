@@ -374,6 +374,72 @@ describe("AI usage API services", () => {
     expect(JSON.stringify(result)).not.toContain("vercel:BOOKING_ASSISTANT_OPENAI_API_KEY");
   });
 
+  it("uses repository-backed project onboarding operations", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    const calls: string[] = [];
+    const baseProjects = runtime.repositories.projects;
+    runtime.repositories.projects = {
+      async saveProject(input) {
+        calls.push("saveProject");
+        return baseProjects.saveProject(input);
+      },
+      async saveAiKey(input) {
+        calls.push("saveAiKey");
+        return baseProjects.saveAiKey(input);
+      },
+      async aiKeysForProject(projectKey) {
+        calls.push("aiKeysForProject");
+        return baseProjects.aiKeysForProject(projectKey);
+      },
+      async allProjects() {
+        calls.push("allProjects");
+        return baseProjects.allProjects();
+      },
+      async project(projectKey) {
+        calls.push("project");
+        return baseProjects.project(projectKey);
+      },
+      async repository(projectKey) {
+        calls.push("repository");
+        return baseProjects.repository(projectKey);
+      },
+      async projectControls(projectKey) {
+        calls.push("projectControls");
+        return baseProjects.projectControls(projectKey);
+      }
+    };
+
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "booking_assistant",
+      name: "Booking Assistant",
+      status: "active",
+      owner: "olegp306",
+      assistant: {
+        enabled: true,
+        token_tracking_required: true,
+        feedback_capture_required: true
+      }
+    });
+    await handleAiKeyReferenceRegistration(runtime, {
+      projectKey: "booking_assistant",
+      provider: "openai",
+      secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+      displayName: "Booking Assistant OpenAI key",
+      allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
+      defaultModel: "gpt-5.4-mini",
+      monthlyBudgetUsd: 250
+    });
+    await handleProjectList(runtime, { assistantKey: "support_bot" });
+
+    expect(calls).toEqual(expect.arrayContaining([
+      "saveProject",
+      "saveAiKey",
+      "allProjects",
+      "repository",
+      "aiKeysForProject"
+    ]));
+  });
+
   it("builds a safe project connection bundle for connected products", async () => {
     const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
     await handleProjectManifestOnboarding(runtime, {

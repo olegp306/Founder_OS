@@ -41,6 +41,7 @@ export function createFounderOsRuntime(env: {
 }): FounderOsRuntime {
   const events = new InMemoryEventStore();
   const tokens = new InMemoryTokenControlStore();
+  const projectOnboarding = new InMemoryProjectOnboardingStore();
 
   return {
     persistenceMode: selectPersistenceMode(env),
@@ -49,8 +50,8 @@ export function createFounderOsRuntime(env: {
     profileOps: new InMemoryProfileOperationsStore(),
     tokens,
     campaigns: new InMemoryCampaignStore(),
-    projectOnboarding: new InMemoryProjectOnboardingStore(),
-    repositories: new MemoryRepositorySet(events, tokens)
+    projectOnboarding,
+    repositories: new MemoryRepositorySet(events, tokens, projectOnboarding)
   };
 }
 

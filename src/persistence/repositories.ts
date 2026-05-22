@@ -1,4 +1,10 @@
 import type { StructuredEvent } from "@/domain/events/event-ingestion";
+import type {
+  AiKeyReference,
+  OnboardedProject,
+  OnboardedRepository,
+  ProjectControls
+} from "@/domain/projects/project-onboarding";
 import type { NormalizedTokenUsageEvent, TokenUsageInput } from "@/domain/token-control/token-control";
 import type {
   TokenPolicyRecord
@@ -21,11 +27,30 @@ export type TokenPolicyRepository = {
   find(input: { projectKey: string; assistantKey?: string }): Promise<TokenPolicyRecord | undefined>;
 };
 
+export type ProjectOnboardingRepository = {
+  saveProject(input: {
+    project: OnboardedProject;
+    repository?: OnboardedRepository;
+    controls: ProjectControls;
+  }): Promise<{
+    project: OnboardedProject;
+    repository?: OnboardedRepository;
+    controls: ProjectControls;
+  }>;
+  saveAiKey(key: AiKeyReference): Promise<AiKeyReference>;
+  aiKeysForProject(projectKey: string): Promise<AiKeyReference[]>;
+  allProjects(): Promise<OnboardedProject[]>;
+  project(projectKey: string): Promise<OnboardedProject | undefined>;
+  repository(projectKey: string): Promise<OnboardedRepository | undefined>;
+  projectControls(projectKey: string): Promise<ProjectControls | undefined>;
+};
+
 export type RepositorySet = {
   kind: "memory" | "prisma";
   events: EventRepository;
   tokenUsage: TokenUsageRepository;
   tokenPolicies: TokenPolicyRepository;
+  projects: ProjectOnboardingRepository;
 };
 
 export type PersistedTokenUsageInput = {
