@@ -102,3 +102,15 @@ Migrates the first API routes to the repository set:
 - `/api/token-usage`
 
 The route handlers now delegate to `src/server/api-services.ts`, which validates payloads and writes through `runtime.repositories`. `/api/health` reports `repositoryBackedRoutes`.
+
+### `codex/engagement-api-services`
+
+Moves engagement API logic into a dedicated service layer:
+
+- `/api/consents`
+- `/api/feedback`
+- `/api/segments/evaluate`
+- `/api/campaigns/preview`
+- `/api/campaigns/telegram-dry-run`
+
+These route handlers now delegate to `src/server/engagement-api-services.ts`. `/api/health` reports `serviceBackedRoutes`.
