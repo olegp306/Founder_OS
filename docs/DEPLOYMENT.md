@@ -26,10 +26,11 @@ Do not commit real environment values. Store production values in the hosting pr
 
 1. Create the Postgres database.
 2. Add environment variables in Vercel.
-3. Run Prisma migrations from the deployment pipeline once migrations exist.
+3. Run `npm run prisma:migrate:deploy` from the deployment pipeline.
 4. Deploy the Next.js app.
 5. Put the dashboard behind Cloudflare Access or Tailscale before connecting real product integrations.
-6. Configure connected products to call Founder OS APIs with `Authorization: Bearer <FOUNDER_OS_ADMIN_TOKEN>`.
+6. Run `npm run deployment:check -- --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>`.
+7. Configure connected products to call Founder OS APIs with `Authorization: Bearer <FOUNDER_OS_ADMIN_TOKEN>`.
 
 ## Persistence Mode
 
@@ -44,6 +45,14 @@ Set `FOUNDER_OS_ENABLE_DASHBOARD_DEMO=true` only when you need the local AI cont
 
 `/api/health` reports both `persistenceMode` and `repositoryKind` so deploy checks can confirm whether the app is running with memory repositories or database-backed repositories.
 
+Project onboarding services use `runtime.repositories.projects`. In Prisma mode, project manifests, repository metadata, project controls, and AI key references are persisted through Prisma delegates; in memory mode, the same service contract uses the local in-process store.
+
+When `DATABASE_URL` is set and `FOUNDER_OS_FORCE_MEMORY` is not `true`, the runtime uses Prisma repositories. Token usage and token policy APIs still accept project and assistant keys; the Prisma repository layer resolves those keys to database ids before writing.
+
+Use `npm run prisma:migrate:deploy` against each fresh Postgres database before routing connected products to Founder OS. The initial migration creates the private control-plane tables for projects, repositories, project controls, AI key references, events, token usage, token policies, profiles, consents, feedback, segments, campaigns, and audit logs.
+
+Use `npm run deployment:check -- --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>` after deploy. It checks the migration deploy script, bearer token configuration, `/api/health`, Prisma persistence mode, Prisma repository kind, private MVP readiness flags, and verifies plaintext secrets are not centrally stored.
+
 ## Production Guardrails
 
 - Keep campaign sending in dry-run until Telegram bot tokens and approval UI are configured.
@@ -52,11 +61,13 @@ Set `FOUNDER_OS_ENABLE_DASHBOARD_DEMO=true` only when you need the local AI cont
 - Use separate database credentials for local, staging, and production.
 - Store AI provider keys in the deployment platform or a secret manager. Founder OS should store only `secretRef` values such as `vercel:PROJECT_OPENAI_API_KEY`.
 - Use `/api/projects/ai-setup` after manifest import to register the project's AI key reference and token policy in one protected admin call.
+- Use `GET /api/ai-keys` to review the safe AI key reference inventory across projects, providers, allowed models, and monthly budgets without exposing plaintext provider keys.
 - Use `/api/projects/connection?projectKey=<project>&assistantKey=<assistant>` after onboarding to get the safe integration bundle for the connected project.
 - Connected products should ask `/api/ai-control/resolve` which provider, model, secret reference, and budget metadata to use before high-cost AI work.
 - Connected assistants should call `/api/ai-usage/assess` before expensive or open-ended AI work. Respect `recommendedAction` and `modelDirective` to downgrade, rate-limit, block, or temporarily suspend abusive usage.
 - Prefer `/api/ai-execution/decide` for connected products that want one preflight call combining AI key resolution, model choice, budget metadata, and abuse enforcement.
 - Configure `/api/token-policy` for each connected project/assistant before production traffic. `/api/ai-execution/decide` applies the active token policy before exposing provider, model, or secret reference details to the product.
+- Use `/api/token-policy/bulk` to apply the same preferred model, fallback model, budgets, request limit, or emergency mode across several project/assistant targets during cost spikes or provider incidents.
 - Use token policy emergency mode for central fallback-model enforcement during cost spikes or provider incidents. Policy changes are recorded as `token.policy.changed` audit events.
 - Use `/api/projects/readiness?projectKeys=<project>&assistantKey=<assistant>` after onboarding to confirm manifest import, AI key reference, and token policy configuration before connecting production AI traffic.
 - The internal dashboard mirrors the same readiness checks for the configured dashboard project so missing transfer steps are visible before live AI usage begins.
@@ -75,15 +86,36 @@ Current recommended local flow:
 2. Run `npm run projects:scan -- --root C:\Repos` to preview discovered manifests.
 3. Run `npm run projects:import -- --root C:\Repos --endpoint https://<founder-os-host>/api/projects/bulk-import --token <FOUNDER_OS_ADMIN_TOKEN>` to submit them.
 4. Register each project's AI key reference and token policy together with `/api/projects/ai-setup`, or run `npm run projects:setup-ai -- --config <project>\.founderos\ai-setup.json --endpoint https://<founder-os-host>/api/projects/ai-setup --token <FOUNDER_OS_ADMIN_TOKEN>`.
-5. If needed, update key references with `/api/ai-keys` or token policy with `/api/token-policy`.
+5. If needed, update key references with `POST /api/ai-keys` or token policy with `/api/token-policy`.
 6. Check `/api/projects/readiness?projectKeys=<project>&assistantKey=<assistant>` and confirm `manifestImported`, `aiKeyConfigured`, and `tokenPolicyConfigured` are true.
-7. Fetch `/api/projects/connection?projectKey=<project>&assistantKey=<assistant>` and apply the returned environment variable names, route contracts, key references, and next steps.
-8. Configure the connected project to call `/api/ai-control/resolve` before high-cost AI work.
-9. Configure connected assistants to call `/api/ai-usage/assess` before expensive or open-ended AI work.
-10. For new integrations, use `/api/ai-execution/decide` as the single AI preflight before model execution.
-11. Review `/api/token-usage/summary` for token spend and burn-rate monitoring.
-12. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
-13. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
+7. Review `GET /api/ai-keys` to confirm the inventory contains only expected `secretRef` metadata and budgets.
+8. Fetch `/api/projects/connection?projectKey=<project>&assistantKey=<assistant>` and apply the returned environment variable names, route contracts, key references, and next steps.
+9. Configure the connected project to call `/api/ai-control/resolve` before high-cost AI work.
+10. Configure connected assistants to call `/api/ai-usage/assess` before expensive or open-ended AI work.
+11. For new integrations, use `/api/ai-execution/decide` as the single AI preflight before model execution.
+12. Review `/api/token-usage/summary` for token spend and burn-rate monitoring.
+13. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
+14. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
+
+Bulk policy payload example:
+
+```json
+{
+  "targets": [
+    { "projectKey": "booking_assistant", "assistantKey": "support_bot" },
+    { "projectKey": "sales_copilot", "assistantKey": "support_bot" }
+  ],
+  "policy": {
+    "preferredModel": "gpt-5.4-mini",
+    "fallbackModel": "gpt-5.4-mini",
+    "dailyBudgetUsd": 10,
+    "monthlyBudgetUsd": 200,
+    "maxTokensPerRequest": 2000,
+    "emergencyMode": true
+  },
+  "reason": "cost spike control"
+}
+```
 
 Use `docs/PROJECT_AI_SETUP.example.json` as the template for `.founderos/ai-setup.json`. Keep real provider keys in Vercel, Supabase, Neon, Cloudflare, Tailscale, or another secret manager; the file should contain only `secretRef` values.
 
@@ -95,4 +127,8 @@ npm run projects:transfer -- --root C:\Repos --setup-config C:\Repos\<project>\.
 
 Use `--dry-run` first to preview the discovered manifests, sanitized setup payload, and connection bundle URL.
 
-The internal dashboard also shows the same transfer command, required environment variable names, route paths, and remaining connection-bundle next steps for the configured dashboard project.
+The internal dashboard also shows the same transfer command, required environment variable names, route paths, remaining connection-bundle next steps, safe AI key inventory budgets, and the bulk token-policy incident command for the configured dashboard project.
+
+Use `/api/projects?assistantKey=<assistant>` or the Connected Projects dashboard section to review imported projects and see which ones still need AI key references, token policies, token tracking, feedback capture, or raw-message policy fixes.
+
+Keep an exported copy of onboarding manifests and `.founderos/ai-setup.json` files anyway. They are still the fastest disaster-recovery replay source for rebuilding a project registry or rotating secret references.
