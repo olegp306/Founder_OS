@@ -65,6 +65,61 @@ Products should improve through this loop:
 
 Do not treat user feedback as passive notes. Treat it as one of the main engines of product evolution.
 
+## User Intelligence And Attribution
+
+Founder OS should build a useful, product-relevant understanding of users across the ecosystem.
+
+The goal is to know users well enough to improve service quality, personalize product experience, reduce risk, increase retention, and make relevant offers. Projects should capture the full useful context that is appropriate for the product relationship, including acquisition source, product activity, commercial behavior, support history, assistant interactions, risk signals, and value signals.
+
+Examples of useful user intelligence:
+
+- How the user arrived: link, campaign, referrer, channel, bot, product, landing page, timestamp, and first touch.
+- What the user did: bookings, payments, cancellations, repeated workflows, failed attempts, feature usage, and account activity.
+- Commercial context: booking count, payment amounts, plan, lifetime value, conversion stage, purchase intent, and upsell fit.
+- Experience context: support issues, objections, confusion, satisfaction signals, feature requests, and churn risks.
+- Assistant context: summaries, tags, needs, preferences, and product-relevant facts extracted from approved assistant interactions.
+
+This is not a public talking point. Do not expose internal user intelligence, scoring, segmentation, risk labels, attribution mechanics, or cross-product analysis to external users.
+
+Use product-appropriate and consent-safe language when asking for identity. Prefer soft phrasing such as:
+
+"How would you like us to call you?"
+
+or:
+
+"How should we address you here?"
+
+Avoid opening with blunt or unnecessary identity demands such as "What is your full legal name?" unless the specific workflow requires it.
+
+Acquisition links and campaigns should be designed so Founder OS can understand where users came from and which funnels work. Preserve useful attribution metadata whenever possible.
+
+## AI Usage Abuse Protection
+
+Products with chat, AI assistants, paid model access, or knowledge workflows must protect Founder OS from proxy abuse.
+
+Users must not be allowed to treat product assistants as a general-purpose ChatGPT, Google replacement, scraping tool, bulk content engine, or indirect way to use paid AI capacity outside the product's intended purpose.
+
+Projects should detect and score abuse patterns, including:
+
+- Repeated off-topic general knowledge requests unrelated to the product.
+- Attempts to use the assistant as a generic search engine or homework/content factory.
+- Prompt injection, jailbreak attempts, model/system prompt extraction, or requests for internal implementation details.
+- High-volume usage with low product intent.
+- Attempts to automate bulk queries through the assistant.
+- Requests that appear designed to resell or proxy access to the assistant.
+
+When abuse is suspected, the system should respond progressively:
+
+1. Keep the user experience polite and product-focused.
+2. Redirect the user back to supported product tasks.
+3. Apply stricter rate limits or quotas.
+4. Downgrade the user to a cheaper model when appropriate.
+5. Mark the user with abuse, risk, and cost-control signals.
+6. Notify the founder/admin for review when thresholds are crossed.
+7. Temporarily suspend or ban access for repeated or severe abuse.
+
+Never reveal internal abuse scores, thresholds, model-routing rules, or cost-control logic to the user. User-facing responses should stay simple: the assistant can help with the product, but cannot support unrelated or abusive use.
+
 ## User Feature Request Lifecycle
 
 User experience and user feature requests are strategic product inputs.
