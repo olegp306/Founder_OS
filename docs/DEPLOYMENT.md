@@ -67,6 +67,7 @@ Use `npm run deployment:check -- --base-url https://<founder-os-host> --token <F
 - Connected assistants should call `/api/ai-usage/assess` before expensive or open-ended AI work. Respect `recommendedAction` and `modelDirective` to downgrade, rate-limit, block, or temporarily suspend abusive usage.
 - Prefer `/api/ai-execution/decide` for connected products that want one preflight call combining AI key resolution, model choice, budget metadata, and abuse enforcement.
 - Configure `/api/token-policy` for each connected project/assistant before production traffic. `/api/ai-execution/decide` applies the active token policy before exposing provider, model, or secret reference details to the product.
+- Use `/api/token-policy/bulk` to apply the same preferred model, fallback model, budgets, request limit, or emergency mode across several project/assistant targets during cost spikes or provider incidents.
 - Use token policy emergency mode for central fallback-model enforcement during cost spikes or provider incidents. Policy changes are recorded as `token.policy.changed` audit events.
 - Use `/api/projects/readiness?projectKeys=<project>&assistantKey=<assistant>` after onboarding to confirm manifest import, AI key reference, and token policy configuration before connecting production AI traffic.
 - The internal dashboard mirrors the same readiness checks for the configured dashboard project so missing transfer steps are visible before live AI usage begins.
@@ -95,6 +96,26 @@ Current recommended local flow:
 12. Review `/api/token-usage/summary` for token spend and burn-rate monitoring.
 13. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
 14. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
+
+Bulk policy payload example:
+
+```json
+{
+  "targets": [
+    { "projectKey": "booking_assistant", "assistantKey": "support_bot" },
+    { "projectKey": "sales_copilot", "assistantKey": "support_bot" }
+  ],
+  "policy": {
+    "preferredModel": "gpt-5.4-mini",
+    "fallbackModel": "gpt-5.4-mini",
+    "dailyBudgetUsd": 10,
+    "monthlyBudgetUsd": 200,
+    "maxTokensPerRequest": 2000,
+    "emergencyMode": true
+  },
+  "reason": "cost spike control"
+}
+```
 
 Use `docs/PROJECT_AI_SETUP.example.json` as the template for `.founderos/ai-setup.json`. Keep real provider keys in Vercel, Supabase, Neon, Cloudflare, Tailscale, or another secret manager; the file should contain only `secretRef` values.
 
