@@ -11,7 +11,8 @@ const routeContracts = [
   ["/api/ai-execution/decide", "Single preflight for provider, model, budget, abuse action"],
   ["/api/ai-execution/summary", "Project-level allow, downgrade, block, risk, and token overview"],
   ["/api/ai-execution/audit", "Safe decision log without raw prompts or secret refs"],
-  ["/api/ai-keys", "Project key references stored as secretRef metadata only"]
+  ["/api/ai-keys", "Project key references stored as secretRef metadata only"],
+  ["/api/token-policy/bulk", "Apply emergency model and budget controls across projects"]
 ];
 
 const guardrails = [
@@ -223,6 +224,99 @@ export default async function HomePage() {
                 <strong>$0.00</strong>
               </div>
             ) : null}
+          </div>
+        </div>
+      </section>
+
+      <section className="key-inventory" aria-label="AI key inventory">
+        <div className="section-heading">
+          <h2>AI Key Inventory</h2>
+          <span>{dashboard.aiKeyInventory.totalMonthlyBudget}</span>
+        </div>
+        <div className="spend-summary">
+          <article className="spend-card">
+            <span>Key references</span>
+            <strong>{dashboard.aiKeyInventory.totalReferences}</strong>
+          </article>
+          <article className="spend-card">
+            <span>Provider budgets</span>
+            <strong>{dashboard.aiKeyInventory.providers.length}</strong>
+          </article>
+          <article className="spend-card">
+            <span>Monthly budget</span>
+            <strong>{dashboard.aiKeyInventory.totalMonthlyBudget}</strong>
+          </article>
+        </div>
+        <div className="spend-breakdowns">
+          <div className="spend-list">
+            <h3>Providers</h3>
+            {dashboard.aiKeyInventory.providers.map((provider) => (
+              <div className="spend-row" key={provider.provider}>
+                <code>{provider.provider}</code>
+                <span>{provider.referenceCount}</span>
+                <strong>{provider.monthlyBudget}</strong>
+              </div>
+            ))}
+            {dashboard.aiKeyInventory.providers.length === 0 ? (
+              <div className="spend-row">
+                <code>none</code>
+                <span>0</span>
+                <strong>$0.00</strong>
+              </div>
+            ) : null}
+          </div>
+          <div className="spend-list">
+            <h3>Projects</h3>
+            {dashboard.aiKeyInventory.projects.map((project) => (
+              <div className="spend-row" key={project.projectKey}>
+                <code>{project.projectKey}</code>
+                <span>{project.providers.join(", ") || "none"}</span>
+                <strong>{project.monthlyBudget}</strong>
+              </div>
+            ))}
+            {dashboard.aiKeyInventory.projects.length === 0 ? (
+              <div className="spend-row">
+                <code>none</code>
+                <span>No key references</span>
+                <strong>$0.00</strong>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      <section className="transfer-flow" aria-label="Bulk token policy">
+        <div className="section-heading">
+          <h2>Bulk Token Policy</h2>
+          <span>{dashboard.bulkTokenPolicy.targetCount} targets</span>
+        </div>
+        <div className="transfer-command">
+          <span>Incident command</span>
+          <code>{dashboard.bulkTokenPolicy.command}</code>
+        </div>
+        <div className="transfer-grid">
+          <div className="transfer-list">
+            <h3>Targets</h3>
+            {dashboard.bulkTokenPolicy.targets.map((target) => (
+              <code key={`${target.projectKey}-${target.assistantKey}`}>
+                {target.projectKey}/{target.assistantKey}
+              </code>
+            ))}
+            {dashboard.bulkTokenPolicy.targets.length === 0 ? (
+              <strong>No imported projects</strong>
+            ) : null}
+          </div>
+          <div className="transfer-list">
+            <h3>Emergency mode</h3>
+            <code>{dashboard.bulkTokenPolicy.emergencyTemplate.preferredModel}</code>
+            <code>{dashboard.bulkTokenPolicy.emergencyTemplate.fallbackModel}</code>
+            <span>{dashboard.bulkTokenPolicy.emergencyTemplate.reason}</span>
+          </div>
+          <div className="transfer-list">
+            <h3>Budget Ceiling</h3>
+            <span>Daily ${dashboard.bulkTokenPolicy.emergencyTemplate.dailyBudgetUsd}</span>
+            <span>Monthly ${dashboard.bulkTokenPolicy.emergencyTemplate.monthlyBudgetUsd}</span>
+            <span>{dashboard.bulkTokenPolicy.emergencyTemplate.maxTokensPerRequest} tokens/request</span>
           </div>
         </div>
       </section>

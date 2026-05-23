@@ -8,6 +8,7 @@ import {
   handleAiExecutionDecision,
   handleAiExecutionDecisionAuditList,
   handleAiExecutionSummary,
+  handleAiKeyReferenceInventory,
   handleAiKeyReferenceRegistration,
   handleProjectConnectionBundle,
   handleProjectList,
@@ -77,6 +78,43 @@ export type DashboardConnectedProject = {
   missing: string[];
 };
 
+export type DashboardAiKeyInventory = {
+  totalReferences: string;
+  totalMonthlyBudget: string;
+  providers: Array<{
+    provider: string;
+    referenceCount: string;
+    monthlyBudget: string;
+  }>;
+  projects: Array<{
+    projectKey: string;
+    name: string;
+    referenceCount: string;
+    monthlyBudget: string;
+    providers: string[];
+    defaultModels: string[];
+  }>;
+};
+
+export type DashboardBulkTokenPolicy = {
+  route: string;
+  command: string;
+  targetCount: string;
+  targets: Array<{
+    projectKey: string;
+    assistantKey: string;
+  }>;
+  emergencyTemplate: {
+    preferredModel: string;
+    fallbackModel: string;
+    dailyBudgetUsd: number;
+    monthlyBudgetUsd: number;
+    maxTokensPerRequest: number;
+    emergencyMode: boolean;
+    reason: string;
+  };
+};
+
 export type AiControlDashboardViewModel = {
   projectKey?: string;
   metrics: DashboardMetric[];
@@ -85,6 +123,8 @@ export type AiControlDashboardViewModel = {
   tokenSpend: DashboardTokenSpend;
   transferFlow: DashboardTransferFlow;
   connectedProjects: DashboardConnectedProject[];
+  aiKeyInventory: DashboardAiKeyInventory;
+  bulkTokenPolicy: DashboardBulkTokenPolicy;
 };
 
 const demoSeedOperations = new WeakMap<
@@ -104,7 +144,8 @@ export async function buildAiControlDashboardViewModel(
     readinessResult,
     tokenSpendResult,
     transferResult,
-    projectListResult
+    projectListResult,
+    aiKeyInventoryResult
   ] = await Promise.all([
     handleAiExecutionSummary(runtime, input),
     handleAiExecutionDecisionAuditList(runtime, {
@@ -148,7 +189,8 @@ export async function buildAiControlDashboardViewModel(
             nextSteps: ["Select project and assistant keys"]
           }
         }),
-    handleProjectList(runtime, { assistantKey: input.assistantKey })
+    handleProjectList(runtime, { assistantKey: input.assistantKey }),
+    handleAiKeyReferenceInventory(runtime, {})
   ]);
   const total = summary.totalDecisions;
   const downgradeCount = Number(summary.actionCounts.downgrade ?? 0);
@@ -200,7 +242,12 @@ export async function buildAiControlDashboardViewModel(
       ready: project.ready,
       readiness: `${project.readyCount}/${project.totalCount}`,
       missing: project.missing
-    }))
+    })),
+    aiKeyInventory: buildDashboardAiKeyInventory(aiKeyInventoryResult),
+    bulkTokenPolicy: buildDashboardBulkTokenPolicy(
+      projectListResult.projects,
+      assistantKey
+    )
   };
 }
 
@@ -418,6 +465,70 @@ function buildDashboardTransferFlow(bundle: {
   };
 }
 
+function buildDashboardAiKeyInventory(inventory: {
+  totalReferences: number;
+  totalMonthlyBudgetUsd: number;
+  byProvider: Array<{
+    provider: string;
+    referenceCount: number;
+    monthlyBudgetUsd: number;
+  }>;
+  projects: Array<{
+    projectKey: string;
+    name: string;
+    referenceCount: number;
+    monthlyBudgetUsd: number;
+    references: Array<{
+      provider: string;
+      defaultModel: string;
+    }>;
+  }>;
+}): DashboardAiKeyInventory {
+  return {
+    totalReferences: String(inventory.totalReferences),
+    totalMonthlyBudget: formatUsd(inventory.totalMonthlyBudgetUsd),
+    providers: inventory.byProvider.map((provider) => ({
+      provider: provider.provider,
+      referenceCount: String(provider.referenceCount),
+      monthlyBudget: formatUsd(provider.monthlyBudgetUsd)
+    })),
+    projects: inventory.projects.map((project) => ({
+      projectKey: project.projectKey,
+      name: project.name,
+      referenceCount: String(project.referenceCount),
+      monthlyBudget: formatUsd(project.monthlyBudgetUsd),
+      providers: uniqueSorted(project.references.map((reference) => reference.provider)),
+      defaultModels: uniqueSorted(project.references.map((reference) => reference.defaultModel))
+    }))
+  };
+}
+
+function buildDashboardBulkTokenPolicy(
+  projects: Array<{ projectKey: string }>,
+  assistantKey: string
+): DashboardBulkTokenPolicy {
+  const targets = projects.map((project) => ({
+    projectKey: project.projectKey,
+    assistantKey
+  }));
+
+  return {
+    route: "/api/token-policy/bulk",
+    command: "curl -X POST https://<founder-os-host>/api/token-policy/bulk -H \"Authorization: Bearer <FOUNDER_OS_ADMIN_TOKEN>\" -H \"Content-Type: application/json\" --data @bulk-token-policy.json",
+    targetCount: String(targets.length),
+    targets,
+    emergencyTemplate: {
+      preferredModel: "gpt-5.4-mini",
+      fallbackModel: "gpt-5.4-mini",
+      dailyBudgetUsd: 10,
+      monthlyBudgetUsd: 100,
+      maxTokensPerRequest: 2000,
+      emergencyMode: true,
+      reason: "cost_spike_or_provider_incident"
+    }
+  };
+}
+
 function formatSpendBreakdown(item: {
   key: string;
   totalCostUsd: number;
@@ -440,4 +551,8 @@ function formatCompactNumber(value: number): string {
   }
 
   return String(value);
+}
+
+function uniqueSorted(values: string[]): string[] {
+  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }

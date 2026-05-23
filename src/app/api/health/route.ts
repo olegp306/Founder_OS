@@ -12,6 +12,7 @@ export async function GET() {
     repositoryBackedRoutes: [
       "/api/events",
       "/api/token-policy",
+      "/api/token-policy/bulk",
       "/api/token-usage",
       "/api/token-usage/summary"
     ],
@@ -37,7 +38,9 @@ export async function GET() {
       projectOnboarding: true,
       bulkProjectImport: true,
       aiKeyReferences: true,
+      aiKeyInventory: true,
       aiControlResolution: true,
+      bulkTokenPolicy: true,
       aiUsageAbuseProtection: true,
       aiExecutionDecision: true,
       aiExecutionAudit: true,
