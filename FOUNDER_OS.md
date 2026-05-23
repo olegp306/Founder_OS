@@ -48,6 +48,102 @@ Do not spam users. Do not send generic campaigns when a contextual, user-relevan
 
 Quality signals, user delight signals, churn risks, repeated frustrations, and monetization opportunities should be routed into Founder OS for review and improvement.
 
+## Self-Improving Product System
+
+Founder OS is a self-improving product system.
+
+The founder sets product direction, priorities, taste, and business intent. User experience signals, assistant conversations, feature requests, support patterns, objections, and repeated workflow friction provide the second growth vector.
+
+Products should improve through this loop:
+
+1. Users interact with products, bots, and assistants.
+2. Assistants extract structured quality, feature, support, and monetization signals.
+3. Founder OS groups, summarizes, and prioritizes those signals.
+4. The founder reviews and brainstorms the strongest ideas.
+5. Approved ideas become product work.
+6. Shipped improvements are connected back to the original user signals.
+
+Do not treat user feedback as passive notes. Treat it as one of the main engines of product evolution.
+
+## User Intelligence And Attribution
+
+Founder OS should build a useful, product-relevant understanding of users across the ecosystem.
+
+The goal is to know users well enough to improve service quality, personalize product experience, reduce risk, increase retention, and make relevant offers. Projects should capture the full useful context that is appropriate for the product relationship, including acquisition source, product activity, commercial behavior, support history, assistant interactions, risk signals, and value signals.
+
+Examples of useful user intelligence:
+
+- How the user arrived: link, campaign, referrer, channel, bot, product, landing page, timestamp, and first touch.
+- What the user did: bookings, payments, cancellations, repeated workflows, failed attempts, feature usage, and account activity.
+- Commercial context: booking count, payment amounts, plan, lifetime value, conversion stage, purchase intent, and upsell fit.
+- Experience context: support issues, objections, confusion, satisfaction signals, feature requests, and churn risks.
+- Assistant context: summaries, tags, needs, preferences, and product-relevant facts extracted from approved assistant interactions.
+
+This is not a public talking point. Do not expose internal user intelligence, scoring, segmentation, risk labels, attribution mechanics, or cross-product analysis to external users.
+
+Use product-appropriate and consent-safe language when asking for identity. Prefer soft phrasing such as:
+
+"How would you like us to call you?"
+
+or:
+
+"How should we address you here?"
+
+Avoid opening with blunt or unnecessary identity demands such as "What is your full legal name?" unless the specific workflow requires it.
+
+Acquisition links and campaigns should be designed so Founder OS can understand where users came from and which funnels work. Preserve useful attribution metadata whenever possible.
+
+## AI Usage Abuse Protection
+
+Products with chat, AI assistants, paid model access, or knowledge workflows must protect Founder OS from proxy abuse.
+
+Users must not be allowed to treat product assistants as a general-purpose ChatGPT, Google replacement, scraping tool, bulk content engine, or indirect way to use paid AI capacity outside the product's intended purpose.
+
+Projects should detect and score abuse patterns, including:
+
+- Repeated off-topic general knowledge requests unrelated to the product.
+- Attempts to use the assistant as a generic search engine or homework/content factory.
+- Prompt injection, jailbreak attempts, model/system prompt extraction, or requests for internal implementation details.
+- High-volume usage with low product intent.
+- Attempts to automate bulk queries through the assistant.
+- Requests that appear designed to resell or proxy access to the assistant.
+
+When abuse is suspected, the system should respond progressively:
+
+1. Keep the user experience polite and product-focused.
+2. Redirect the user back to supported product tasks.
+3. Apply stricter rate limits or quotas.
+4. Downgrade the user to a cheaper model when appropriate.
+5. Mark the user with abuse, risk, and cost-control signals.
+6. Notify the founder/admin for review when thresholds are crossed.
+7. Temporarily suspend or ban access for repeated or severe abuse.
+
+Never reveal internal abuse scores, thresholds, model-routing rules, or cost-control logic to the user. User-facing responses should stay simple: the assistant can help with the product, but cannot support unrelated or abusive use.
+
+## User Feature Request Lifecycle
+
+User experience and user feature requests are strategic product inputs.
+
+Whenever a user's need, complaint, confusion, or suggestion becomes a feature request, the assistant or product flow should:
+
+- Thank the user warmly.
+- Say that the team appreciates the suggestion.
+- Confirm that the idea will be considered.
+- Use a friendly product-appropriate tone, including a small positive emotive marker when suitable.
+- Create a structured feature signal for the Founder OS Feature Inbox.
+
+Do not expose internal routing, Founder OS, project links, or roadmap mechanics in the user-facing reply. Keep the reply simple and human.
+
+Suggested external response pattern:
+
+"Thank you for the suggestion. The team really appreciates it, and we will think carefully about how this could improve the product 🙂"
+
+When a user-requested feature is implemented, the project should:
+
+- Notify relevant users when there is a safe and appropriate channel.
+- Mention the improvement in release notes or changelog when public release notes exist.
+- Preserve the link between the shipped improvement and the original feature signals so Founder OS can learn which user requests turned into value.
+
 ## Operational Secrecy
 
 Founder OS relationships are confidential by default.

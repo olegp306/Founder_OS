@@ -35,7 +35,12 @@
                    "emit_token_usage_events":  true,
                    "emit_feedback_events":  true,
                    "emit_feature_signal_events":  true,
-                   "emit_quality_signal_events":  true
+                   "emit_quality_signal_events":  true,
+                   "emit_attribution_events":  true,
+                   "emit_commercial_activity_events":  true,
+                   "emit_risk_value_signal_events":  true,
+                   "emit_abuse_signal_events":  true,
+                   "emit_cost_control_events":  true
                },
     "deployment":  {
                        "model":  "founder_control_plane",
@@ -60,5 +65,110 @@
                     "contextual_offers_required":  true,
                     "generic_spam_allowed":  false,
                     "route_quality_signals_to_founder_os":  true
-                }
+                },
+    "feature_request_lifecycle":  {
+                                      "thank_user_on_capture":  true,
+                                      "appreciation_message_required":  true,
+                                      "positive_emotive_marker_allowed":  true,
+                                      "route_to_feature_inbox":  true,
+                                      "preserve_request_to_release_link":  true,
+                                      "notify_user_when_shipped":  true,
+                                      "mention_in_release_notes":  true,
+                                      "expose_internal_routing_to_user":  false
+                                  },
+    "self_improvement":  {
+                             "enabled":  true,
+                             "founder_sets_direction":  true,
+                             "user_experience_growth_vector":  true,
+                             "assistant_signal_extraction_required":  true,
+                             "feedback_is_product_evolution_engine":  true,
+                             "loop":  [
+                                          "user_interaction",
+                                          "assistant_signal_extraction",
+                                          "founder_os_grouping",
+                                          "founder_review_and_brainstorm",
+                                          "approved_product_work",
+                                          "release_linked_to_original_signals"
+                                      ]
+                         },
+    "user_intelligence":  {
+                              "enabled":  true,
+                              "full_product_relevant_context_required":  true,
+                              "acquisition_attribution_required":  true,
+                              "preserve_first_touch":  true,
+                              "preserve_campaign_metadata":  true,
+                              "commercial_activity_tracking_required":  true,
+                              "risk_and_value_signals_required":  true,
+                              "expose_internal_scoring_to_user":  false,
+                              "soft_identity_prompt_required":  true,
+                              "preferred_identity_prompt":  "How would you like us to call you?",
+                              "alternate_identity_prompt":  "How should we address you here?",
+                              "avoid_unnecessary_legal_name_prompt":  true,
+                              "attribution_fields":  [
+                                                         "link",
+                                                         "campaign",
+                                                         "referrer",
+                                                         "channel",
+                                                         "bot",
+                                                         "product",
+                                                         "landing_page",
+                                                         "timestamp",
+                                                         "first_touch"
+                                                     ],
+                              "activity_fields":  [
+                                                      "bookings",
+                                                      "payments",
+                                                      "cancellations",
+                                                      "feature_usage",
+                                                      "failed_attempts",
+                                                      "support_events",
+                                                      "assistant_summaries",
+                                                      "feature_requests"
+                                                  ],
+                              "commercial_fields":  [
+                                                        "booking_count",
+                                                        "payment_amounts",
+                                                        "plan",
+                                                        "lifetime_value",
+                                                        "conversion_stage",
+                                                        "purchase_intent",
+                                                        "upsell_fit"
+                                                    ],
+                              "experience_fields":  [
+                                                        "support_issues",
+                                                        "objections",
+                                                        "confusion",
+                                                        "satisfaction_signals",
+                                                        "churn_risks",
+                                                        "quality_signals"
+                                                    ]
+                          },
+    "ai_usage_abuse_protection":  {
+                                      "enabled":  true,
+                                      "prevent_general_ai_proxy_use":  true,
+                                      "product_scope_required":  true,
+                                      "detect_off_topic_general_requests":  true,
+                                      "detect_generic_search_or_homework_use":  true,
+                                      "detect_prompt_injection_and_system_extraction":  true,
+                                      "detect_high_volume_low_product_intent":  true,
+                                      "detect_automation_or_bulk_queries":  true,
+                                      "detect_resale_or_proxy_patterns":  true,
+                                      "abuse_score_required":  true,
+                                      "progressive_enforcement":  [
+                                                                      "redirect_to_product_scope",
+                                                                      "rate_limit",
+                                                                      "quota_limit",
+                                                                      "downgrade_to_cheaper_model",
+                                                                      "mark_user_risk",
+                                                                      "notify_admin",
+                                                                      "temporary_suspend",
+                                                                      "ban_for_repeated_or_severe_abuse"
+                                                                  ],
+                                      "admin_alert_required":  true,
+                                      "cheaper_model_downgrade_allowed":  true,
+                                      "temporary_suspension_allowed":  true,
+                                      "ban_allowed_for_repeated_or_severe_abuse":  true,
+                                      "expose_scores_or_thresholds_to_user":  false,
+                                      "user_facing_response":  "This assistant can help with supported product tasks, but cannot help with unrelated or abusive use."
+                                  }
 }

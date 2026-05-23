@@ -1,42 +1,28 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { z, ZodError } from "zod";
+import { ZodError } from "zod";
+import { handleTokenPolicyLookup, handleTokenPolicySave } from "@/server/api-services";
 import { getFounderOsRuntime } from "@/server/founder-os-runtime";
-
-const tokenPolicyRequestSchema = z.object({
-  projectKey: z.string().min(2),
-  assistantKey: z.string().min(2).optional(),
-  preferredModel: z.string().min(2),
-  fallbackModel: z.string().min(2),
-  dailyBudgetUsd: z.number().min(0),
-  monthlyBudgetUsd: z.number().min(0),
-  maxTokensPerRequest: z.number().int().min(1),
-  emergencyMode: z.boolean().default(false)
-});
 
 export async function GET(request: NextRequest) {
   const runtime = getFounderOsRuntime();
   const projectKey = request.nextUrl.searchParams.get("projectKey");
   const assistantKey = request.nextUrl.searchParams.get("assistantKey") ?? undefined;
 
-  if (!projectKey) {
-    return NextResponse.json({ error: "projectKey is required" }, { status: 400 });
+  try {
+    return NextResponse.json(await handleTokenPolicyLookup(runtime, { projectKey, assistantKey }));
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Token policy lookup failed" },
+      { status: projectKey ? 404 : 400 }
+    );
   }
-
-  const policy = runtime.tokens.findPolicy({ projectKey, assistantKey });
-
-  if (!policy) {
-    return NextResponse.json({ error: "Token policy not found" }, { status: 404 });
-  }
-
-  return NextResponse.json({ policy });
 }
 
 export async function POST(request: NextRequest) {
   const runtime = getFounderOsRuntime();
 
   try {
-    const policy = runtime.tokens.setPolicy(tokenPolicyRequestSchema.parse(await request.json()));
-    return NextResponse.json({ status: "saved", policy });
+    return NextResponse.json(await handleTokenPolicySave(runtime, await request.json()));
   } catch (error) {
     if (error instanceof ZodError) {
       return NextResponse.json(
