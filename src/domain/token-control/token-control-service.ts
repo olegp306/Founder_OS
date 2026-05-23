@@ -116,7 +116,7 @@ export function getSafeTokenPolicy(input: {
     allowed: true,
     model: policy.emergencyMode ? policy.fallbackModel : policy.preferredModel,
     source: input.activePolicy ? "active_policy" : "last_known_safe_policy",
-    reasons
+    reasons: policy.emergencyMode ? [...reasons, "emergency_mode"] : reasons
   };
 }
 

@@ -70,9 +70,13 @@ model Project {
   key          String            @unique
   name         String
   owner        String
+  category     String?
+  workspace    String?
   runtime      String
   status       OperationalStatus @default(ACTIVE)
   repositories Repository[]
+  controls     ProjectControl?
+  aiKeyReferences AiKeyReference[]
   environments Environment[]
   assistants   Assistant[]
   events       Event[]
@@ -89,10 +93,44 @@ model Repository {
   projectId     String
   project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   provider      String
-  url           String   @unique
+  name          String
+  localPath     String?
+  url           String?  @unique
   defaultBranch String   @default("main")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@unique([projectId, name])
+}
+
+model ProjectControl {
+  id                          String   @id @default(cuid())
+  projectId                   String   @unique
+  project                     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assistantEnabled            Boolean  @default(false)
+  tokenTrackingRequired       Boolean  @default(false)
+  feedbackCaptureRequired     Boolean  @default(false)
+  rawMessageStorage           String   @default("disabled_by_default")
+  consentRequiredForMarketing Boolean  @default(true)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+}
+
+model AiKeyReference {
+  id               String   @id @default(cuid())
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  provider         String
+  secretRef        String
+  displayName      String
+  allowedModels    Json     @default("[]")
+  defaultModel     String
+  monthlyBudgetUsd Decimal  @db.Decimal(12, 2)
+  status           String   @default("active")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([projectId, secretRef])
 }
 
 model Environment {
