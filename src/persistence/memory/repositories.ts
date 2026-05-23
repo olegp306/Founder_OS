@@ -4,6 +4,13 @@ import {
   type TokenPolicyRecord,
   recordTokenUsage
 } from "@/domain/token-control/token-control-service";
+import {
+  InMemoryProjectOnboardingStore,
+  type AiKeyReference,
+  type OnboardedProject,
+  type OnboardedRepository,
+  type ProjectControls
+} from "@/domain/projects/project-onboarding";
 import type { TokenUsageInput } from "@/domain/token-control/token-control";
 import type { RepositorySet } from "@/persistence/repositories";
 
@@ -12,14 +19,17 @@ export class MemoryRepositorySet implements RepositorySet {
   readonly events: MemoryEventRepository;
   readonly tokenUsage: MemoryTokenUsageRepository;
   readonly tokenPolicies: MemoryTokenPolicyRepository;
+  readonly projects: MemoryProjectOnboardingRepository;
 
   constructor(
     private readonly eventStore = new InMemoryEventStore(),
-    private readonly tokenStore = new InMemoryTokenControlStore()
+    private readonly tokenStore = new InMemoryTokenControlStore(),
+    private readonly projectStore = new InMemoryProjectOnboardingStore()
   ) {
     this.events = new MemoryEventRepository(this.eventStore);
     this.tokenUsage = new MemoryTokenUsageRepository(this.tokenStore);
     this.tokenPolicies = new MemoryTokenPolicyRepository(this.tokenStore);
+    this.projects = new MemoryProjectOnboardingRepository(this.projectStore);
   }
 }
 
@@ -56,5 +66,41 @@ class MemoryTokenPolicyRepository {
 
   async find(input: { projectKey: string; assistantKey?: string }) {
     return this.store.findPolicy(input);
+  }
+}
+
+class MemoryProjectOnboardingRepository {
+  constructor(private readonly store: InMemoryProjectOnboardingStore) {}
+
+  async saveProject(input: {
+    project: OnboardedProject;
+    repository?: OnboardedRepository;
+    controls: ProjectControls;
+  }) {
+    return this.store.saveProject(input);
+  }
+
+  async saveAiKey(key: AiKeyReference) {
+    return this.store.saveAiKey(key);
+  }
+
+  async aiKeysForProject(projectKey: string) {
+    return this.store.aiKeysForProject(projectKey);
+  }
+
+  async allProjects() {
+    return this.store.allProjects();
+  }
+
+  async project(projectKey: string) {
+    return this.store.project(projectKey);
+  }
+
+  async repository(projectKey: string) {
+    return this.store.repository(projectKey);
+  }
+
+  async projectControls(projectKey: string) {
+    return this.store.projectControls(projectKey);
   }
 }
