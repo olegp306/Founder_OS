@@ -106,7 +106,7 @@ npm run projects:transfer -- --root C:\Repos --setup-config C:\Repos\<project>\.
 
 Use `--dry-run` first to preview the discovered manifests, sanitized setup payload, and connection bundle URL.
 
-The internal dashboard also shows the same transfer command, required environment variable names, route paths, and remaining connection-bundle next steps for the configured dashboard project.
+The internal dashboard also shows the same transfer command, required environment variable names, route paths, remaining connection-bundle next steps, and safe AI key inventory budgets for the configured dashboard project.
 
 Use `/api/projects?assistantKey=<assistant>` or the Connected Projects dashboard section to review imported projects and see which ones still need AI key references, token policies, token tracking, feedback capture, or raw-message policy fixes.
 

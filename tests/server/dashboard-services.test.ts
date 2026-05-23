@@ -133,6 +133,74 @@ describe("dashboard services", () => {
     expect(JSON.stringify(viewModel)).not.toContain("vercel:BOOKING_ASSISTANT_OPENAI_API_KEY");
   });
 
+  it("builds safe AI key inventory for the dashboard", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "booking_assistant",
+      name: "Booking Assistant",
+      status: "active",
+      owner: "olegp306"
+    });
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "sales_copilot",
+      name: "Sales Copilot",
+      status: "active",
+      owner: "olegp306"
+    });
+    await handleAiKeyReferenceRegistration(runtime, {
+      projectKey: "booking_assistant",
+      provider: "openai",
+      secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+      displayName: "Booking Assistant OpenAI key",
+      allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
+      defaultModel: "gpt-5.4-mini",
+      monthlyBudgetUsd: 250
+    });
+    await handleAiKeyReferenceRegistration(runtime, {
+      projectKey: "sales_copilot",
+      provider: "anthropic",
+      secretRef: "vercel:SALES_COPILOT_ANTHROPIC_API_KEY",
+      displayName: "Sales Copilot Anthropic key",
+      allowedModels: ["claude-sonnet-4.5"],
+      defaultModel: "claude-sonnet-4.5",
+      monthlyBudgetUsd: 400
+    });
+
+    const viewModel = await buildAiControlDashboardViewModel(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot"
+    });
+
+    expect(viewModel.aiKeyInventory).toEqual({
+      totalReferences: "2",
+      totalMonthlyBudget: "$650.00",
+      providers: [
+        { provider: "anthropic", referenceCount: "1", monthlyBudget: "$400.00" },
+        { provider: "openai", referenceCount: "1", monthlyBudget: "$250.00" }
+      ],
+      projects: [
+        {
+          projectKey: "booking_assistant",
+          name: "Booking Assistant",
+          referenceCount: "1",
+          monthlyBudget: "$250.00",
+          providers: ["openai"],
+          defaultModels: ["gpt-5.4-mini"]
+        },
+        {
+          projectKey: "sales_copilot",
+          name: "Sales Copilot",
+          referenceCount: "1",
+          monthlyBudget: "$400.00",
+          providers: ["anthropic"],
+          defaultModels: ["claude-sonnet-4.5"]
+        }
+      ]
+    });
+    expect(JSON.stringify(viewModel)).not.toContain("vercel:BOOKING_ASSISTANT_OPENAI_API_KEY");
+    expect(JSON.stringify(viewModel)).not.toContain("vercel:SALES_COPILOT_ANTHROPIC_API_KEY");
+  });
+
   it("builds AI control dashboard metrics from runtime execution decisions", async () => {
     const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
     await handleAiKeyReferenceRegistration(runtime, {

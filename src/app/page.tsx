@@ -227,6 +227,63 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section className="key-inventory" aria-label="AI key inventory">
+        <div className="section-heading">
+          <h2>AI Key Inventory</h2>
+          <span>{dashboard.aiKeyInventory.totalMonthlyBudget}</span>
+        </div>
+        <div className="spend-summary">
+          <article className="spend-card">
+            <span>Key references</span>
+            <strong>{dashboard.aiKeyInventory.totalReferences}</strong>
+          </article>
+          <article className="spend-card">
+            <span>Provider budgets</span>
+            <strong>{dashboard.aiKeyInventory.providers.length}</strong>
+          </article>
+          <article className="spend-card">
+            <span>Monthly budget</span>
+            <strong>{dashboard.aiKeyInventory.totalMonthlyBudget}</strong>
+          </article>
+        </div>
+        <div className="spend-breakdowns">
+          <div className="spend-list">
+            <h3>Providers</h3>
+            {dashboard.aiKeyInventory.providers.map((provider) => (
+              <div className="spend-row" key={provider.provider}>
+                <code>{provider.provider}</code>
+                <span>{provider.referenceCount}</span>
+                <strong>{provider.monthlyBudget}</strong>
+              </div>
+            ))}
+            {dashboard.aiKeyInventory.providers.length === 0 ? (
+              <div className="spend-row">
+                <code>none</code>
+                <span>0</span>
+                <strong>$0.00</strong>
+              </div>
+            ) : null}
+          </div>
+          <div className="spend-list">
+            <h3>Projects</h3>
+            {dashboard.aiKeyInventory.projects.map((project) => (
+              <div className="spend-row" key={project.projectKey}>
+                <code>{project.projectKey}</code>
+                <span>{project.providers.join(", ") || "none"}</span>
+                <strong>{project.monthlyBudget}</strong>
+              </div>
+            ))}
+            {dashboard.aiKeyInventory.projects.length === 0 ? (
+              <div className="spend-row">
+                <code>none</code>
+                <span>No key references</span>
+                <strong>$0.00</strong>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
       <section className="signal-table" aria-label="Recent AI execution signals">
         <div className="section-heading">
           <h2>Recent Signals</h2>
