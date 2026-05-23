@@ -1,17 +1,18 @@
 import React from "react";
-
-const controlMetrics = [
-  { label: "Execution decisions", value: "68", detail: "latest verified test surface" },
-  { label: "Tokens under risk", value: "4.5k", detail: "estimated from guarded requests" },
-  { label: "Downgrade rate", value: "33%", detail: "fallback model enforcement" },
-  { label: "Blocked requests", value: "1", detail: "prompt extraction prevented" }
-];
+import {
+  buildAiControlDashboardViewModel,
+  seedAiControlDashboardDemoData
+} from "@/server/dashboard-services";
+import { getFounderOsRuntime } from "@/server/founder-os-runtime";
 
 const routeContracts = [
+  ["/api/projects/ai-setup", "Register key references and token policy in one setup step"],
+  ["/api/projects/connection", "Connection Bundle for moving a project into Founder OS"],
   ["/api/ai-execution/decide", "Single preflight for provider, model, budget, abuse action"],
   ["/api/ai-execution/summary", "Project-level allow, downgrade, block, risk, and token overview"],
   ["/api/ai-execution/audit", "Safe decision log without raw prompts or secret refs"],
-  ["/api/ai-keys", "Project key references stored as secretRef metadata only"]
+  ["/api/ai-keys", "Project key references stored as secretRef metadata only"],
+  ["/api/token-policy/bulk", "Apply emergency model and budget controls across projects"]
 ];
 
 const guardrails = [
@@ -21,13 +22,21 @@ const guardrails = [
   "Fallback model on downgrade"
 ];
 
-const recentSignals = [
-  ["allow", "low", "gpt-5.4", "booking support", "1.2k"],
-  ["downgrade", "medium", "gpt-5.4-mini", "outside product scope", "3.0k"],
-  ["block", "high", "none", "system extraction attempt", "1.5k"]
-];
+const dashboardProjectKey = "booking_assistant";
+const dashboardAssistantKey = "support_bot";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const runtime = getFounderOsRuntime();
+
+  if (process.env.FOUNDER_OS_ENABLE_DASHBOARD_DEMO === "true") {
+    await seedAiControlDashboardDemoData(runtime, { projectKey: dashboardProjectKey });
+  }
+
+  const dashboard = await buildAiControlDashboardViewModel(runtime, {
+    projectKey: dashboardProjectKey,
+    assistantKey: dashboardAssistantKey
+  });
+
   return (
     <main className="shell">
       <section className="dashboard-header" aria-label="Founder OS status">
@@ -47,7 +56,7 @@ export default function HomePage() {
       </section>
 
       <section className="metric-grid" aria-label="AI execution metrics">
-        {controlMetrics.map((metric) => (
+        {dashboard.metrics.map((metric) => (
           <article className="metric-card" key={metric.label}>
             <span>{metric.label}</span>
             <strong>{metric.value}</strong>
@@ -88,6 +97,230 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="readiness-table" aria-label="Project transfer readiness">
+        <div className="section-heading">
+          <h2>Project Transfer Readiness</h2>
+          <span>{dashboard.projectReadiness.readyCount}/{dashboard.projectReadiness.totalCount}</span>
+        </div>
+        <div className="readiness-grid">
+          {dashboard.projectReadiness.items.map((item) => (
+            <div className="readiness-row" data-ready={item.ready} key={item.label}>
+              <strong>{item.ready ? "ready" : "missing"}</strong>
+              <span>{item.label}</span>
+              <code>{item.detail ?? dashboard.projectReadiness.projectKey}</code>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="projects-table" aria-label="Connected projects">
+        <div className="section-heading">
+          <h2>Connected Projects</h2>
+          <span>{dashboard.connectedProjects.length}</span>
+        </div>
+        <div className="projects-grid">
+          {dashboard.connectedProjects.map((project) => (
+            <div className="project-row" data-ready={project.ready} key={project.projectKey}>
+              <strong>{project.ready ? "ready" : "setup"}</strong>
+              <span>{project.name}</span>
+              <code>{project.projectKey}</code>
+              <span>{project.readiness}</span>
+            </div>
+          ))}
+          {dashboard.connectedProjects.length === 0 ? (
+            <div className="project-row empty-row" data-ready="false">
+              <strong>none</strong>
+              <span>No imported projects yet</span>
+              <code>projects:transfer</code>
+              <span>0/6</span>
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      <section className="transfer-flow" aria-label="Project transfer flow">
+        <div className="section-heading">
+          <h2>Transfer Flow</h2>
+          <span>{dashboard.transferFlow.ready ? "ready" : "needs setup"}</span>
+        </div>
+        <div className="transfer-command">
+          <span>Local command</span>
+          <code>{dashboard.transferFlow.command}</code>
+        </div>
+        <div className="transfer-grid">
+          <div className="transfer-list">
+            <h3>Required Environment</h3>
+            {dashboard.transferFlow.requiredEnvironment.map((name) => (
+              <code key={name}>{name}</code>
+            ))}
+          </div>
+          <div className="transfer-list">
+            <h3>Routes</h3>
+            {dashboard.transferFlow.routes.map((route) => (
+              <code key={route}>{route}</code>
+            ))}
+          </div>
+          <div className="transfer-list">
+            <h3>Next Steps</h3>
+            {dashboard.transferFlow.nextSteps.length === 0 ? (
+              <strong>Ready to connect</strong>
+            ) : (
+              dashboard.transferFlow.nextSteps.map((step) => <span key={step}>{step}</span>)
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="spend-table" aria-label="Token spend">
+        <div className="section-heading">
+          <h2>Token Spend</h2>
+          <span>{dashboard.tokenSpend.windowHours}h window</span>
+        </div>
+        <div className="spend-summary">
+          <article className="spend-card">
+            <span>Total cost</span>
+            <strong>{dashboard.tokenSpend.totalCost}</strong>
+          </article>
+          <article className="spend-card">
+            <span>Total tokens</span>
+            <strong>{dashboard.tokenSpend.totalTokens}</strong>
+          </article>
+          <article className="spend-card">
+            <span>Projected daily</span>
+            <strong>{dashboard.tokenSpend.projectedDailySpend}</strong>
+          </article>
+        </div>
+        <div className="spend-breakdowns">
+          <div className="spend-list">
+            <h3>Top Models</h3>
+            {dashboard.tokenSpend.topModels.map((model) => (
+              <div className="spend-row" key={model.key}>
+                <code>{model.key}</code>
+                <span>{model.totalTokens}</span>
+                <strong>{model.totalCost}</strong>
+              </div>
+            ))}
+            {dashboard.tokenSpend.topModels.length === 0 ? (
+              <div className="spend-row">
+                <code>none</code>
+                <span>0</span>
+                <strong>$0.00</strong>
+              </div>
+            ) : null}
+          </div>
+          <div className="spend-list">
+            <h3>Environments</h3>
+            {dashboard.tokenSpend.topEnvironments.map((environment) => (
+              <div className="spend-row" key={environment.key}>
+                <code>{environment.key}</code>
+                <span>{environment.totalTokens}</span>
+                <strong>{environment.totalCost}</strong>
+              </div>
+            ))}
+            {dashboard.tokenSpend.topEnvironments.length === 0 ? (
+              <div className="spend-row">
+                <code>none</code>
+                <span>0</span>
+                <strong>$0.00</strong>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      <section className="key-inventory" aria-label="AI key inventory">
+        <div className="section-heading">
+          <h2>AI Key Inventory</h2>
+          <span>{dashboard.aiKeyInventory.totalMonthlyBudget}</span>
+        </div>
+        <div className="spend-summary">
+          <article className="spend-card">
+            <span>Key references</span>
+            <strong>{dashboard.aiKeyInventory.totalReferences}</strong>
+          </article>
+          <article className="spend-card">
+            <span>Provider budgets</span>
+            <strong>{dashboard.aiKeyInventory.providers.length}</strong>
+          </article>
+          <article className="spend-card">
+            <span>Monthly budget</span>
+            <strong>{dashboard.aiKeyInventory.totalMonthlyBudget}</strong>
+          </article>
+        </div>
+        <div className="spend-breakdowns">
+          <div className="spend-list">
+            <h3>Providers</h3>
+            {dashboard.aiKeyInventory.providers.map((provider) => (
+              <div className="spend-row" key={provider.provider}>
+                <code>{provider.provider}</code>
+                <span>{provider.referenceCount}</span>
+                <strong>{provider.monthlyBudget}</strong>
+              </div>
+            ))}
+            {dashboard.aiKeyInventory.providers.length === 0 ? (
+              <div className="spend-row">
+                <code>none</code>
+                <span>0</span>
+                <strong>$0.00</strong>
+              </div>
+            ) : null}
+          </div>
+          <div className="spend-list">
+            <h3>Projects</h3>
+            {dashboard.aiKeyInventory.projects.map((project) => (
+              <div className="spend-row" key={project.projectKey}>
+                <code>{project.projectKey}</code>
+                <span>{project.providers.join(", ") || "none"}</span>
+                <strong>{project.monthlyBudget}</strong>
+              </div>
+            ))}
+            {dashboard.aiKeyInventory.projects.length === 0 ? (
+              <div className="spend-row">
+                <code>none</code>
+                <span>No key references</span>
+                <strong>$0.00</strong>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      <section className="transfer-flow" aria-label="Bulk token policy">
+        <div className="section-heading">
+          <h2>Bulk Token Policy</h2>
+          <span>{dashboard.bulkTokenPolicy.targetCount} targets</span>
+        </div>
+        <div className="transfer-command">
+          <span>Incident command</span>
+          <code>{dashboard.bulkTokenPolicy.command}</code>
+        </div>
+        <div className="transfer-grid">
+          <div className="transfer-list">
+            <h3>Targets</h3>
+            {dashboard.bulkTokenPolicy.targets.map((target) => (
+              <code key={`${target.projectKey}-${target.assistantKey}`}>
+                {target.projectKey}/{target.assistantKey}
+              </code>
+            ))}
+            {dashboard.bulkTokenPolicy.targets.length === 0 ? (
+              <strong>No imported projects</strong>
+            ) : null}
+          </div>
+          <div className="transfer-list">
+            <h3>Emergency mode</h3>
+            <code>{dashboard.bulkTokenPolicy.emergencyTemplate.preferredModel}</code>
+            <code>{dashboard.bulkTokenPolicy.emergencyTemplate.fallbackModel}</code>
+            <span>{dashboard.bulkTokenPolicy.emergencyTemplate.reason}</span>
+          </div>
+          <div className="transfer-list">
+            <h3>Budget Ceiling</h3>
+            <span>Daily ${dashboard.bulkTokenPolicy.emergencyTemplate.dailyBudgetUsd}</span>
+            <span>Monthly ${dashboard.bulkTokenPolicy.emergencyTemplate.monthlyBudgetUsd}</span>
+            <span>{dashboard.bulkTokenPolicy.emergencyTemplate.maxTokensPerRequest} tokens/request</span>
+          </div>
+        </div>
+      </section>
+
       <section className="signal-table" aria-label="Recent AI execution signals">
         <div className="section-heading">
           <h2>Recent Signals</h2>
@@ -101,15 +334,24 @@ export default function HomePage() {
             <span>Reason</span>
             <span>Est. tokens</span>
           </div>
-          {recentSignals.map(([action, risk, model, reason, tokens]) => (
-            <div className="table-row" role="row" key={`${action}-${reason}`}>
-              <strong>{action}</strong>
-              <span>{risk}</span>
-              <code>{model}</code>
-              <span>{reason}</span>
-              <span>{tokens}</span>
+          {dashboard.recentSignals.map((signal) => (
+            <div className="table-row" role="row" key={`${signal.action}-${signal.reason}-${signal.estimatedTokens}`}>
+              <strong>{signal.action}</strong>
+              <span>{signal.risk}</span>
+              <code>{signal.model}</code>
+              <span>{signal.reason}</span>
+              <span>{signal.estimatedTokens}</span>
             </div>
           ))}
+          {dashboard.recentSignals.length === 0 ? (
+            <div className="table-row empty-row" role="row">
+              <strong>none</strong>
+              <span>none</span>
+              <code>none</code>
+              <span>No execution decisions recorded for {dashboardProjectKey}</span>
+              <span>0</span>
+            </div>
+          ) : null}
         </div>
       </section>
     </main>

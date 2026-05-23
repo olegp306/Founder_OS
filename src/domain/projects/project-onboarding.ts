@@ -89,8 +89,16 @@ export class InMemoryProjectOnboardingStore {
     return this.aiKeys.get(projectKey) ?? [];
   }
 
+  allProjects(): OnboardedProject[] {
+    return [...this.projects.values()].sort((left, right) => left.key.localeCompare(right.key));
+  }
+
   project(projectKey: string): OnboardedProject | undefined {
     return this.projects.get(projectKey);
+  }
+
+  repository(projectKey: string): OnboardedRepository | undefined {
+    return this.repositories.get(projectKey);
   }
 
   projectControls(projectKey: string): ProjectControls | undefined {
@@ -102,6 +110,14 @@ export function onboardProjectManifest(
   store: InMemoryProjectOnboardingStore,
   manifest: FounderOsProjectManifest
 ) {
+  return store.saveProject(buildProjectOnboardingRecord(manifest));
+}
+
+export function buildProjectOnboardingRecord(manifest: FounderOsProjectManifest): {
+  project: OnboardedProject;
+  repository?: OnboardedRepository;
+  controls: ProjectControls;
+} {
   const project: OnboardedProject = {
     key: manifest.project_id,
     name: manifest.name,
@@ -127,14 +143,20 @@ export function onboardProjectManifest(
     consentRequiredForMarketing: manifest.user_data?.consent_required_for_marketing ?? true
   };
 
-  return store.saveProject({ project, repository, controls });
+  return { project, repository, controls };
 }
 
 export function registerAiKeyReference(
   store: InMemoryProjectOnboardingStore,
   input: Omit<AiKeyReference, "status"> & { plaintextSecret?: string }
 ): AiKeyReference {
-  const key = {
+  return store.saveAiKey(buildAiKeyReference(input));
+}
+
+export function buildAiKeyReference(
+  input: Omit<AiKeyReference, "status"> & { plaintextSecret?: string }
+): AiKeyReference {
+  return {
     projectKey: input.projectKey,
     provider: input.provider,
     secretRef: input.secretRef,
@@ -144,8 +166,6 @@ export function registerAiKeyReference(
     monthlyBudgetUsd: input.monthlyBudgetUsd,
     status: "active" as const
   };
-
-  return store.saveAiKey(key);
 }
 
 export function resolveProjectAiControl(
