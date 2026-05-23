@@ -6,8 +6,11 @@ import {
   handleAiExecutionDecisionAuditList,
   handleAiExecutionSummary,
   handleAiKeyReferenceRegistration,
+  handleAiKeyReferenceInventory,
   handleAiUsageAssessment,
   handleProjectConnectionBundle,
+  handleProjectAiSetup,
+  handleProjectList,
   handleProjectManifestOnboarding,
   handleProjectReadinessList
 } from "@/server/project-ai-api-services";
@@ -282,6 +285,246 @@ describe("AI usage API services", () => {
     });
   });
 
+  it("lists imported projects with safe readiness summaries", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "booking_assistant",
+      name: "Booking Assistant",
+      status: "active",
+      owner: "olegp306",
+      category: "automation",
+      workspace: "photo_studio",
+      repository: {
+        provider: "github",
+        name: "olegp306/booking_assistant",
+        local_path: "C:\\Repos\\booking_assistant"
+      },
+      assistant: {
+        enabled: true,
+        token_tracking_required: true,
+        feedback_capture_required: true
+      },
+      user_data: {
+        raw_message_storage: "disabled_by_default",
+        consent_required_for_marketing: true
+      }
+    });
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "idea_vault",
+      name: "Idea Vault",
+      status: "draft",
+      owner: "olegp306"
+    });
+    await handleAiKeyReferenceRegistration(runtime, {
+      projectKey: "booking_assistant",
+      provider: "openai",
+      secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+      displayName: "Booking Assistant OpenAI key",
+      allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
+      defaultModel: "gpt-5.4-mini",
+      monthlyBudgetUsd: 250
+    });
+    await handleTokenPolicySave(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot",
+      preferredModel: "gpt-5.4",
+      fallbackModel: "gpt-5.4-mini",
+      dailyBudgetUsd: 20,
+      monthlyBudgetUsd: 250,
+      maxTokensPerRequest: 2000,
+      emergencyMode: false
+    });
+
+    const result = await handleProjectList(runtime, { assistantKey: "support_bot" });
+
+    expect(result).toEqual({
+      status: "listed",
+      projects: [
+        {
+          projectKey: "booking_assistant",
+          name: "Booking Assistant",
+          status: "active",
+          owner: "olegp306",
+          category: "automation",
+          workspace: "photo_studio",
+          repository: {
+            provider: "github",
+            name: "olegp306/booking_assistant",
+            localPath: "C:\\Repos\\booking_assistant"
+          },
+          readyCount: 6,
+          totalCount: 6,
+          ready: true,
+          missing: []
+        },
+        {
+          projectKey: "idea_vault",
+          name: "Idea Vault",
+          status: "draft",
+          owner: "olegp306",
+          category: undefined,
+          workspace: undefined,
+          repository: undefined,
+          readyCount: 2,
+          totalCount: 6,
+          ready: false,
+          missing: ["AI key", "Token policy", "Token tracking", "Feedback capture"]
+        }
+      ]
+    });
+    expect(JSON.stringify(result)).not.toContain("vercel:BOOKING_ASSISTANT_OPENAI_API_KEY");
+  });
+
+  it("uses repository-backed project onboarding operations", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    const calls: string[] = [];
+    const baseProjects = runtime.repositories.projects;
+    runtime.repositories.projects = {
+      async saveProject(input) {
+        calls.push("saveProject");
+        return baseProjects.saveProject(input);
+      },
+      async saveAiKey(input) {
+        calls.push("saveAiKey");
+        return baseProjects.saveAiKey(input);
+      },
+      async aiKeysForProject(projectKey) {
+        calls.push("aiKeysForProject");
+        return baseProjects.aiKeysForProject(projectKey);
+      },
+      async allProjects() {
+        calls.push("allProjects");
+        return baseProjects.allProjects();
+      },
+      async project(projectKey) {
+        calls.push("project");
+        return baseProjects.project(projectKey);
+      },
+      async repository(projectKey) {
+        calls.push("repository");
+        return baseProjects.repository(projectKey);
+      },
+      async projectControls(projectKey) {
+        calls.push("projectControls");
+        return baseProjects.projectControls(projectKey);
+      }
+    };
+
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "booking_assistant",
+      name: "Booking Assistant",
+      status: "active",
+      owner: "olegp306",
+      assistant: {
+        enabled: true,
+        token_tracking_required: true,
+        feedback_capture_required: true
+      }
+    });
+    await handleAiKeyReferenceRegistration(runtime, {
+      projectKey: "booking_assistant",
+      provider: "openai",
+      secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+      displayName: "Booking Assistant OpenAI key",
+      allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
+      defaultModel: "gpt-5.4-mini",
+      monthlyBudgetUsd: 250
+    });
+    await handleProjectList(runtime, { assistantKey: "support_bot" });
+
+    expect(calls).toEqual(expect.arrayContaining([
+      "saveProject",
+      "saveAiKey",
+      "allProjects",
+      "repository",
+      "aiKeysForProject"
+    ]));
+  });
+
+  it("lists safe AI key references across onboarded projects", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "booking_assistant",
+      name: "Booking Assistant",
+      status: "active",
+      owner: "olegp306"
+    });
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "sales_copilot",
+      name: "Sales Copilot",
+      status: "active",
+      owner: "olegp306"
+    });
+    await handleAiKeyReferenceRegistration(runtime, {
+      projectKey: "booking_assistant",
+      provider: "openai",
+      secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+      displayName: "Booking Assistant OpenAI key",
+      allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
+      defaultModel: "gpt-5.4-mini",
+      monthlyBudgetUsd: 250,
+      plaintextSecret: "sk-never-store"
+    });
+    await handleAiKeyReferenceRegistration(runtime, {
+      projectKey: "sales_copilot",
+      provider: "anthropic",
+      secretRef: "vercel:SALES_COPILOT_ANTHROPIC_API_KEY",
+      displayName: "Sales Copilot Anthropic key",
+      allowedModels: ["claude-sonnet-4.5"],
+      defaultModel: "claude-sonnet-4.5",
+      monthlyBudgetUsd: 400
+    });
+
+    const result = await handleAiKeyReferenceInventory(runtime, {});
+
+    expect(result).toEqual({
+      status: "listed",
+      totalReferences: 2,
+      totalMonthlyBudgetUsd: 650,
+      byProvider: [
+        { provider: "anthropic", referenceCount: 1, monthlyBudgetUsd: 400 },
+        { provider: "openai", referenceCount: 1, monthlyBudgetUsd: 250 }
+      ],
+      projects: [
+        {
+          projectKey: "booking_assistant",
+          name: "Booking Assistant",
+          referenceCount: 1,
+          monthlyBudgetUsd: 250,
+          references: [
+            {
+              provider: "openai",
+              secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+              displayName: "Booking Assistant OpenAI key",
+              allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
+              defaultModel: "gpt-5.4-mini",
+              monthlyBudgetUsd: 250,
+              status: "active"
+            }
+          ]
+        },
+        {
+          projectKey: "sales_copilot",
+          name: "Sales Copilot",
+          referenceCount: 1,
+          monthlyBudgetUsd: 400,
+          references: [
+            {
+              provider: "anthropic",
+              secretRef: "vercel:SALES_COPILOT_ANTHROPIC_API_KEY",
+              displayName: "Sales Copilot Anthropic key",
+              allowedModels: ["claude-sonnet-4.5"],
+              defaultModel: "claude-sonnet-4.5",
+              monthlyBudgetUsd: 400,
+              status: "active"
+            }
+          ]
+        }
+      ]
+    });
+    expect(JSON.stringify(result)).not.toContain("sk-never-store");
+  });
+
   it("builds a safe project connection bundle for connected products", async () => {
     const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
     await handleProjectManifestOnboarding(runtime, {
@@ -385,6 +628,82 @@ describe("AI usage API services", () => {
       }
     });
     expect(JSON.stringify(result)).not.toContain("sk-do-not-store");
+  });
+
+  it("configures AI key references and token policy in one setup step", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "booking_assistant",
+      name: "Booking Assistant",
+      status: "active",
+      owner: "olegp306",
+      assistant: {
+        enabled: true,
+        token_tracking_required: true,
+        feedback_capture_required: true
+      },
+      user_data: {
+        raw_message_storage: "disabled_by_default",
+        consent_required_for_marketing: true
+      }
+    });
+
+    const result = await handleProjectAiSetup(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot",
+      aiKey: {
+        provider: "openai",
+        secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+        displayName: "Booking Assistant OpenAI key",
+        allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
+        defaultModel: "gpt-5.4-mini",
+        monthlyBudgetUsd: 250,
+        plaintextSecret: "sk-never-return"
+      },
+      tokenPolicy: {
+        preferredModel: "gpt-5.4",
+        fallbackModel: "gpt-5.4-mini",
+        dailyBudgetUsd: 20,
+        monthlyBudgetUsd: 250,
+        maxTokensPerRequest: 2000,
+        emergencyMode: false
+      }
+    });
+
+    expect(result).toEqual({
+      status: "configured",
+      key: {
+        projectKey: "booking_assistant",
+        provider: "openai",
+        secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+        displayName: "Booking Assistant OpenAI key",
+        allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
+        defaultModel: "gpt-5.4-mini",
+        monthlyBudgetUsd: 250,
+        status: "active"
+      },
+      policy: {
+        projectKey: "booking_assistant",
+        assistantKey: "support_bot",
+        preferredModel: "gpt-5.4",
+        fallbackModel: "gpt-5.4-mini",
+        dailyBudgetUsd: 20,
+        monthlyBudgetUsd: 250,
+        maxTokensPerRequest: 2000,
+        emergencyMode: false
+      },
+      bundle: expect.objectContaining({
+        projectKey: "booking_assistant",
+        assistantKey: "support_bot",
+        ready: true,
+        tokenPolicy: expect.objectContaining({
+          configured: true,
+          preferredModel: "gpt-5.4"
+        }),
+        nextSteps: []
+      })
+    });
+    expect(JSON.stringify(result)).not.toContain("sk-never-return");
   });
 
   it("applies central token policy to AI execution decisions before provider execution", async () => {

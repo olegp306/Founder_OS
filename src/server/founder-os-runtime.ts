@@ -5,6 +5,8 @@ import { InMemoryProjectOnboardingStore } from "@/domain/projects/project-onboar
 import { InMemoryProfileOperationsStore } from "@/domain/profiles/profile-operations";
 import { InMemoryTokenControlStore } from "@/domain/token-control/token-control-service";
 import { MemoryRepositorySet } from "@/persistence/memory/repositories";
+import { getPrismaClient } from "@/persistence/prisma/client";
+import { PrismaRepositorySet, type PrismaLike } from "@/persistence/prisma/repositories";
 import type { RepositorySet } from "@/persistence/repositories";
 
 const globalForFounderOs = globalThis as typeof globalThis & {
@@ -38,19 +40,25 @@ export function selectPersistenceMode(env: {
 export function createFounderOsRuntime(env: {
   DATABASE_URL?: string;
   FOUNDER_OS_FORCE_MEMORY?: string;
+  prismaClient?: PrismaLike;
 }): FounderOsRuntime {
   const events = new InMemoryEventStore();
   const tokens = new InMemoryTokenControlStore();
+  const projectOnboarding = new InMemoryProjectOnboardingStore();
+  const persistenceMode = selectPersistenceMode(env);
+  const repositories = persistenceMode === "prisma"
+    ? new PrismaRepositorySet(env.prismaClient ?? getPrismaClient())
+    : new MemoryRepositorySet(events, tokens, projectOnboarding);
 
   return {
-    persistenceMode: selectPersistenceMode(env),
+    persistenceMode,
     events,
     profiles: new InMemoryProfileStore(),
     profileOps: new InMemoryProfileOperationsStore(),
     tokens,
     campaigns: new InMemoryCampaignStore(),
-    projectOnboarding: new InMemoryProjectOnboardingStore(),
-    repositories: new MemoryRepositorySet(events, tokens)
+    projectOnboarding,
+    repositories
   };
 }
 
