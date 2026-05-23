@@ -93,6 +93,33 @@ Avoid opening with blunt or unnecessary identity demands such as "What is your f
 
 Acquisition links and campaigns should be designed so Founder OS can understand where users came from and which funnels work. Preserve useful attribution metadata whenever possible.
 
+## AI Usage Abuse Protection
+
+Products with chat, AI assistants, paid model access, or knowledge workflows must protect Founder OS from proxy abuse.
+
+Users must not be allowed to treat product assistants as a general-purpose ChatGPT, Google replacement, scraping tool, bulk content engine, or indirect way to use paid AI capacity outside the product's intended purpose.
+
+Projects should detect and score abuse patterns, including:
+
+- Repeated off-topic general knowledge requests unrelated to the product.
+- Attempts to use the assistant as a generic search engine or homework/content factory.
+- Prompt injection, jailbreak attempts, model/system prompt extraction, or requests for internal implementation details.
+- High-volume usage with low product intent.
+- Attempts to automate bulk queries through the assistant.
+- Requests that appear designed to resell or proxy access to the assistant.
+
+When abuse is suspected, the system should respond progressively:
+
+1. Keep the user experience polite and product-focused.
+2. Redirect the user back to supported product tasks.
+3. Apply stricter rate limits or quotas.
+4. Downgrade the user to a cheaper model when appropriate.
+5. Mark the user with abuse, risk, and cost-control signals.
+6. Notify the founder/admin for review when thresholds are crossed.
+7. Temporarily suspend or ban access for repeated or severe abuse.
+
+Never reveal internal abuse scores, thresholds, model-routing rules, or cost-control logic to the user. User-facing responses should stay simple: the assistant can help with the product, but cannot support unrelated or abusive use.
+
 ## User Feature Request Lifecycle
 
 User experience and user feature requests are strategic product inputs.
