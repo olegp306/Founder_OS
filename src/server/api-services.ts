@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { rejectUnsafeRawPayload, type StructuredEvent } from "@/domain/events/event-ingestion";
-import type { TokenUsageInput } from "@/domain/token-control/token-control";
+import {
+  summarizeTokenBurnRate,
+  type NormalizedTokenUsageEvent,
+  type TokenUsageInput
+} from "@/domain/token-control/token-control";
 import type { FounderOsRuntime } from "@/server/founder-os-runtime";
 
 export const structuredEventSchema = z.object({
@@ -36,6 +40,25 @@ export const tokenPolicyRequestSchema = z.object({
   monthlyBudgetUsd: z.number().min(0),
   maxTokensPerRequest: z.number().int().min(1),
   emergencyMode: z.boolean().default(false)
+});
+
+export const bulkTokenPolicyRequestSchema = z.object({
+  targets: z.array(
+    z.object({
+      projectKey: z.string().min(2),
+      assistantKey: z.string().min(2).optional()
+    })
+  ).min(1),
+  policy: tokenPolicyRequestSchema.omit({
+    projectKey: true,
+    assistantKey: true
+  }),
+  reason: z.string().min(2).max(500).optional()
+});
+
+export const tokenUsageSummarySchema = z.object({
+  projectKey: z.string().min(2),
+  windowHours: z.number().min(1).max(24 * 31).default(24)
 });
 
 export async function handleStructuredEventIngestion(
@@ -100,14 +123,68 @@ export async function handleTokenUsageRecord(runtime: FounderOsRuntime, payload:
   };
 }
 
+export async function handleTokenUsageSummary(runtime: FounderOsRuntime, payload: unknown) {
+  const input = tokenUsageSummarySchema.parse(payload ?? {});
+  const usage = await runtime.repositories.tokenUsage.findByProject(input.projectKey);
+  const events = usage as NormalizedTokenUsageEvent[];
+  const burnRate = summarizeTokenBurnRate({
+    windowHours: input.windowHours,
+    events: events.map((event) => ({
+      costUsd: event.costUsd,
+      totalTokens: event.totalTokens
+    }))
+  });
+
+  return {
+    status: "summarized" as const,
+    summary: {
+      projectKey: input.projectKey,
+      windowHours: input.windowHours,
+      eventCount: events.length,
+      totalTokens: sum(events, (event) => event.totalTokens),
+      totalCostUsd: roundMoney(sum(events, (event) => event.costUsd)),
+      spendPerHourUsd: roundMoney(burnRate.spendPerHourUsd),
+      tokensPerHour: burnRate.tokensPerHour,
+      projectedDailySpendUsd: roundMoney(burnRate.projectedDailySpendUsd),
+      byAssistant: groupUsage(events, (event) => event.assistantKey),
+      byModel: groupUsage(events, (event) => event.model),
+      byEnvironment: groupUsage(events, (event) => event.environment)
+    }
+  };
+}
+
 export async function handleTokenPolicySave(runtime: FounderOsRuntime, payload: unknown) {
   const input = tokenPolicyRequestSchema.parse(payload);
   const policy = await runtime.repositories.tokenPolicies.save(input);
-  await recordTokenPolicyChange(runtime, policy);
+  await recordTokenPolicyChange(runtime, policy, {});
 
   return {
     status: "saved" as const,
     policy
+  };
+}
+
+export async function handleBulkTokenPolicySave(runtime: FounderOsRuntime, payload: unknown) {
+  const input = bulkTokenPolicyRequestSchema.parse(payload);
+  const policies = [];
+
+  for (const target of input.targets) {
+    const policy = await runtime.repositories.tokenPolicies.save({
+      projectKey: target.projectKey,
+      assistantKey: target.assistantKey,
+      ...input.policy
+    });
+    await recordTokenPolicyChange(runtime, policy, {
+      bulkApply: true,
+      reason: input.reason
+    });
+    policies.push(policy);
+  }
+
+  return {
+    status: "saved" as const,
+    appliedCount: policies.length,
+    policies
   };
 }
 
@@ -136,7 +213,11 @@ export async function handleTokenPolicyLookup(
 
 async function recordTokenPolicyChange(
   runtime: FounderOsRuntime,
-  policy: z.infer<typeof tokenPolicyRequestSchema>
+  policy: z.infer<typeof tokenPolicyRequestSchema>,
+  context: {
+    bulkApply?: boolean;
+    reason?: string;
+  }
 ) {
   const now = new Date().toISOString();
   const subject = policy.assistantKey
@@ -160,13 +241,49 @@ async function recordTokenPolicyChange(
       daily_budget_usd: policy.dailyBudgetUsd,
       monthly_budget_usd: policy.monthlyBudgetUsd,
       max_tokens_per_request: policy.maxTokensPerRequest,
-      emergency_mode: policy.emergencyMode
+      emergency_mode: policy.emergencyMode,
+      bulk_apply: context.bulkApply,
+      reason: context.reason
     },
     occurredAt: now,
     storedAt: now
   };
 
   await runtime.repositories.events.append(event);
+}
+
+function groupUsage(
+  events: NormalizedTokenUsageEvent[],
+  keyFor: (event: NormalizedTokenUsageEvent) => string
+) {
+  const groups = new Map<string, { totalTokens: number; totalCostUsd: number; eventCount: number }>();
+
+  for (const event of events) {
+    const key = keyFor(event);
+    const current = groups.get(key) ?? { totalTokens: 0, totalCostUsd: 0, eventCount: 0 };
+    groups.set(key, {
+      totalTokens: current.totalTokens + event.totalTokens,
+      totalCostUsd: current.totalCostUsd + event.costUsd,
+      eventCount: current.eventCount + 1
+    });
+  }
+
+  return [...groups.entries()]
+    .map(([key, value]) => ({
+      key,
+      totalTokens: value.totalTokens,
+      totalCostUsd: roundMoney(value.totalCostUsd),
+      eventCount: value.eventCount
+    }))
+    .sort((left, right) => right.totalCostUsd - left.totalCostUsd || left.key.localeCompare(right.key));
+}
+
+function sum<T>(items: T[], valueFor: (item: T) => number): number {
+  return items.reduce((total, item) => total + valueFor(item), 0);
+}
+
+function roundMoney(value: number): number {
+  return Math.round(value * 10000) / 10000;
 }
 
 function eventResponse(event: {
