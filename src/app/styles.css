@@ -69,7 +69,10 @@ h2 {
 .metric-card,
 .work-surface,
 .readiness-table,
+.projects-table,
+.transfer-flow,
 .spend-table,
+.key-inventory,
 .signal-table {
   border: 1px solid #d9dee5;
   border-radius: 8px;
@@ -137,7 +140,10 @@ h2 {
 
 .surface-column,
 .readiness-table,
+.projects-table,
+.transfer-flow,
 .spend-table,
+.key-inventory,
 .signal-table {
   padding: 22px;
   background: #ffffff;
@@ -232,7 +238,93 @@ h2 {
   overflow-wrap: anywhere;
 }
 
+.projects-table {
+  margin-top: 22px;
+}
+
+.projects-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.project-row {
+  display: grid;
+  grid-template-columns: 82px minmax(160px, 1fr) minmax(160px, 1fr) 80px;
+  gap: 12px;
+  align-items: center;
+  min-height: 54px;
+  padding: 13px;
+  border: 1px solid #e5e9ee;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.project-row strong {
+  color: #2f6f66;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.project-row[data-ready="false"] strong {
+  color: #a3412f;
+}
+
+.project-row code {
+  color: #234fc7;
+  overflow-wrap: anywhere;
+}
+
+.transfer-flow {
+  margin-top: 22px;
+}
+
+.transfer-command {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #e5e9ee;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.transfer-command span,
+.transfer-list span {
+  color: #616b76;
+}
+
+.transfer-command code,
+.transfer-list code {
+  color: #234fc7;
+  overflow-wrap: anywhere;
+}
+
+.transfer-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.transfer-list {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 132px;
+  padding: 16px;
+  border: 1px solid #e5e9ee;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.transfer-list strong {
+  color: #2f6f66;
+}
+
 .spend-table {
+  margin-top: 22px;
+}
+
+.key-inventory {
   margin-top: 22px;
 }
 
@@ -343,6 +435,8 @@ h3 {
   .spend-summary,
   .spend-breakdowns,
   .spend-row,
+  .transfer-grid,
+  .project-row,
   .readiness-grid,
   .readiness-row {
     grid-template-columns: 1fr;

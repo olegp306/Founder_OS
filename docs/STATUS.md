@@ -246,3 +246,124 @@ Surfaces token spend in the internal dashboard:
 - The dashboard now shows total token cost, total tokens, and projected daily spend for the configured project window.
 - Top model and environment breakdowns come from the same token usage summary service used by `/api/token-usage/summary`.
 - The local demo seed now includes safe token usage events and is guarded against concurrent duplicate seeding.
+
+### `codex/project-connection-bundle`
+
+Adds a safe connection bundle for moving personal projects into Founder OS:
+
+- `/api/projects/connection` returns the project key, assistant key, required environment variable names, integration routes, readiness state, AI key references, and token policy summary.
+- The bundle includes only `secretRef` metadata and never stores or returns plaintext provider keys.
+- `/api/health` now reports the connection bundle route as part of the private onboarding surface.
+
+### `codex/project-ai-setup`
+
+Adds one-step AI setup for transferred projects:
+
+- `/api/projects/ai-setup` registers an AI key reference and token policy for a project/assistant in one admin call.
+- The setup response immediately returns the refreshed connection bundle so the connected project can apply environment names and route contracts.
+- Plaintext provider keys remain excluded from responses; products continue to use external secret stores through `secretRef` values.
+
+### `codex/project-ai-setup-cli`
+
+Adds a local helper for applying AI setup configs:
+
+- `npm run projects:setup-ai -- --config <path> --endpoint <url>/api/projects/ai-setup --token <FOUNDER_OS_ADMIN_TOKEN>` posts a project AI setup payload.
+- `--dry-run` prints the sanitized payload without calling Founder OS.
+- The helper strips `plaintextSecret` before sending, keeping real provider keys in external secret stores.
+
+### `codex/project-transfer-cli`
+
+Adds a single local transfer flow for personal projects:
+
+- `npm run projects:transfer -- --root <repos-root> --setup-config <project>\.founderos\ai-setup.json --base-url <founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>` runs manifest import, AI setup, and connection bundle verification.
+- `--dry-run` reports the import endpoint, sanitized setup payload, and connection check URL without network writes.
+- The transfer flow reuses the existing bulk import and setup APIs so project moves stay repeatable and auditable.
+
+### `codex/dashboard-transfer-flow`
+
+Surfaces the project transfer flow in the internal dashboard:
+
+- The dashboard now shows the local `projects:transfer` command for the configured project and assistant.
+- Required environment variable names, connected route paths, and connection-bundle next steps are visible without exposing `secretRef` values.
+- Demo dashboard data now reaches the ready transfer state, so local previews show the full move-project flow.
+
+### `codex/project-list-dashboard`
+
+Adds project listing for multi-project transfer visibility:
+
+- `/api/projects` lists imported projects with safe repository metadata, readiness counts, and missing setup labels.
+- The internal dashboard now shows Connected Projects so multiple personal projects can be tracked beyond the default demo project.
+- Project list output excludes AI key `secretRef` values while still showing readiness state.
+
+### `codex/project-onboarding-repositories`
+
+Routes project onboarding through the repository set:
+
+- Adds a `projects` repository contract for manifests, repository metadata, AI key references, and project controls.
+- Memory repositories share the runtime project onboarding store for backwards-compatible local behavior.
+- Project onboarding, AI key registration, readiness, project list, connection bundle, bulk import, AI setup, and AI execution control now call `runtime.repositories.projects`.
+- Prisma repository set includes a temporary project onboarding bridge until dedicated project onboarding tables and adapters are added.
+
+### `codex/prisma-project-onboarding`
+
+Adds database-backed project onboarding persistence:
+
+- Extends Prisma schema with project category/workspace fields, repository onboarding metadata, project controls, and AI key references.
+- Prisma project repositories now upsert projects, repository metadata, controls, and AI key references through Prisma delegates instead of the temporary in-process bridge.
+- Project onboarding reads now load projects, repositories, controls, and key references from Prisma-shaped delegates for production persistence.
+
+### `codex/runtime-prisma-repositories`
+
+Enables Prisma repositories in the runtime:
+
+- `createFounderOsRuntime` now uses `PrismaRepositorySet` when `DATABASE_URL` is configured and memory mode is not forced.
+- Runtime construction accepts an injectable Prisma-like client for tests while production uses the shared Prisma client singleton.
+- Prisma token usage and token policy repositories now resolve project and assistant keys to database ids, so existing API payloads work in Prisma mode.
+
+### `codex/prisma-core-migration`
+
+Adds deployable database migrations:
+
+- Adds the initial Prisma migration SQL generated from the current Founder OS schema.
+- Adds `npm run prisma:migrate:deploy` for deployment pipelines.
+- Adds migration coverage so the core project, AI key reference, project control, token usage, and foreign-key tables stay represented in versioned SQL.
+
+### `codex/deployment-readiness-check`
+
+Adds a pre-transfer deployment smoke check:
+
+- Adds `npm run deployment:check` for validating a deployed Founder OS URL before routing personal projects to it.
+- The check verifies the migration deploy script, admin token, `/api/health`, expected persistence mode, repository kind, private MVP readiness flags, and plaintext-secret safety.
+- The CLI supports `--dry-run`, `--base-url`, `--token`, and `--expected-persistence` for local, staging, and production checks.
+
+### `codex/ai-key-inventory`
+
+Adds safe AI key reference inventory:
+
+- `GET /api/ai-keys` lists key reference metadata across onboarded projects without returning plaintext provider keys.
+- Inventory output groups monthly budget totals by provider and project so key coverage and AI spend exposure are visible before production traffic.
+- `/api/health` now reports `aiKeyInventory` as part of private MVP readiness.
+
+### `codex/dashboard-ai-key-inventory`
+
+Surfaces AI key inventory on the dashboard:
+
+- The dashboard view model now includes safe AI key reference counts, provider budgets, project budgets, providers, and default models.
+- The home page shows an AI Key Inventory section without rendering `secretRef` values or plaintext provider keys.
+- Demo dashboard data now shows the configured monthly AI key budget alongside token spend and project transfer readiness.
+
+### `codex/bulk-token-policy-apply`
+
+Adds fleet-wide token policy controls:
+
+- `/api/token-policy/bulk` applies one model/budget/emergency-mode policy to multiple project/assistant targets.
+- Each bulk-applied policy writes a `token.policy.changed` audit event with `bulk_apply` and optional reason metadata.
+- `/api/health` reports bulk token policy support as part of private MVP readiness.
+
+### `codex/dashboard-bulk-token-policy`
+
+Surfaces fleet-wide token policy controls in the dashboard:
+
+- The dashboard view model now includes the bulk policy route, incident command, target count, target list, and emergency-mode template.
+- The home page shows a Bulk Token Policy section with imported project targets, fallback-model emergency controls, and budget ceilings.
+- The dashboard keeps this incident surface free of plaintext secrets and raw provider keys.
