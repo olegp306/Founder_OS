@@ -83,7 +83,7 @@ export function buildProjectImportReadiness(
   });
 }
 
-function parseManifestFile(file: ManifestFile): FounderOsProjectManifest | "invalid_json" {
+export function parseManifestFile(file: ManifestFile): FounderOsProjectManifest | "invalid_json" {
   try {
     return JSON.parse(file.content) as FounderOsProjectManifest;
   } catch {
@@ -91,6 +91,6 @@ function parseManifestFile(file: ManifestFile): FounderOsProjectManifest | "inva
   }
 }
 
-function hasRequiredIdentity(manifest: FounderOsProjectManifest): manifest is FounderOsProjectManifest {
+export function hasRequiredIdentity(manifest: FounderOsProjectManifest): manifest is FounderOsProjectManifest {
   return Boolean(manifest.project_id && manifest.name && manifest.status && manifest.owner);
 }

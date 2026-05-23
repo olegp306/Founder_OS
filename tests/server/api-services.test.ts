@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { createFounderOsRuntime } from "@/server/founder-os-runtime";
 import {
   handleStructuredEventIngestion,
+  handleBulkTokenPolicySave,
   handleTokenPolicyLookup,
   handleTokenPolicySave,
+  handleTokenUsageSummary,
   handleTokenUsageRecord
 } from "@/server/api-services";
 
@@ -61,6 +63,75 @@ describe("API services backed by repositories", () => {
         fallbackModel: "gpt-5.4-mini"
       }
     });
+  });
+
+  it("applies one token policy to many project assistants", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+
+    await expect(
+      handleBulkTokenPolicySave(runtime, {
+        targets: [
+          { projectKey: "booking_photoshop_studio", assistantKey: "booking_assistant" },
+          { projectKey: "sales_copilot", assistantKey: "support_bot" }
+        ],
+        policy: {
+          preferredModel: "gpt-5.4-mini",
+          fallbackModel: "gpt-5.4-mini",
+          dailyBudgetUsd: 10,
+          monthlyBudgetUsd: 200,
+          maxTokensPerRequest: 2000,
+          emergencyMode: true
+        },
+        reason: "cost spike control"
+      })
+    ).resolves.toEqual({
+      status: "saved",
+      appliedCount: 2,
+      policies: [
+        expect.objectContaining({
+          projectKey: "booking_photoshop_studio",
+          assistantKey: "booking_assistant",
+          preferredModel: "gpt-5.4-mini",
+          emergencyMode: true
+        }),
+        expect.objectContaining({
+          projectKey: "sales_copilot",
+          assistantKey: "support_bot",
+          preferredModel: "gpt-5.4-mini",
+          emergencyMode: true
+        })
+      ]
+    });
+
+    await expect(
+      handleTokenPolicyLookup(runtime, {
+        projectKey: "sales_copilot",
+        assistantKey: "support_bot"
+      })
+    ).resolves.toMatchObject({
+      policy: {
+        fallbackModel: "gpt-5.4-mini",
+        emergencyMode: true
+      }
+    });
+    expect(runtime.events.all()).toEqual([
+      expect.objectContaining({
+        event: "token.policy.changed",
+        project: "booking_photoshop_studio",
+        facts: expect.objectContaining({
+          bulk_apply: true,
+          reason: "cost spike control"
+        })
+      }),
+      expect.objectContaining({
+        event: "token.policy.changed",
+        project: "sales_copilot",
+        facts: expect.objectContaining({
+          bulk_apply: true,
+          reason: "cost spike control"
+        })
+      })
+    ]);
   });
 
   it("records an audit event when token policy is changed centrally", async () => {
@@ -131,6 +202,71 @@ describe("API services backed by repositories", () => {
       policy: {
         fallbackModel: "gpt-5.4-mini",
         emergencyMode: true
+      }
+    });
+  });
+
+  it("summarizes token usage by assistant, model, and environment", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleTokenUsageRecord(runtime, {
+      projectKey: "booking_photoshop_studio",
+      assistantKey: "booking_assistant",
+      environment: "production",
+      model: "gpt-5.4",
+      inputTokens: 1000,
+      outputTokens: 500,
+      costUsd: 3,
+      occurredAt: "2026-05-22T19:00:00.000Z"
+    });
+    await handleTokenUsageRecord(runtime, {
+      projectKey: "booking_photoshop_studio",
+      assistantKey: "booking_assistant",
+      environment: "production",
+      model: "gpt-5.4-mini",
+      inputTokens: 800,
+      outputTokens: 200,
+      costUsd: 1,
+      occurredAt: "2026-05-22T20:00:00.000Z"
+    });
+    await handleTokenUsageRecord(runtime, {
+      projectKey: "booking_photoshop_studio",
+      assistantKey: "feedback_assistant",
+      environment: "staging",
+      model: "gpt-5.4-mini",
+      inputTokens: 300,
+      outputTokens: 200,
+      costUsd: 0.5,
+      occurredAt: "2026-05-22T20:30:00.000Z"
+    });
+
+    await expect(
+      handleTokenUsageSummary(runtime, {
+        projectKey: "booking_photoshop_studio",
+        windowHours: 6
+      })
+    ).resolves.toEqual({
+      status: "summarized",
+      summary: {
+        projectKey: "booking_photoshop_studio",
+        windowHours: 6,
+        eventCount: 3,
+        totalTokens: 3000,
+        totalCostUsd: 4.5,
+        spendPerHourUsd: 0.75,
+        tokensPerHour: 500,
+        projectedDailySpendUsd: 18,
+        byAssistant: [
+          { key: "booking_assistant", totalTokens: 2500, totalCostUsd: 4, eventCount: 2 },
+          { key: "feedback_assistant", totalTokens: 500, totalCostUsd: 0.5, eventCount: 1 }
+        ],
+        byModel: [
+          { key: "gpt-5.4", totalTokens: 1500, totalCostUsd: 3, eventCount: 1 },
+          { key: "gpt-5.4-mini", totalTokens: 1500, totalCostUsd: 1.5, eventCount: 2 }
+        ],
+        byEnvironment: [
+          { key: "production", totalTokens: 2500, totalCostUsd: 4, eventCount: 2 },
+          { key: "staging", totalTokens: 500, totalCostUsd: 0.5, eventCount: 1 }
+        ]
       }
     });
   });
