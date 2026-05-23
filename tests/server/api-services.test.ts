@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createFounderOsRuntime } from "@/server/founder-os-runtime";
 import {
   handleStructuredEventIngestion,
+  handleBulkTokenPolicySave,
   handleTokenPolicyLookup,
   handleTokenPolicySave,
   handleTokenUsageSummary,
@@ -62,6 +63,75 @@ describe("API services backed by repositories", () => {
         fallbackModel: "gpt-5.4-mini"
       }
     });
+  });
+
+  it("applies one token policy to many project assistants", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+
+    await expect(
+      handleBulkTokenPolicySave(runtime, {
+        targets: [
+          { projectKey: "booking_photoshop_studio", assistantKey: "booking_assistant" },
+          { projectKey: "sales_copilot", assistantKey: "support_bot" }
+        ],
+        policy: {
+          preferredModel: "gpt-5.4-mini",
+          fallbackModel: "gpt-5.4-mini",
+          dailyBudgetUsd: 10,
+          monthlyBudgetUsd: 200,
+          maxTokensPerRequest: 2000,
+          emergencyMode: true
+        },
+        reason: "cost spike control"
+      })
+    ).resolves.toEqual({
+      status: "saved",
+      appliedCount: 2,
+      policies: [
+        expect.objectContaining({
+          projectKey: "booking_photoshop_studio",
+          assistantKey: "booking_assistant",
+          preferredModel: "gpt-5.4-mini",
+          emergencyMode: true
+        }),
+        expect.objectContaining({
+          projectKey: "sales_copilot",
+          assistantKey: "support_bot",
+          preferredModel: "gpt-5.4-mini",
+          emergencyMode: true
+        })
+      ]
+    });
+
+    await expect(
+      handleTokenPolicyLookup(runtime, {
+        projectKey: "sales_copilot",
+        assistantKey: "support_bot"
+      })
+    ).resolves.toMatchObject({
+      policy: {
+        fallbackModel: "gpt-5.4-mini",
+        emergencyMode: true
+      }
+    });
+    expect(runtime.events.all()).toEqual([
+      expect.objectContaining({
+        event: "token.policy.changed",
+        project: "booking_photoshop_studio",
+        facts: expect.objectContaining({
+          bulk_apply: true,
+          reason: "cost spike control"
+        })
+      }),
+      expect.objectContaining({
+        event: "token.policy.changed",
+        project: "sales_copilot",
+        facts: expect.objectContaining({
+          bulk_apply: true,
+          reason: "cost spike control"
+        })
+      })
+    ]);
   });
 
   it("records an audit event when token policy is changed centrally", async () => {

@@ -8,7 +8,10 @@ import {
   handleAiExecutionDecision,
   handleAiExecutionDecisionAuditList,
   handleAiExecutionSummary,
+  handleAiKeyReferenceInventory,
   handleAiKeyReferenceRegistration,
+  handleProjectConnectionBundle,
+  handleProjectList,
   handleProjectManifestOnboarding,
   handleProjectReadinessList
 } from "@/server/project-ai-api-services";
@@ -56,12 +59,72 @@ export type DashboardTokenSpend = {
   topEnvironments: DashboardSpendBreakdown[];
 };
 
+export type DashboardTransferFlow = {
+  projectKey: string;
+  assistantKey: string;
+  ready: boolean;
+  command: string;
+  requiredEnvironment: string[];
+  routes: string[];
+  nextSteps: string[];
+};
+
+export type DashboardConnectedProject = {
+  projectKey: string;
+  name: string;
+  status: string;
+  ready: boolean;
+  readiness: string;
+  missing: string[];
+};
+
+export type DashboardAiKeyInventory = {
+  totalReferences: string;
+  totalMonthlyBudget: string;
+  providers: Array<{
+    provider: string;
+    referenceCount: string;
+    monthlyBudget: string;
+  }>;
+  projects: Array<{
+    projectKey: string;
+    name: string;
+    referenceCount: string;
+    monthlyBudget: string;
+    providers: string[];
+    defaultModels: string[];
+  }>;
+};
+
+export type DashboardBulkTokenPolicy = {
+  route: string;
+  command: string;
+  targetCount: string;
+  targets: Array<{
+    projectKey: string;
+    assistantKey: string;
+  }>;
+  emergencyTemplate: {
+    preferredModel: string;
+    fallbackModel: string;
+    dailyBudgetUsd: number;
+    monthlyBudgetUsd: number;
+    maxTokensPerRequest: number;
+    emergencyMode: boolean;
+    reason: string;
+  };
+};
+
 export type AiControlDashboardViewModel = {
   projectKey?: string;
   metrics: DashboardMetric[];
   recentSignals: DashboardSignal[];
   projectReadiness: DashboardProjectReadiness;
   tokenSpend: DashboardTokenSpend;
+  transferFlow: DashboardTransferFlow;
+  connectedProjects: DashboardConnectedProject[];
+  aiKeyInventory: DashboardAiKeyInventory;
+  bulkTokenPolicy: DashboardBulkTokenPolicy;
 };
 
 const demoSeedOperations = new WeakMap<
@@ -74,7 +137,16 @@ export async function buildAiControlDashboardViewModel(
   input: { projectKey?: string; assistantKey?: string; tokenWindowHours?: number } = {}
 ): Promise<AiControlDashboardViewModel> {
   const tokenWindowHours = input.tokenWindowHours ?? 1;
-  const [{ summary }, { decisions }, readinessResult, tokenSpendResult] = await Promise.all([
+  const assistantKey = input.assistantKey ?? "unknown";
+  const [
+    { summary },
+    { decisions },
+    readinessResult,
+    tokenSpendResult,
+    transferResult,
+    projectListResult,
+    aiKeyInventoryResult
+  ] = await Promise.all([
     handleAiExecutionSummary(runtime, input),
     handleAiExecutionDecisionAuditList(runtime, {
       projectKey: input.projectKey,
@@ -101,7 +173,24 @@ export async function buildAiControlDashboardViewModel(
             byModel: [],
             byEnvironment: []
           }
+        }),
+    input.projectKey && input.assistantKey
+      ? handleProjectConnectionBundle(runtime, {
+          projectKey: input.projectKey,
+          assistantKey: input.assistantKey
         })
+      : Promise.resolve({
+          bundle: {
+            projectKey: input.projectKey ?? "unknown",
+            assistantKey,
+            ready: false,
+            environment: [],
+            routes: [],
+            nextSteps: ["Select project and assistant keys"]
+          }
+        }),
+    handleProjectList(runtime, { assistantKey: input.assistantKey }),
+    handleAiKeyReferenceInventory(runtime, {})
   ]);
   const total = summary.totalDecisions;
   const downgradeCount = Number(summary.actionCounts.downgrade ?? 0);
@@ -144,7 +233,21 @@ export async function buildAiControlDashboardViewModel(
       input.projectKey,
       readinessResult.readiness[0]
     ),
-    tokenSpend: buildDashboardTokenSpend(tokenSpendResult.summary)
+    tokenSpend: buildDashboardTokenSpend(tokenSpendResult.summary),
+    transferFlow: buildDashboardTransferFlow(transferResult.bundle),
+    connectedProjects: projectListResult.projects.map((project) => ({
+      projectKey: project.projectKey,
+      name: project.name,
+      status: project.status,
+      ready: project.ready,
+      readiness: `${project.readyCount}/${project.totalCount}`,
+      missing: project.missing
+    })),
+    aiKeyInventory: buildDashboardAiKeyInventory(aiKeyInventoryResult),
+    bulkTokenPolicy: buildDashboardBulkTokenPolicy(
+      projectListResult.projects,
+      assistantKey
+    )
   };
 }
 
@@ -343,6 +446,89 @@ function buildDashboardTokenSpend(summary: {
   };
 }
 
+function buildDashboardTransferFlow(bundle: {
+  projectKey: string;
+  assistantKey: string;
+  ready: boolean;
+  environment: Array<{ name: string }>;
+  routes: Array<{ path: string }>;
+  nextSteps: string[];
+}): DashboardTransferFlow {
+  return {
+    projectKey: bundle.projectKey,
+    assistantKey: bundle.assistantKey,
+    ready: bundle.ready,
+    command: `npm run projects:transfer -- --root C:\\Repos --setup-config C:\\Repos\\${bundle.projectKey}\\.founderos\\ai-setup.json --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>`,
+    requiredEnvironment: bundle.environment.map((item) => item.name),
+    routes: bundle.routes.map((route) => route.path),
+    nextSteps: bundle.nextSteps
+  };
+}
+
+function buildDashboardAiKeyInventory(inventory: {
+  totalReferences: number;
+  totalMonthlyBudgetUsd: number;
+  byProvider: Array<{
+    provider: string;
+    referenceCount: number;
+    monthlyBudgetUsd: number;
+  }>;
+  projects: Array<{
+    projectKey: string;
+    name: string;
+    referenceCount: number;
+    monthlyBudgetUsd: number;
+    references: Array<{
+      provider: string;
+      defaultModel: string;
+    }>;
+  }>;
+}): DashboardAiKeyInventory {
+  return {
+    totalReferences: String(inventory.totalReferences),
+    totalMonthlyBudget: formatUsd(inventory.totalMonthlyBudgetUsd),
+    providers: inventory.byProvider.map((provider) => ({
+      provider: provider.provider,
+      referenceCount: String(provider.referenceCount),
+      monthlyBudget: formatUsd(provider.monthlyBudgetUsd)
+    })),
+    projects: inventory.projects.map((project) => ({
+      projectKey: project.projectKey,
+      name: project.name,
+      referenceCount: String(project.referenceCount),
+      monthlyBudget: formatUsd(project.monthlyBudgetUsd),
+      providers: uniqueSorted(project.references.map((reference) => reference.provider)),
+      defaultModels: uniqueSorted(project.references.map((reference) => reference.defaultModel))
+    }))
+  };
+}
+
+function buildDashboardBulkTokenPolicy(
+  projects: Array<{ projectKey: string }>,
+  assistantKey: string
+): DashboardBulkTokenPolicy {
+  const targets = projects.map((project) => ({
+    projectKey: project.projectKey,
+    assistantKey
+  }));
+
+  return {
+    route: "/api/token-policy/bulk",
+    command: "curl -X POST https://<founder-os-host>/api/token-policy/bulk -H \"Authorization: Bearer <FOUNDER_OS_ADMIN_TOKEN>\" -H \"Content-Type: application/json\" --data @bulk-token-policy.json",
+    targetCount: String(targets.length),
+    targets,
+    emergencyTemplate: {
+      preferredModel: "gpt-5.4-mini",
+      fallbackModel: "gpt-5.4-mini",
+      dailyBudgetUsd: 10,
+      monthlyBudgetUsd: 100,
+      maxTokensPerRequest: 2000,
+      emergencyMode: true,
+      reason: "cost_spike_or_provider_incident"
+    }
+  };
+}
+
 function formatSpendBreakdown(item: {
   key: string;
   totalCostUsd: number;
@@ -365,4 +551,8 @@ function formatCompactNumber(value: number): string {
   }
 
   return String(value);
+}
+
+function uniqueSorted(values: string[]): string[] {
+  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
