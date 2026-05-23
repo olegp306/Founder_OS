@@ -27,6 +27,10 @@ describe("Founder OS home page", () => {
     expect(html).toContain("AI Key Inventory");
     expect(html).toContain("Key references");
     expect(html).toContain("Provider budgets");
+    expect(html).toContain("Bulk Token Policy");
+    expect(html).toContain("/api/token-policy/bulk");
+    expect(html).toContain("cost_spike_or_provider_incident");
+    expect(html).toContain("bulk-token-policy.json");
     expect(html).toContain("Token policy");
     expect(html).toContain("No raw prompts");
     expect(html).toContain("No secret refs");
@@ -46,6 +50,8 @@ describe("Founder OS home page", () => {
     expect(html).toContain("AI Key Inventory");
     expect(html).toContain("$250.00");
     expect(html).toContain("gpt-5.4-mini");
+    expect(html).toContain("Bulk Token Policy");
+    expect(html).toContain("Emergency mode");
     expect(html).toContain("prompt_injection_or_system_extraction");
     expect(html).not.toContain("demo-secret-ref");
     expect(html).not.toContain("world history");

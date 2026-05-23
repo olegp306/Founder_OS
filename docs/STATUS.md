@@ -359,3 +359,11 @@ Adds fleet-wide token policy controls:
 - `/api/token-policy/bulk` applies one model/budget/emergency-mode policy to multiple project/assistant targets.
 - Each bulk-applied policy writes a `token.policy.changed` audit event with `bulk_apply` and optional reason metadata.
 - `/api/health` reports bulk token policy support as part of private MVP readiness.
+
+### `codex/dashboard-bulk-token-policy`
+
+Surfaces fleet-wide token policy controls in the dashboard:
+
+- The dashboard view model now includes the bulk policy route, incident command, target count, target list, and emergency-mode template.
+- The home page shows a Bulk Token Policy section with imported project targets, fallback-model emergency controls, and budget ceilings.
+- The dashboard keeps this incident surface free of plaintext secrets and raw provider keys.

@@ -201,6 +201,48 @@ describe("dashboard services", () => {
     expect(JSON.stringify(viewModel)).not.toContain("vercel:SALES_COPILOT_ANTHROPIC_API_KEY");
   });
 
+  it("builds bulk token policy controls for cost incidents", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "booking_assistant",
+      name: "Booking Assistant",
+      status: "active",
+      owner: "olegp306"
+    });
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "sales_copilot",
+      name: "Sales Copilot",
+      status: "active",
+      owner: "olegp306"
+    });
+
+    const viewModel = await buildAiControlDashboardViewModel(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot"
+    });
+
+    expect(viewModel.bulkTokenPolicy).toEqual({
+      route: "/api/token-policy/bulk",
+      command: "curl -X POST https://<founder-os-host>/api/token-policy/bulk -H \"Authorization: Bearer <FOUNDER_OS_ADMIN_TOKEN>\" -H \"Content-Type: application/json\" --data @bulk-token-policy.json",
+      targetCount: "2",
+      targets: [
+        { projectKey: "booking_assistant", assistantKey: "support_bot" },
+        { projectKey: "sales_copilot", assistantKey: "support_bot" }
+      ],
+      emergencyTemplate: {
+        preferredModel: "gpt-5.4-mini",
+        fallbackModel: "gpt-5.4-mini",
+        dailyBudgetUsd: 10,
+        monthlyBudgetUsd: 100,
+        maxTokensPerRequest: 2000,
+        emergencyMode: true,
+        reason: "cost_spike_or_provider_incident"
+      }
+    });
+    expect(JSON.stringify(viewModel.bulkTokenPolicy)).not.toContain("secret");
+    expect(JSON.stringify(viewModel.bulkTokenPolicy)).not.toContain("sk-");
+  });
+
   it("builds AI control dashboard metrics from runtime execution decisions", async () => {
     const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
     await handleAiKeyReferenceRegistration(runtime, {
