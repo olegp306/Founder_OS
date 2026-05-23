@@ -9,8 +9,10 @@ describe("health route", () => {
     expect(body.serviceBackedRoutes).toContain("/api/projects/connection");
     expect(body.serviceBackedRoutes).toContain("/api/projects/ai-setup");
     expect(body.serviceBackedRoutes).toContain("/api/projects");
+    expect(body.serviceBackedRoutes).toContain("/api/ai-keys");
     expect(body.privateMvpReadiness.projectConnectionBundle).toBe(true);
     expect(body.privateMvpReadiness.projectAiSetup).toBe(true);
     expect(body.privateMvpReadiness.projectList).toBe(true);
+    expect(body.privateMvpReadiness.aiKeyInventory).toBe(true);
   });
 });

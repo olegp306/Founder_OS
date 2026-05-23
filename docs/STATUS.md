@@ -335,3 +335,11 @@ Adds a pre-transfer deployment smoke check:
 - Adds `npm run deployment:check` for validating a deployed Founder OS URL before routing personal projects to it.
 - The check verifies the migration deploy script, admin token, `/api/health`, expected persistence mode, repository kind, private MVP readiness flags, and plaintext-secret safety.
 - The CLI supports `--dry-run`, `--base-url`, `--token`, and `--expected-persistence` for local, staging, and production checks.
+
+### `codex/ai-key-inventory`
+
+Adds safe AI key reference inventory:
+
+- `GET /api/ai-keys` lists key reference metadata across onboarded projects without returning plaintext provider keys.
+- Inventory output groups monthly budget totals by provider and project so key coverage and AI spend exposure are visible before production traffic.
+- `/api/health` now reports `aiKeyInventory` as part of private MVP readiness.

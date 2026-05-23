@@ -37,6 +37,7 @@ export async function GET() {
       projectOnboarding: true,
       bulkProjectImport: true,
       aiKeyReferences: true,
+      aiKeyInventory: true,
       aiControlResolution: true,
       aiUsageAbuseProtection: true,
       aiExecutionDecision: true,

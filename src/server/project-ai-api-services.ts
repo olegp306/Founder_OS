@@ -59,6 +59,11 @@ export const aiKeyReferenceSchema = z.object({
   plaintextSecret: z.string().optional()
 });
 
+export const aiKeyReferenceInventorySchema = z.object({
+  projectKey: z.string().min(2).optional(),
+  provider: z.enum(["openai", "anthropic", "google", "other"]).optional()
+});
+
 export const aiControlResolveSchema = z.object({
   projectKey: z.string().min(2),
   requestedModel: z.string().min(2).optional()
@@ -137,6 +142,53 @@ export async function handleAiKeyReferenceRegistration(
     buildAiKeyReference(aiKeyReferenceSchema.parse(payload))
   );
   return { status: "registered" as const, key };
+}
+
+export async function handleAiKeyReferenceInventory(
+  runtime: FounderOsRuntime,
+  payload: unknown
+) {
+  const input = aiKeyReferenceInventorySchema.parse(payload ?? {});
+  const projects = (await runtime.repositories.projects.allProjects())
+    .filter((project) => !input.projectKey || project.key === input.projectKey);
+  const inventoryProjects = await Promise.all(projects.map(async (project) => {
+    const references = (await runtime.repositories.projects.aiKeysForProject(project.key))
+      .filter((reference) => !input.provider || reference.provider === input.provider)
+      .map((reference) => ({
+        provider: reference.provider,
+        secretRef: reference.secretRef,
+        displayName: reference.displayName,
+        allowedModels: reference.allowedModels,
+        defaultModel: reference.defaultModel,
+        monthlyBudgetUsd: reference.monthlyBudgetUsd,
+        status: reference.status
+      }))
+      .sort((left, right) =>
+        left.provider.localeCompare(right.provider) ||
+        left.displayName.localeCompare(right.displayName)
+      );
+    const monthlyBudgetUsd = sum(references, (reference) => reference.monthlyBudgetUsd);
+
+    return {
+      projectKey: project.key,
+      name: project.name,
+      referenceCount: references.length,
+      monthlyBudgetUsd,
+      references
+    };
+  }));
+  const visibleProjects = inventoryProjects.filter((project) =>
+    project.referenceCount > 0 || input.projectKey
+  );
+  const references = visibleProjects.flatMap((project) => project.references);
+
+  return {
+    status: "listed" as const,
+    totalReferences: references.length,
+    totalMonthlyBudgetUsd: sum(references, (reference) => reference.monthlyBudgetUsd),
+    byProvider: summarizeAiKeyProviders(references),
+    projects: visibleProjects
+  };
 }
 
 export async function handleProjectAiControlResolve(
@@ -412,6 +464,34 @@ function countBy(values: string[]): Record<string, number> {
     counts[value] = (counts[value] ?? 0) + 1;
     return counts;
   }, {});
+}
+
+function sum<T>(items: T[], valueFor: (item: T) => number): number {
+  return items.reduce((total, item) => total + valueFor(item), 0);
+}
+
+function summarizeAiKeyProviders(
+  references: Array<{
+    provider: string;
+    monthlyBudgetUsd: number;
+  }>
+) {
+  const providers = new Map<string, { provider: string; referenceCount: number; monthlyBudgetUsd: number }>();
+
+  for (const reference of references) {
+    const current = providers.get(reference.provider) ?? {
+      provider: reference.provider,
+      referenceCount: 0,
+      monthlyBudgetUsd: 0
+    };
+    providers.set(reference.provider, {
+      provider: reference.provider,
+      referenceCount: current.referenceCount + 1,
+      monthlyBudgetUsd: current.monthlyBudgetUsd + reference.monthlyBudgetUsd
+    });
+  }
+
+  return [...providers.values()].sort((left, right) => left.provider.localeCompare(right.provider));
 }
 
 async function resolveProjectAiControlFromRepository(

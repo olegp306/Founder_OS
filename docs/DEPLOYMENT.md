@@ -61,6 +61,7 @@ Use `npm run deployment:check -- --base-url https://<founder-os-host> --token <F
 - Use separate database credentials for local, staging, and production.
 - Store AI provider keys in the deployment platform or a secret manager. Founder OS should store only `secretRef` values such as `vercel:PROJECT_OPENAI_API_KEY`.
 - Use `/api/projects/ai-setup` after manifest import to register the project's AI key reference and token policy in one protected admin call.
+- Use `GET /api/ai-keys` to review the safe AI key reference inventory across projects, providers, allowed models, and monthly budgets without exposing plaintext provider keys.
 - Use `/api/projects/connection?projectKey=<project>&assistantKey=<assistant>` after onboarding to get the safe integration bundle for the connected project.
 - Connected products should ask `/api/ai-control/resolve` which provider, model, secret reference, and budget metadata to use before high-cost AI work.
 - Connected assistants should call `/api/ai-usage/assess` before expensive or open-ended AI work. Respect `recommendedAction` and `modelDirective` to downgrade, rate-limit, block, or temporarily suspend abusive usage.
@@ -84,15 +85,16 @@ Current recommended local flow:
 2. Run `npm run projects:scan -- --root C:\Repos` to preview discovered manifests.
 3. Run `npm run projects:import -- --root C:\Repos --endpoint https://<founder-os-host>/api/projects/bulk-import --token <FOUNDER_OS_ADMIN_TOKEN>` to submit them.
 4. Register each project's AI key reference and token policy together with `/api/projects/ai-setup`, or run `npm run projects:setup-ai -- --config <project>\.founderos\ai-setup.json --endpoint https://<founder-os-host>/api/projects/ai-setup --token <FOUNDER_OS_ADMIN_TOKEN>`.
-5. If needed, update key references with `/api/ai-keys` or token policy with `/api/token-policy`.
+5. If needed, update key references with `POST /api/ai-keys` or token policy with `/api/token-policy`.
 6. Check `/api/projects/readiness?projectKeys=<project>&assistantKey=<assistant>` and confirm `manifestImported`, `aiKeyConfigured`, and `tokenPolicyConfigured` are true.
-7. Fetch `/api/projects/connection?projectKey=<project>&assistantKey=<assistant>` and apply the returned environment variable names, route contracts, key references, and next steps.
-8. Configure the connected project to call `/api/ai-control/resolve` before high-cost AI work.
-9. Configure connected assistants to call `/api/ai-usage/assess` before expensive or open-ended AI work.
-10. For new integrations, use `/api/ai-execution/decide` as the single AI preflight before model execution.
-11. Review `/api/token-usage/summary` for token spend and burn-rate monitoring.
-12. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
-13. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
+7. Review `GET /api/ai-keys` to confirm the inventory contains only expected `secretRef` metadata and budgets.
+8. Fetch `/api/projects/connection?projectKey=<project>&assistantKey=<assistant>` and apply the returned environment variable names, route contracts, key references, and next steps.
+9. Configure the connected project to call `/api/ai-control/resolve` before high-cost AI work.
+10. Configure connected assistants to call `/api/ai-usage/assess` before expensive or open-ended AI work.
+11. For new integrations, use `/api/ai-execution/decide` as the single AI preflight before model execution.
+12. Review `/api/token-usage/summary` for token spend and burn-rate monitoring.
+13. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
+14. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
 
 Use `docs/PROJECT_AI_SETUP.example.json` as the template for `.founderos/ai-setup.json`. Keep real provider keys in Vercel, Supabase, Neon, Cloudflare, Tailscale, or another secret manager; the file should contain only `secretRef` values.
 
