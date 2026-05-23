@@ -42,6 +42,20 @@ export const tokenPolicyRequestSchema = z.object({
   emergencyMode: z.boolean().default(false)
 });
 
+export const bulkTokenPolicyRequestSchema = z.object({
+  targets: z.array(
+    z.object({
+      projectKey: z.string().min(2),
+      assistantKey: z.string().min(2).optional()
+    })
+  ).min(1),
+  policy: tokenPolicyRequestSchema.omit({
+    projectKey: true,
+    assistantKey: true
+  }),
+  reason: z.string().min(2).max(500).optional()
+});
+
 export const tokenUsageSummarySchema = z.object({
   projectKey: z.string().min(2),
   windowHours: z.number().min(1).max(24 * 31).default(24)
@@ -142,11 +156,35 @@ export async function handleTokenUsageSummary(runtime: FounderOsRuntime, payload
 export async function handleTokenPolicySave(runtime: FounderOsRuntime, payload: unknown) {
   const input = tokenPolicyRequestSchema.parse(payload);
   const policy = await runtime.repositories.tokenPolicies.save(input);
-  await recordTokenPolicyChange(runtime, policy);
+  await recordTokenPolicyChange(runtime, policy, {});
 
   return {
     status: "saved" as const,
     policy
+  };
+}
+
+export async function handleBulkTokenPolicySave(runtime: FounderOsRuntime, payload: unknown) {
+  const input = bulkTokenPolicyRequestSchema.parse(payload);
+  const policies = [];
+
+  for (const target of input.targets) {
+    const policy = await runtime.repositories.tokenPolicies.save({
+      projectKey: target.projectKey,
+      assistantKey: target.assistantKey,
+      ...input.policy
+    });
+    await recordTokenPolicyChange(runtime, policy, {
+      bulkApply: true,
+      reason: input.reason
+    });
+    policies.push(policy);
+  }
+
+  return {
+    status: "saved" as const,
+    appliedCount: policies.length,
+    policies
   };
 }
 
@@ -175,7 +213,11 @@ export async function handleTokenPolicyLookup(
 
 async function recordTokenPolicyChange(
   runtime: FounderOsRuntime,
-  policy: z.infer<typeof tokenPolicyRequestSchema>
+  policy: z.infer<typeof tokenPolicyRequestSchema>,
+  context: {
+    bulkApply?: boolean;
+    reason?: string;
+  }
 ) {
   const now = new Date().toISOString();
   const subject = policy.assistantKey
@@ -199,7 +241,9 @@ async function recordTokenPolicyChange(
       daily_budget_usd: policy.dailyBudgetUsd,
       monthly_budget_usd: policy.monthlyBudgetUsd,
       max_tokens_per_request: policy.maxTokensPerRequest,
-      emergency_mode: policy.emergencyMode
+      emergency_mode: policy.emergencyMode,
+      bulk_apply: context.bulkApply,
+      reason: context.reason
     },
     occurredAt: now,
     storedAt: now

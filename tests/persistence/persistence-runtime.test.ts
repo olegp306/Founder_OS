@@ -36,4 +36,25 @@ describe("Founder OS persistence runtime", () => {
     expect(runtime.tokens).toBeDefined();
     expect(runtime.campaigns).toBeDefined();
   });
+
+  it("uses Prisma repositories when DATABASE_URL is configured", () => {
+    const runtime = createFounderOsRuntime({
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/founder_os",
+      prismaClient: {}
+    });
+
+    expect(runtime.persistenceMode).toBe("prisma");
+    expect(runtime.repositories.kind).toBe("prisma");
+  });
+
+  it("keeps memory repositories when memory mode is forced", () => {
+    const runtime = createFounderOsRuntime({
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/founder_os",
+      FOUNDER_OS_FORCE_MEMORY: "true",
+      prismaClient: {}
+    });
+
+    expect(runtime.persistenceMode).toBe("memory");
+    expect(runtime.repositories.kind).toBe("memory");
+  });
 });

@@ -5,7 +5,11 @@ import {
   type OnboardedRepository,
   type ProjectControls
 } from "@/domain/projects/project-onboarding";
-import type { NormalizedTokenUsageEvent } from "@/domain/token-control/token-control";
+import {
+  normalizeTokenUsageEvent,
+  type NormalizedTokenUsageEvent,
+  type TokenUsageInput
+} from "@/domain/token-control/token-control";
 import type { TokenPolicyRecord } from "@/domain/token-control/token-control-service";
 import type { PersistedTokenUsageInput, RepositorySet } from "@/persistence/repositories";
 import {
@@ -14,34 +18,38 @@ import {
   mapTokenUsageToPrismaCreate
 } from "@/persistence/prisma/mappers";
 
-type PrismaLike = {
+export type PrismaLike = {
   project?: {
-    upsert(input: unknown): Promise<unknown>;
-    findUnique(input: unknown): Promise<unknown>;
-    findMany(input: unknown): Promise<unknown[]>;
+    upsert?(input: unknown): Promise<unknown>;
+    findUnique?(input: unknown): Promise<unknown>;
+    findMany?(input: unknown): Promise<unknown[]>;
+  };
+  assistant?: {
+    findFirst?(input: unknown): Promise<unknown>;
   };
   repository?: {
-    upsert(input: unknown): Promise<unknown>;
-    findFirst(input: unknown): Promise<unknown>;
+    upsert?(input: unknown): Promise<unknown>;
+    findFirst?(input: unknown): Promise<unknown>;
   };
   projectControl?: {
-    upsert(input: unknown): Promise<unknown>;
-    findFirst(input: unknown): Promise<unknown>;
+    upsert?(input: unknown): Promise<unknown>;
+    findFirst?(input: unknown): Promise<unknown>;
   };
   aiKeyReference?: {
-    upsert(input: unknown): Promise<unknown>;
-    findMany(input: unknown): Promise<unknown[]>;
+    upsert?(input: unknown): Promise<unknown>;
+    findMany?(input: unknown): Promise<unknown[]>;
   };
   event?: {
-    findUnique(input: unknown): Promise<unknown>;
-    create(input: unknown): Promise<unknown>;
+    findUnique?(input: unknown): Promise<unknown>;
+    create?(input: unknown): Promise<unknown>;
   };
   tokenUsageEvent?: {
-    create(input: unknown): Promise<unknown>;
+    create?(input: unknown): Promise<unknown>;
+    findMany?(input: unknown): Promise<unknown[]>;
   };
   tokenPolicy?: {
-    create(input: unknown): Promise<unknown>;
-    findFirst(input: unknown): Promise<unknown>;
+    create?(input: unknown): Promise<unknown>;
+    findFirst?(input: unknown): Promise<unknown>;
   };
 };
 
@@ -64,7 +72,7 @@ class PrismaEventRepository {
   constructor(private readonly prisma: PrismaLike) {}
 
   async append(event: StructuredEvent) {
-    if (!this.prisma.event) {
+    if (!this.prisma.event?.findUnique || !this.prisma.event.create) {
       throw new Error("Prisma event delegate is unavailable");
     }
 
@@ -89,7 +97,7 @@ class PrismaEventRepository {
   }
 
   async findByIdempotencyKey(source: string, idempotencyKey: string) {
-    if (!this.prisma.event) {
+    if (!this.prisma.event?.findUnique) {
       throw new Error("Prisma event delegate is unavailable");
     }
 
@@ -107,9 +115,34 @@ class PrismaEventRepository {
 class PrismaTokenUsageRepository {
   constructor(private readonly prisma: PrismaLike) {}
 
-  async record(usage: PersistedTokenUsageInput) {
-    if (!this.prisma.tokenUsageEvent) {
+  async record(usage: TokenUsageInput | PersistedTokenUsageInput) {
+    if (!this.prisma.tokenUsageEvent?.create) {
       throw new Error("Prisma tokenUsageEvent delegate is unavailable");
+    }
+
+    if ("projectKey" in usage) {
+      const normalized = normalizeTokenUsageEvent(usage);
+      const project = await resolveProjectByKey(this.prisma, usage.projectKey);
+      const assistant = await resolveAssistantByKey(this.prisma, project.id, usage.assistantKey);
+      const row = await this.prisma.tokenUsageEvent.create({
+        data: mapTokenUsageToPrismaCreate({
+          projectId: project.id,
+          assistantId: assistant?.id,
+          environment: usage.environment,
+          model: usage.model,
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+          totalTokens: normalized.totalTokens,
+          costUsd: usage.costUsd,
+          occurredAt: usage.occurredAt
+        }),
+        include: {
+          project: { select: { key: true } },
+          assistant: { select: { key: true } }
+        }
+      });
+
+      return mapPrismaTokenUsage(row);
     }
 
     return this.prisma.tokenUsageEvent.create({
@@ -117,8 +150,21 @@ class PrismaTokenUsageRepository {
     });
   }
 
-  async findByProject(_projectKey: string): Promise<NormalizedTokenUsageEvent[]> {
-    throw new Error("Prisma token usage lookup by project key requires project resolution");
+  async findByProject(projectKey: string): Promise<NormalizedTokenUsageEvent[]> {
+    if (!this.prisma.tokenUsageEvent?.findMany) {
+      throw new Error("Prisma tokenUsageEvent delegate is unavailable");
+    }
+
+    const rows = await this.prisma.tokenUsageEvent.findMany({
+      where: { project: { key: projectKey } },
+      include: {
+        project: { select: { key: true } },
+        assistant: { select: { key: true } }
+      },
+      orderBy: { occurredAt: "asc" }
+    });
+
+    return rows.map(mapPrismaTokenUsage);
   }
 }
 
@@ -126,12 +172,33 @@ class PrismaTokenPolicyRepository {
   constructor(private readonly prisma: PrismaLike) {}
 
   async save(policy: TokenPolicyRecord & { projectId?: string; assistantId?: string }) {
-    if (!this.prisma.tokenPolicy) {
+    if (!this.prisma.tokenPolicy?.create) {
       throw new Error("Prisma tokenPolicy delegate is unavailable");
     }
 
     if (!policy.projectId) {
-      throw new Error("Prisma token policy save requires projectId");
+      const project = await resolveProjectByKey(this.prisma, policy.projectKey);
+      const assistant = policy.assistantKey
+        ? await resolveAssistantByKey(this.prisma, project.id, policy.assistantKey)
+        : undefined;
+      const row = await this.prisma.tokenPolicy.create({
+        data: mapTokenPolicyToPrismaCreate({
+          projectId: project.id,
+          assistantId: assistant?.id,
+          preferredModel: policy.preferredModel,
+          fallbackModel: policy.fallbackModel,
+          dailyBudgetUsd: policy.dailyBudgetUsd,
+          monthlyBudgetUsd: policy.monthlyBudgetUsd,
+          maxTokensPerRequest: policy.maxTokensPerRequest,
+          emergencyMode: policy.emergencyMode
+        }),
+        include: {
+          project: { select: { key: true } },
+          assistant: { select: { key: true } }
+        }
+      });
+
+      return mapPrismaTokenPolicy(row);
     }
 
     return this.prisma.tokenPolicy.create({
@@ -149,17 +216,23 @@ class PrismaTokenPolicyRepository {
   }
 
   async find(input: { projectKey: string; assistantKey?: string }) {
-    if (!this.prisma.tokenPolicy) {
+    if (!this.prisma.tokenPolicy?.findFirst) {
       throw new Error("Prisma tokenPolicy delegate is unavailable");
     }
 
-    return this.prisma.tokenPolicy.findFirst({
+    const row = await this.prisma.tokenPolicy.findFirst({
       where: {
         project: { key: input.projectKey },
         OR: [{ assistant: { key: input.assistantKey } }, { assistantId: null }]
       },
-      orderBy: [{ assistantId: "desc" }, { updatedAt: "desc" }]
-    }) as Promise<TokenPolicyRecord | undefined>;
+      orderBy: [{ assistantId: "desc" }, { updatedAt: "desc" }],
+      include: {
+        project: { select: { key: true } },
+        assistant: { select: { key: true } }
+      }
+    });
+
+    return row ? mapPrismaTokenPolicy(row) : undefined;
   }
 }
 
@@ -171,7 +244,7 @@ class PrismaProjectOnboardingRepository {
     repository?: OnboardedRepository;
     controls: ProjectControls;
   }) {
-    if (!this.prisma.project || !this.prisma.projectControl) {
+    if (!this.prisma.project?.upsert || !this.prisma.projectControl?.upsert) {
       throw new Error("Prisma project onboarding delegates are unavailable");
     }
 
@@ -196,7 +269,7 @@ class PrismaProjectOnboardingRepository {
     }) as { id: string };
 
     if (input.repository) {
-      if (!this.prisma.repository) {
+      if (!this.prisma.repository?.upsert) {
         throw new Error("Prisma repository delegate is unavailable");
       }
 
@@ -243,7 +316,7 @@ class PrismaProjectOnboardingRepository {
   }
 
   async saveAiKey(key: AiKeyReference) {
-    if (!this.prisma.project || !this.prisma.aiKeyReference) {
+    if (!this.prisma.project?.findUnique || !this.prisma.aiKeyReference?.upsert) {
       throw new Error("Prisma AI key reference delegates are unavailable");
     }
 
@@ -287,7 +360,7 @@ class PrismaProjectOnboardingRepository {
   }
 
   async aiKeysForProject(projectKey: string) {
-    if (!this.prisma.aiKeyReference) {
+    if (!this.prisma.aiKeyReference?.findMany) {
       throw new Error("Prisma AI key reference delegate is unavailable");
     }
 
@@ -300,7 +373,7 @@ class PrismaProjectOnboardingRepository {
   }
 
   async allProjects() {
-    if (!this.prisma.project) {
+    if (!this.prisma.project?.findMany) {
       throw new Error("Prisma project delegate is unavailable");
     }
 
@@ -312,7 +385,7 @@ class PrismaProjectOnboardingRepository {
   }
 
   async project(projectKey: string) {
-    if (!this.prisma.project) {
+    if (!this.prisma.project?.findUnique) {
       throw new Error("Prisma project delegate is unavailable");
     }
 
@@ -324,7 +397,7 @@ class PrismaProjectOnboardingRepository {
   }
 
   async repository(projectKey: string) {
-    if (!this.prisma.repository) {
+    if (!this.prisma.repository?.findFirst) {
       throw new Error("Prisma repository delegate is unavailable");
     }
 
@@ -337,7 +410,7 @@ class PrismaProjectOnboardingRepository {
   }
 
   async projectControls(projectKey: string) {
-    if (!this.prisma.projectControl) {
+    if (!this.prisma.projectControl?.findFirst) {
       throw new Error("Prisma projectControl delegate is unavailable");
     }
 
@@ -352,6 +425,108 @@ class PrismaProjectOnboardingRepository {
 function mapProjectStatusToPrisma(status: string) {
   const normalized = status.toUpperCase();
   return normalized === "PAUSED" || normalized === "ARCHIVED" ? normalized : "ACTIVE";
+}
+
+async function resolveProjectByKey(prisma: PrismaLike, projectKey: string) {
+  if (!prisma.project?.findUnique) {
+    throw new Error("Prisma project delegate is unavailable");
+  }
+
+  const project = await prisma.project.findUnique({
+    where: { key: projectKey },
+    select: { id: true, key: true }
+  }) as { id: string; key: string } | undefined;
+
+  if (!project) {
+    throw new Error(`Project ${projectKey} must be onboarded before token operations`);
+  }
+
+  return project;
+}
+
+async function resolveAssistantByKey(
+  prisma: PrismaLike,
+  projectId: string,
+  assistantKey: string
+) {
+  if (!prisma.assistant?.findFirst) {
+    return undefined;
+  }
+
+  return prisma.assistant.findFirst({
+    where: {
+      projectId,
+      key: assistantKey
+    },
+    select: { id: true, key: true }
+  }) as Promise<{ id: string; key: string } | undefined>;
+}
+
+function mapPrismaEnvironment(environment: unknown): TokenUsageInput["environment"] {
+  const normalized = String(environment ?? "LOCAL").toLowerCase();
+  return normalized === "client_isolated"
+    ? "client-isolated"
+    : normalized as TokenUsageInput["environment"];
+}
+
+function mapPrismaDate(value: unknown): string {
+  return value instanceof Date ? value.toISOString() : String(value);
+}
+
+function mapPrismaTokenUsage(row: unknown): NormalizedTokenUsageEvent {
+  const usage = row as {
+    project?: { key?: string };
+    assistant?: { key?: string } | null;
+    environment: unknown;
+    model: string;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    costUsd: unknown;
+    occurredAt: unknown;
+  };
+
+  const projectKey = usage.project?.key ?? "unknown";
+  const assistantKey = usage.assistant?.key ?? "unknown";
+  const costUsd = Number(usage.costUsd);
+
+  return {
+    projectKey,
+    assistantKey,
+    environment: mapPrismaEnvironment(usage.environment),
+    model: usage.model,
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
+    totalTokens: usage.totalTokens,
+    costUsd,
+    occurredAt: mapPrismaDate(usage.occurredAt),
+    costPerThousandTokensUsd: usage.totalTokens === 0 ? 0 : costUsd / (usage.totalTokens / 1000),
+    policySubject: `project:${projectKey}`
+  };
+}
+
+function mapPrismaTokenPolicy(row: unknown): TokenPolicyRecord {
+  const policy = row as {
+    project?: { key?: string };
+    assistant?: { key?: string } | null;
+    preferredModel: string;
+    fallbackModel: string;
+    dailyBudgetUsd: unknown;
+    monthlyBudgetUsd: unknown;
+    maxTokensPerRequest: number;
+    emergencyMode: boolean;
+  };
+
+  return {
+    projectKey: policy.project?.key ?? "unknown",
+    assistantKey: policy.assistant?.key,
+    preferredModel: policy.preferredModel,
+    fallbackModel: policy.fallbackModel,
+    dailyBudgetUsd: Number(policy.dailyBudgetUsd),
+    monthlyBudgetUsd: Number(policy.monthlyBudgetUsd),
+    maxTokensPerRequest: policy.maxTokensPerRequest,
+    emergencyMode: policy.emergencyMode
+  };
 }
 
 function mapPrismaStatus(status: unknown) {
