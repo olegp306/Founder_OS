@@ -327,3 +327,43 @@ Adds deployable database migrations:
 - Adds the initial Prisma migration SQL generated from the current Founder OS schema.
 - Adds `npm run prisma:migrate:deploy` for deployment pipelines.
 - Adds migration coverage so the core project, AI key reference, project control, token usage, and foreign-key tables stay represented in versioned SQL.
+
+### `codex/deployment-readiness-check`
+
+Adds a pre-transfer deployment smoke check:
+
+- Adds `npm run deployment:check` for validating a deployed Founder OS URL before routing personal projects to it.
+- The check verifies the migration deploy script, admin token, `/api/health`, expected persistence mode, repository kind, private MVP readiness flags, and plaintext-secret safety.
+- The CLI supports `--dry-run`, `--base-url`, `--token`, and `--expected-persistence` for local, staging, and production checks.
+
+### `codex/ai-key-inventory`
+
+Adds safe AI key reference inventory:
+
+- `GET /api/ai-keys` lists key reference metadata across onboarded projects without returning plaintext provider keys.
+- Inventory output groups monthly budget totals by provider and project so key coverage and AI spend exposure are visible before production traffic.
+- `/api/health` now reports `aiKeyInventory` as part of private MVP readiness.
+
+### `codex/dashboard-ai-key-inventory`
+
+Surfaces AI key inventory on the dashboard:
+
+- The dashboard view model now includes safe AI key reference counts, provider budgets, project budgets, providers, and default models.
+- The home page shows an AI Key Inventory section without rendering `secretRef` values or plaintext provider keys.
+- Demo dashboard data now shows the configured monthly AI key budget alongside token spend and project transfer readiness.
+
+### `codex/bulk-token-policy-apply`
+
+Adds fleet-wide token policy controls:
+
+- `/api/token-policy/bulk` applies one model/budget/emergency-mode policy to multiple project/assistant targets.
+- Each bulk-applied policy writes a `token.policy.changed` audit event with `bulk_apply` and optional reason metadata.
+- `/api/health` reports bulk token policy support as part of private MVP readiness.
+
+### `codex/dashboard-bulk-token-policy`
+
+Surfaces fleet-wide token policy controls in the dashboard:
+
+- The dashboard view model now includes the bulk policy route, incident command, target count, target list, and emergency-mode template.
+- The home page shows a Bulk Token Policy section with imported project targets, fallback-model emergency controls, and budget ceilings.
+- The dashboard keeps this incident surface free of plaintext secrets and raw provider keys.
