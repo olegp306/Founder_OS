@@ -96,6 +96,25 @@ export type DashboardAiKeyInventory = {
   }>;
 };
 
+export type DashboardBulkTokenPolicy = {
+  route: string;
+  command: string;
+  targetCount: string;
+  targets: Array<{
+    projectKey: string;
+    assistantKey: string;
+  }>;
+  emergencyTemplate: {
+    preferredModel: string;
+    fallbackModel: string;
+    dailyBudgetUsd: number;
+    monthlyBudgetUsd: number;
+    maxTokensPerRequest: number;
+    emergencyMode: boolean;
+    reason: string;
+  };
+};
+
 export type AiControlDashboardViewModel = {
   projectKey?: string;
   metrics: DashboardMetric[];
@@ -105,6 +124,7 @@ export type AiControlDashboardViewModel = {
   transferFlow: DashboardTransferFlow;
   connectedProjects: DashboardConnectedProject[];
   aiKeyInventory: DashboardAiKeyInventory;
+  bulkTokenPolicy: DashboardBulkTokenPolicy;
 };
 
 const demoSeedOperations = new WeakMap<
@@ -223,7 +243,11 @@ export async function buildAiControlDashboardViewModel(
       readiness: `${project.readyCount}/${project.totalCount}`,
       missing: project.missing
     })),
-    aiKeyInventory: buildDashboardAiKeyInventory(aiKeyInventoryResult)
+    aiKeyInventory: buildDashboardAiKeyInventory(aiKeyInventoryResult),
+    bulkTokenPolicy: buildDashboardBulkTokenPolicy(
+      projectListResult.projects,
+      assistantKey
+    )
   };
 }
 
@@ -476,6 +500,32 @@ function buildDashboardAiKeyInventory(inventory: {
       providers: uniqueSorted(project.references.map((reference) => reference.provider)),
       defaultModels: uniqueSorted(project.references.map((reference) => reference.defaultModel))
     }))
+  };
+}
+
+function buildDashboardBulkTokenPolicy(
+  projects: Array<{ projectKey: string }>,
+  assistantKey: string
+): DashboardBulkTokenPolicy {
+  const targets = projects.map((project) => ({
+    projectKey: project.projectKey,
+    assistantKey
+  }));
+
+  return {
+    route: "/api/token-policy/bulk",
+    command: "curl -X POST https://<founder-os-host>/api/token-policy/bulk -H \"Authorization: Bearer <FOUNDER_OS_ADMIN_TOKEN>\" -H \"Content-Type: application/json\" --data @bulk-token-policy.json",
+    targetCount: String(targets.length),
+    targets,
+    emergencyTemplate: {
+      preferredModel: "gpt-5.4-mini",
+      fallbackModel: "gpt-5.4-mini",
+      dailyBudgetUsd: 10,
+      monthlyBudgetUsd: 100,
+      maxTokensPerRequest: 2000,
+      emergencyMode: true,
+      reason: "cost_spike_or_provider_incident"
+    }
   };
 }
 
