@@ -72,6 +72,7 @@ h2 {
 .projects-table,
 .transfer-flow,
 .spend-table,
+.key-inventory,
 .signal-table {
   border: 1px solid #d9dee5;
   border-radius: 8px;
@@ -142,6 +143,7 @@ h2 {
 .projects-table,
 .transfer-flow,
 .spend-table,
+.key-inventory,
 .signal-table {
   padding: 22px;
   background: #ffffff;
@@ -319,6 +321,10 @@ h2 {
 }
 
 .spend-table {
+  margin-top: 22px;
+}
+
+.key-inventory {
   margin-top: 22px;
 }
 
