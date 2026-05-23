@@ -69,6 +69,10 @@ h2 {
 .metric-card,
 .work-surface,
 .readiness-table,
+.projects-table,
+.transfer-flow,
+.spend-table,
+.key-inventory,
 .signal-table {
   border: 1px solid #d9dee5;
   border-radius: 8px;
@@ -81,8 +85,10 @@ h2 {
 
 .readiness-panel span,
 .metric-card span,
+.spend-card span,
 .section-heading span,
 .route-row span,
+.spend-row span,
 .table-row span {
   color: #616b76;
 }
@@ -134,6 +140,10 @@ h2 {
 
 .surface-column,
 .readiness-table,
+.projects-table,
+.transfer-flow,
+.spend-table,
+.key-inventory,
 .signal-table {
   padding: 22px;
   background: #ffffff;
@@ -228,6 +238,158 @@ h2 {
   overflow-wrap: anywhere;
 }
 
+.projects-table {
+  margin-top: 22px;
+}
+
+.projects-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.project-row {
+  display: grid;
+  grid-template-columns: 82px minmax(160px, 1fr) minmax(160px, 1fr) 80px;
+  gap: 12px;
+  align-items: center;
+  min-height: 54px;
+  padding: 13px;
+  border: 1px solid #e5e9ee;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.project-row strong {
+  color: #2f6f66;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.project-row[data-ready="false"] strong {
+  color: #a3412f;
+}
+
+.project-row code {
+  color: #234fc7;
+  overflow-wrap: anywhere;
+}
+
+.transfer-flow {
+  margin-top: 22px;
+}
+
+.transfer-command {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #e5e9ee;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.transfer-command span,
+.transfer-list span {
+  color: #616b76;
+}
+
+.transfer-command code,
+.transfer-list code {
+  color: #234fc7;
+  overflow-wrap: anywhere;
+}
+
+.transfer-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.transfer-list {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 132px;
+  padding: 16px;
+  border: 1px solid #e5e9ee;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.transfer-list strong {
+  color: #2f6f66;
+}
+
+.spend-table {
+  margin-top: 22px;
+}
+
+.key-inventory {
+  margin-top: 22px;
+}
+
+.spend-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.spend-card {
+  min-height: 104px;
+  padding: 16px;
+  border: 1px solid #e5e9ee;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.spend-card strong {
+  display: block;
+  margin-top: 14px;
+  font-size: 30px;
+}
+
+.spend-breakdowns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.spend-list {
+  padding: 16px;
+  border: 1px solid #e5e9ee;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.spend-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) 88px 88px;
+  gap: 12px;
+  align-items: center;
+  min-height: 38px;
+  border-top: 1px solid #edf0f3;
+}
+
+.spend-row:first-of-type {
+  border-top: 0;
+}
+
+.spend-row code {
+  color: #234fc7;
+  overflow-wrap: anywhere;
+}
+
+.spend-row strong {
+  text-align: right;
+}
+
 .signal-table {
   margin-top: 22px;
 }
@@ -270,9 +432,18 @@ h2 {
 
   .route-row,
   .table-row,
+  .spend-summary,
+  .spend-breakdowns,
+  .spend-row,
+  .transfer-grid,
+  .project-row,
   .readiness-grid,
   .readiness-row {
     grid-template-columns: 1fr;
+  }
+
+  .spend-row strong {
+    text-align: left;
   }
 
   .readiness-row code {
