@@ -23,6 +23,7 @@ describe("campaign center", () => {
     expect(
       createCampaignWorkflow(campaigns, {
         campaignKey: "booking_nudge",
+        projectKey: "booking_assistant",
         name: "Booking nudge",
         channel: "telegram",
         purpose: "marketing",
@@ -31,6 +32,7 @@ describe("campaign center", () => {
       })
     ).toMatchObject({
       campaignKey: "booking_nudge",
+      projectKey: "booking_assistant",
       status: "draft",
       channel: "telegram",
       plannedRecipients: 0,
@@ -45,6 +47,7 @@ describe("campaign center", () => {
     });
 
     expect(getCampaignWorkflow(campaigns, "booking_nudge")).toMatchObject({
+      projectKey: "booking_assistant",
       status: "dry_run",
       plannedRecipients: 1
     });
@@ -64,10 +67,39 @@ describe("campaign center", () => {
     });
 
     expect(getCampaignWorkflow(campaigns, "booking_nudge")).toMatchObject({
+      projectKey: "booking_assistant",
       status: "approved_for_live_send",
       approvedBy: "founder@example.com",
       botKeyRef: "ai_key_telegram_booking_bot",
       blockedReasons: []
+    });
+  });
+
+  it("preserves project attribution when delivery receipts close campaign workflow", () => {
+    const campaigns = new InMemoryCampaignStore();
+    createCampaignWorkflow(campaigns, {
+      campaignKey: "booking_nudge",
+      projectKey: "booking_assistant",
+      name: "Booking nudge",
+      channel: "telegram",
+      purpose: "marketing",
+      message: "Want help automating photo studio bookings?",
+      actor: "founder"
+    });
+
+    recordTelegramDeliveryReceipt(campaigns, {
+      campaignKey: "booking_nudge",
+      adapterRunId: "telegram_run_1",
+      actor: "telegram_adapter",
+      delivered: [],
+      failed: [{ personId: "person_1", telegramId: "123456", reason: "bot_blocked" }]
+    });
+
+    expect(getCampaignWorkflow(campaigns, "booking_nudge")).toMatchObject({
+      campaignKey: "booking_nudge",
+      projectKey: "booking_assistant",
+      status: "failed",
+      blockedReasons: ["delivery_failures_reported"]
     });
   });
 

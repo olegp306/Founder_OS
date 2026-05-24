@@ -108,6 +108,7 @@ describe("alert services", () => {
     });
     await handleCampaignWorkflowCreate(runtime, {
       campaignKey: "booking_nudge",
+      projectKey: "booking_assistant",
       name: "Booking nudge",
       channel: "telegram",
       purpose: "marketing",
@@ -120,6 +121,22 @@ describe("alert services", () => {
       actor: "telegram_adapter",
       delivered: [],
       failed: [{ personId: "person_1", telegramId: "123456", reason: "bot_blocked" }]
+    });
+    await handleCampaignWorkflowCreate(runtime, {
+      campaignKey: "sales_followup",
+      projectKey: "sales_copilot",
+      name: "Sales followup",
+      channel: "telegram",
+      purpose: "marketing",
+      message: "Want help with sales followups?",
+      actor: "founder"
+    });
+    await handleTelegramDeliveryReceipt(runtime, {
+      campaignKey: "sales_followup",
+      adapterRunId: "telegram_run_2",
+      actor: "telegram_adapter",
+      delivered: [],
+      failed: [{ personId: "person_2", telegramId: "789000", reason: "bot_blocked" }]
     });
 
     const result = await handleAlertList(runtime, {
@@ -180,14 +197,15 @@ describe("alert services", () => {
           occurredAt: "2026-05-24T08:00:00.000Z"
         },
         {
-          id: "campaign-delivery-failed:booking_nudge",
+          id: "campaign-delivery-failed:booking_assistant:booking_nudge",
           type: "campaign_delivery_failed",
           severity: "medium",
-          projectKey: "campaigns",
+          projectKey: "booking_assistant",
           provider: "telegram",
           title: "Campaign delivery failed",
-          detail: "booking_nudge ended with failed Telegram delivery.",
+          detail: "booking_assistant/booking_nudge ended with failed Telegram delivery.",
           evidence: {
+            projectKey: "booking_assistant",
             campaignKey: "booking_nudge",
             channel: "telegram",
             plannedRecipients: 1,
@@ -215,5 +233,6 @@ describe("alert services", () => {
     expect(JSON.stringify(result)).not.toContain("vercel:");
     expect(JSON.stringify(result)).not.toContain("invoice");
     expect(JSON.stringify(result)).not.toContain("sk-");
+    expect(JSON.stringify(result)).not.toContain("sales_followup");
   });
 });

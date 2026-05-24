@@ -407,7 +407,7 @@ export default async function HomePage() {
             <h3>Workflows</h3>
             {dashboard.campaignDelivery.workflows.map((workflow) => (
               <span key={workflow.campaignKey}>
-                {workflow.campaignKey}: {workflow.status}
+                {workflow.projectKey}/{workflow.campaignKey}: {workflow.status}
               </span>
             ))}
             {dashboard.campaignDelivery.workflows.length === 0 ? (

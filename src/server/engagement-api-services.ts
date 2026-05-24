@@ -51,6 +51,7 @@ export const campaignPreviewRequestSchema = z.object({
 
 export const campaignWorkflowCreateRequestSchema = z.object({
   campaignKey: z.string().min(2),
+  projectKey: z.string().min(2).optional(),
   name: z.string().min(2),
   channel: z.enum(["telegram", "email", "sms", "web"]),
   purpose: z.enum(["product_updates", "marketing", "support", "token_metering"]),

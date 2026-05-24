@@ -21,6 +21,7 @@ describe("engagement API services", () => {
     await expect(
       handleCampaignWorkflowCreate(runtime, {
         campaignKey: "booking_nudge",
+        projectKey: "booking_assistant",
         name: "Booking nudge",
         channel: "telegram",
         purpose: "marketing",
@@ -31,6 +32,7 @@ describe("engagement API services", () => {
       status: "draft",
       workflow: {
         campaignKey: "booking_nudge",
+        projectKey: "booking_assistant",
         status: "draft",
         channel: "telegram"
       }
@@ -42,6 +44,7 @@ describe("engagement API services", () => {
       status: "found",
       workflow: {
         campaignKey: "booking_nudge",
+        projectKey: "booking_assistant",
         name: "Booking nudge"
       }
     });

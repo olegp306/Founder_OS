@@ -78,8 +78,8 @@ Use `npm run deployment:check -- --production --base-url https://<founder-os-hos
 - Use `/api/token-usage/summary?projectKey=<project>&windowHours=<hours>` to inspect token spend, burn rate, projected daily spend, and usage split by assistant, model, and environment.
 - Use `/api/ai-execution/audit?projectKey=<project>` to inspect recent AI execution decisions without exposing secrets or raw request text.
 - Use `/api/ai-execution/summary?projectKey=<project>` for a compact project-level view of allow, downgrade, block, risk, reasons, and estimated tokens under risk.
-- Use `/api/alerts?projectKey=<project>` to review budget breach, overdue key rotation, provider spend anomaly, emergency-mode, and failed campaign delivery evidence without exposing raw prompts, provider invoices, bearer tokens, recipient IDs, or plaintext provider keys.
-- Use `/api/campaigns/workflow` to create or inspect the campaign workflow record before preview, dry-run, approval, or future delivery.
+- Use `/api/alerts?projectKey=<project>` to review budget breach, overdue key rotation, provider spend anomaly, emergency-mode, and project-filtered failed campaign delivery evidence without exposing raw prompts, provider invoices, bearer tokens, recipient IDs, or plaintext provider keys.
+- Use `/api/campaigns/workflow` to create or inspect the campaign workflow record before preview, dry-run, approval, or future delivery. Include `projectKey` in the create payload so dashboard workflow rows and failed-delivery alerts stay tied to the owning private project.
 - Use `/api/campaigns/telegram-dry-run` before any Telegram campaign, then record `/api/campaigns/telegram-live-send/approve` with dry-run evidence, manual approval, matching recipient counts, and a safe `botKeyRef`. Founder OS should still keep plaintext Telegram bot tokens in the deployment secret store.
 - Use `/api/campaigns/telegram-delivery/handoff` after approval to produce the safe delivery adapter payload. The handoff contains `botKeyRef`, message, approved recipient ids, and audit evidence, but never the Telegram bot token.
 - Use `/api/campaigns/telegram-delivery/receipt` from the external adapter to close the workflow as sent or failed after delivery.
@@ -140,7 +140,7 @@ Use `--dry-run` first to preview the discovered manifests, sanitized setup paylo
 
 The internal dashboard also shows the same transfer command, required environment variable names, route paths, remaining connection-bundle next steps, safe AI key inventory budgets, and the bulk token-policy incident command for the configured dashboard project.
 
-The internal dashboard also shows Campaign Delivery status for the workflow, dry-run, live-send approval, external handoff, and adapter receipt contracts without exposing Telegram bot tokens, `botKeyRef` values, or recipient IDs.
+The internal dashboard also shows Campaign Delivery status for the workflow, owning project, dry-run, live-send approval, external handoff, and adapter receipt contracts without exposing Telegram bot tokens, `botKeyRef` values, or recipient IDs.
 
 Use `/api/projects?assistantKey=<assistant>` or the Connected Projects dashboard section to review imported projects and see which ones still need AI key references, token policies, token tracking, feedback capture, or raw-message policy fixes.
 

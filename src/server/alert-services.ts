@@ -235,22 +235,28 @@ function buildCampaignDeliveryAlerts(runtime: FounderOsRuntime, projectKey: stri
   return runtime.campaigns
     .allWorkflows()
     .filter((workflow) => workflow.status === "failed")
-    .map((workflow) => ({
-      id: `campaign-delivery-failed:${workflow.campaignKey}`,
-      type: "campaign_delivery_failed" as const,
-      severity: "medium" as const,
-      projectKey: "campaigns",
-      provider: workflow.channel === "telegram" ? "telegram" : undefined,
-      title: "Campaign delivery failed",
-      detail: `${workflow.campaignKey} ended with failed ${formatChannel(workflow.channel)} delivery.`,
-      evidence: {
-        campaignKey: workflow.campaignKey,
-        channel: workflow.channel,
-        plannedRecipients: workflow.plannedRecipients,
-        blockedReasons: workflow.blockedReasons
-      },
-      occurredAt: workflow.updatedAt
-    }));
+    .filter((workflow) => !projectKey || workflow.projectKey === projectKey)
+    .map((workflow) => {
+      const alertProjectKey = workflow.projectKey ?? "campaigns";
+
+      return {
+        id: `campaign-delivery-failed:${alertProjectKey}:${workflow.campaignKey}`,
+        type: "campaign_delivery_failed" as const,
+        severity: "medium" as const,
+        projectKey: alertProjectKey,
+        provider: workflow.channel === "telegram" ? "telegram" : undefined,
+        title: "Campaign delivery failed",
+        detail: `${alertProjectKey}/${workflow.campaignKey} ended with failed ${formatChannel(workflow.channel)} delivery.`,
+        evidence: {
+          projectKey: alertProjectKey,
+          campaignKey: workflow.campaignKey,
+          channel: workflow.channel,
+          plannedRecipients: workflow.plannedRecipients,
+          blockedReasons: workflow.blockedReasons
+        },
+        occurredAt: workflow.updatedAt
+      };
+    });
 }
 
 function latestPolicyEvent(events: StructuredEvent[], projectKey: string, assistantKey: string) {

@@ -369,6 +369,7 @@ describe("dashboard services", () => {
     const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
     await handleCampaignWorkflowCreate(runtime, {
       campaignKey: "booking_nudge",
+      projectKey: "booking_assistant",
       name: "Booking nudge",
       channel: "telegram",
       purpose: "marketing",
@@ -423,6 +424,7 @@ describe("dashboard services", () => {
       workflows: [
         {
           campaignKey: "booking_nudge",
+          projectKey: "booking_assistant",
           status: "sent",
           channel: "telegram",
           plannedRecipients: "1",

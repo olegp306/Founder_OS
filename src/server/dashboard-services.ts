@@ -154,6 +154,7 @@ export type DashboardCampaignDelivery = {
   routes: string[];
   workflows: Array<{
     campaignKey: string;
+    projectKey: string;
     status: string;
     channel: string;
     plannedRecipients: string;
@@ -701,6 +702,7 @@ function buildDashboardCampaignDelivery(runtime: FounderOsRuntime): DashboardCam
     ],
     workflows: workflows.slice(0, 5).map((workflow) => ({
       campaignKey: workflow.campaignKey,
+      projectKey: workflow.projectKey ?? "campaigns",
       status: workflow.status,
       channel: workflow.channel,
       plannedRecipients: String(workflow.plannedRecipients),

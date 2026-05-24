@@ -34,6 +34,7 @@ export type CampaignWorkflowStatus = "draft" | "dry_run" | "approved_for_live_se
 
 export type CampaignWorkflowRecord = {
   campaignKey: string;
+  projectKey?: string;
   name: string;
   channel: ConsentChannel;
   purpose: ConsentPurpose;
@@ -120,6 +121,7 @@ export function createCampaignWorkflow(
   store: InMemoryCampaignStore,
   input: {
     campaignKey: string;
+    projectKey?: string;
     name: string;
     channel: ConsentChannel;
     purpose: ConsentPurpose;
@@ -129,6 +131,7 @@ export function createCampaignWorkflow(
 ): CampaignWorkflowRecord {
   const workflow = store.saveWorkflow({
     campaignKey: input.campaignKey,
+    projectKey: input.projectKey,
     name: input.name,
     channel: input.channel,
     purpose: input.purpose,
@@ -166,6 +169,7 @@ function updateCampaignWorkflow(
   const existing = store.workflow(campaignKey);
   const workflow = store.saveWorkflow({
     campaignKey,
+    projectKey: update.projectKey ?? existing?.projectKey,
     name: existing?.name ?? campaignKey,
     channel: existing?.channel ?? "telegram",
     purpose: existing?.purpose ?? "marketing",
