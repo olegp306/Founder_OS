@@ -15,6 +15,7 @@ Completed capability areas:
 - Campaign eligibility, preview, and Telegram dry-run foundation.
 - Campaign workflow state tracking for draft, dry-run, approved, and blocked states.
 - Telegram live-send approval gate without plaintext bot tokens.
+- Telegram delivery handoff contract for external adapters without plaintext bot tokens.
 - Production readiness foundation: admin API guard, health check, deployment docs, backup docs.
 
 Production 98 implementation complete:
@@ -29,6 +30,7 @@ Production 98 implementation complete:
 - `/api/health` reports alert evidence as part of private MVP readiness.
 - Campaign live-send approval now requires dry-run evidence, manual confirmation, recipient-count match, and a safe bot key reference before any future delivery adapter can be used.
 - Campaign workflow state now tracks draft, dry-run, approved, and blocked transitions before any Telegram delivery adapter is enabled.
+- Telegram delivery handoff now produces a safe adapter payload only after approval evidence, bot key reference match, and recipient-count match.
 - `/api/health` reports campaign live-send approval as part of private MVP readiness.
 
 External launch gate still required:
@@ -75,8 +77,9 @@ The current campaign center slice added:
 - Telegram dry-run sender abstraction.
 - Dry-run audit records without real message delivery.
 - Telegram live-send approval gate with manual confirmation, dry-run evidence, approved bot key reference, recipient-count check, and audit records.
+- Telegram delivery handoff with approved `botKeyRef`, recipient list, message, and audit records, without plaintext bot tokens.
 
-Campaign delivery remains blocked until production Telegram credentials, deployment access controls, and a delivery adapter are configured. The approval gate records readiness for live send but does not store bot tokens or send messages itself.
+Campaign delivery remains external until production Telegram credentials, deployment access controls, and a delivery adapter are configured. Founder OS now records readiness and emits a safe handoff payload, but it does not store bot tokens or send messages itself.
 
 The production readiness slice added:
 
@@ -135,6 +138,7 @@ Moves engagement API logic into a dedicated service layer:
 - `/api/campaigns/preview`
 - `/api/campaigns/telegram-dry-run`
 - `/api/campaigns/telegram-live-send/approve`
+- `/api/campaigns/telegram-delivery/handoff`
 
 These route handlers now delegate to `src/server/engagement-api-services.ts`. `/api/health` reports `serviceBackedRoutes`.
 
@@ -411,4 +415,6 @@ Adds the production 98 launch roadmap and starts AI key lifecycle readiness:
 - Adds `/api/campaigns/workflow` for campaign workflow creation and state lookup.
 - `/api/health` now reports `privateMvpReadiness.campaignWorkflowState`.
 - `/api/health` now reports `privateMvpReadiness.campaignLiveSendApproval`.
+- Adds `/api/campaigns/telegram-delivery/handoff` for safe external delivery adapter handoff.
+- `/api/health` now reports `privateMvpReadiness.campaignDeliveryHandoff`.
 - Adds a Prisma migration for lifecycle metadata on `AiKeyReference`.

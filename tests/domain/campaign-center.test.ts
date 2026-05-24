@@ -3,6 +3,7 @@ import {
   InMemoryCampaignStore,
   createCampaignWorkflow,
   createCampaignPreview,
+  createTelegramDeliveryHandoff,
   evaluateCampaignEligibility,
   getCampaignWorkflow,
   approveTelegramCampaignForLiveSend,
@@ -271,5 +272,96 @@ describe("campaign center", () => {
         subjectId: "booking_nudge"
       })
     );
+  });
+
+  it("creates a safe Telegram delivery handoff only after live-send approval", () => {
+    const campaigns = new InMemoryCampaignStore();
+    createCampaignWorkflow(campaigns, {
+      campaignKey: "booking_nudge",
+      name: "Booking nudge",
+      channel: "telegram",
+      purpose: "marketing",
+      message: "Want help automating photo studio bookings?",
+      actor: "founder"
+    });
+    sendTelegramCampaignDryRun(campaigns, {
+      campaignKey: "booking_nudge",
+      message: "Want help automating photo studio bookings?",
+      recipients: [
+        {
+          personId: "person_1",
+          telegramId: "123456"
+        }
+      ],
+      actor: "founder"
+    });
+    approveTelegramCampaignForLiveSend(campaigns, {
+      campaignKey: "booking_nudge",
+      dryRunId: "dry_run_2026_05_24",
+      botKeyRef: "ai_key_telegram_booking_bot",
+      actor: "founder",
+      manualApproval: {
+        approvedBy: "founder@example.com",
+        approvedAt: "2026-05-24T15:00:00.000Z",
+        confirmed: true
+      },
+      expectedRecipients: 1,
+      dryRunPlannedRecipients: 1
+    });
+
+    expect(
+      createTelegramDeliveryHandoff(campaigns, {
+        campaignKey: "booking_nudge",
+        botKeyRef: "ai_key_telegram_booking_bot",
+        actor: "founder",
+        recipients: [{ personId: "person_1", telegramId: "123456" }]
+      })
+    ).toEqual({
+      status: "handoff_ready",
+      campaignKey: "booking_nudge",
+      botKeyRef: "ai_key_telegram_booking_bot",
+      message: "Want help automating photo studio bookings?",
+      approvedBy: "founder@example.com",
+      plannedRecipients: 1,
+      recipients: [{ personId: "person_1", telegramId: "123456" }],
+      blockedReasons: []
+    });
+    expect(campaigns.auditTrail()).toContainEqual(
+      expect.objectContaining({
+        action: "campaign.telegram.delivery_handoff_ready",
+        actor: "founder",
+        subjectId: "booking_nudge"
+      })
+    );
+  });
+
+  it("blocks Telegram delivery handoff when approval state or recipient evidence is unsafe", () => {
+    const campaigns = new InMemoryCampaignStore();
+    createCampaignWorkflow(campaigns, {
+      campaignKey: "booking_nudge",
+      name: "Booking nudge",
+      channel: "telegram",
+      purpose: "marketing",
+      message: "Want help automating photo studio bookings?",
+      actor: "founder"
+    });
+
+    const result = createTelegramDeliveryHandoff(campaigns, {
+      campaignKey: "booking_nudge",
+      botKeyRef: "wrong_key",
+      actor: "founder",
+      recipients: [{ personId: "person_1", telegramId: "123456" }]
+    });
+
+    expect(result).toMatchObject({
+      status: "blocked",
+      campaignKey: "booking_nudge",
+      botKeyRef: "wrong_key",
+      blockedReasons: [
+        "campaign_not_approved_for_live_send",
+        "approved_bot_key_ref_mismatch",
+        "recipient_count_mismatch"
+      ]
+    });
   });
 });

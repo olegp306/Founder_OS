@@ -3,6 +3,7 @@ import {
   approveTelegramCampaignForLiveSend,
   createCampaignWorkflow,
   createCampaignPreview,
+  createTelegramDeliveryHandoff,
   getCampaignWorkflow,
   sendTelegramCampaignDryRun
 } from "@/domain/campaigns/campaign-center";
@@ -86,6 +87,18 @@ export const telegramLiveSendApprovalRequestSchema = z.object({
   dryRunPlannedRecipients: z.number().int().min(0)
 });
 
+export const telegramDeliveryHandoffRequestSchema = z.object({
+  campaignKey: z.string().min(2),
+  botKeyRef: z.string().min(1),
+  actor: z.string().min(2),
+  recipients: z.array(
+    z.object({
+      personId: z.string().min(1),
+      telegramId: z.string().min(1)
+    })
+  )
+});
+
 export async function handleConsentRecord(runtime: FounderOsRuntime, payload: unknown) {
   const input = consentRequestSchema.parse(payload);
   const consent = grantConsent(runtime.profileOps, input);
@@ -147,5 +160,12 @@ export async function handleTelegramLiveSendApproval(runtime: FounderOsRuntime, 
   return approveTelegramCampaignForLiveSend(
     runtime.campaigns,
     telegramLiveSendApprovalRequestSchema.parse(payload)
+  );
+}
+
+export async function handleTelegramDeliveryHandoff(runtime: FounderOsRuntime, payload: unknown) {
+  return createTelegramDeliveryHandoff(
+    runtime.campaigns,
+    telegramDeliveryHandoffRequestSchema.parse(payload)
   );
 }

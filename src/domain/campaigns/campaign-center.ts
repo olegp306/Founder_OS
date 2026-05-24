@@ -56,6 +56,20 @@ export type TelegramLiveSendApproval = {
   blockedReasons: string[];
 };
 
+export type TelegramDeliveryHandoff = {
+  status: "handoff_ready" | "blocked";
+  campaignKey: string;
+  botKeyRef: string;
+  message: string;
+  approvedBy?: string;
+  plannedRecipients: number;
+  recipients: Array<{
+    personId: string;
+    telegramId: string;
+  }>;
+  blockedReasons: string[];
+};
+
 export class InMemoryCampaignStore {
   private readonly audit: CampaignAuditRecord[] = [];
   private readonly approvals: TelegramLiveSendApproval[] = [];
@@ -248,6 +262,56 @@ export function approveTelegramCampaignForLiveSend(
   });
 
   return approval;
+}
+
+export function createTelegramDeliveryHandoff(
+  store: InMemoryCampaignStore,
+  input: {
+    campaignKey: string;
+    botKeyRef: string;
+    actor: string;
+    recipients: Array<{
+      personId: string;
+      telegramId: string;
+    }>;
+  }
+): TelegramDeliveryHandoff {
+  const workflow = store.workflow(input.campaignKey);
+  const blockedReasons: string[] = [];
+
+  if (workflow?.status !== "approved_for_live_send") {
+    blockedReasons.push("campaign_not_approved_for_live_send");
+  }
+
+  if (workflow?.botKeyRef !== input.botKeyRef) {
+    blockedReasons.push("approved_bot_key_ref_mismatch");
+  }
+
+  if (workflow?.plannedRecipients !== input.recipients.length) {
+    blockedReasons.push("recipient_count_mismatch");
+  }
+
+  const handoff: TelegramDeliveryHandoff = {
+    status: blockedReasons.length === 0 ? "handoff_ready" : "blocked",
+    campaignKey: input.campaignKey,
+    botKeyRef: input.botKeyRef,
+    message: workflow?.message ?? "",
+    approvedBy: workflow?.approvedBy,
+    plannedRecipients: workflow?.plannedRecipients ?? 0,
+    recipients: input.recipients,
+    blockedReasons
+  };
+
+  store.addAudit({
+    action: handoff.status === "handoff_ready"
+      ? "campaign.telegram.delivery_handoff_ready"
+      : "campaign.telegram.delivery_handoff_blocked",
+    actor: input.actor,
+    subjectId: input.campaignKey,
+    createdAt: new Date().toISOString()
+  });
+
+  return handoff;
 }
 
 export function createCampaignPreview(input: {

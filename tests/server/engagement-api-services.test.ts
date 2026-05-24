@@ -7,6 +7,7 @@ import {
   handleConsentRecord,
   handleFeedbackCapture,
   handleSegmentEvaluation,
+  handleTelegramDeliveryHandoff,
   handleTelegramLiveSendApproval,
   handleTelegramDryRun
 } from "@/server/engagement-api-services";
@@ -169,6 +170,51 @@ describe("engagement API services", () => {
       })
     ).resolves.toMatchObject({
       status: "approved_for_live_send",
+      blockedReasons: []
+    });
+  });
+
+  it("creates Telegram delivery handoff through the runtime campaign store", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+
+    await handleCampaignWorkflowCreate(runtime, {
+      campaignKey: "booking_nudge",
+      name: "Booking nudge",
+      channel: "telegram",
+      purpose: "marketing",
+      message: "Want help automating bookings?",
+      actor: "founder"
+    });
+    await handleTelegramDryRun(runtime, {
+      campaignKey: "booking_nudge",
+      message: "Want help automating bookings?",
+      actor: "founder",
+      recipients: [{ personId: "person_1", telegramId: "123456" }]
+    });
+    await handleTelegramLiveSendApproval(runtime, {
+      campaignKey: "booking_nudge",
+      dryRunId: "dry_run_2026_05_24",
+      botKeyRef: "ai_key_telegram_booking_bot",
+      actor: "founder",
+      manualApproval: {
+        approvedBy: "founder@example.com",
+        approvedAt: "2026-05-24T15:00:00.000Z",
+        confirmed: true
+      },
+      expectedRecipients: 1,
+      dryRunPlannedRecipients: 1
+    });
+
+    await expect(
+      handleTelegramDeliveryHandoff(runtime, {
+        campaignKey: "booking_nudge",
+        botKeyRef: "ai_key_telegram_booking_bot",
+        actor: "founder",
+        recipients: [{ personId: "person_1", telegramId: "123456" }]
+      })
+    ).resolves.toMatchObject({
+      status: "handoff_ready",
+      message: "Want help automating bookings?",
       blockedReasons: []
     });
   });
