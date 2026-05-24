@@ -23,6 +23,7 @@ In progress:
 - Strict production launch gate is now implemented for Prisma persistence, disabled dashboard demo mode, admin token readiness, and private MVP readiness flags.
 - Real-project transfer rehearsal reports can now be written as sanitized launch artifacts.
 - Dashboard operator controls now show AI key lifecycle and production launch gate state.
+- Alert evidence now covers budget breaches, overdue key rotation, provider spend anomalies, and emergency-mode activation.
 
 ## Branching Rule
 
@@ -387,4 +388,5 @@ Adds the production 98 launch roadmap and starts AI key lifecycle readiness:
 - Adds `npm run projects:transfer -- --write-report <path>` to write a sanitized transfer rehearsal report with import, setup, connection, readiness, and missing steps.
 - Documents the first real-project rehearsal flow in `docs/PROJECT_TRANSFER_REHEARSAL.md`.
 - Surfaces dashboard operator controls for key lifecycle counts, provider rotation health, and launch gate readiness.
+- Adds `/api/alerts` for safe alert projections from token usage, token policy changes, provider spend imports, and key lifecycle metadata.
 - Adds a Prisma migration for lifecycle metadata on `AiKeyReference`.

@@ -192,15 +192,15 @@ Run: `npm test -- tests/server/dashboard-services.test.ts tests/app/home-page.te
 - Create: `src/app/api/alerts/route.ts`
 - Test: `tests/server/alert-services.test.ts`
 
-- [ ] **Step 1: Write failing alert tests**
+- [x] **Step 1: Write failing alert tests**
 
 Test alerts for budget breach, rotation overdue, provider spend anomaly, and emergency-mode activation.
 
-- [ ] **Step 2: Implement alert projection from structured events**
+- [x] **Step 2: Implement alert projection from structured events**
 
 Build alerts from existing token usage, token policy changes, provider spend imports, and key lifecycle metadata.
 
-- [ ] **Step 3: Add safe alert route**
+- [x] **Step 3: Add safe alert route**
 
 Expose `GET /api/alerts` without secrets, raw prompts, or provider invoices.
 

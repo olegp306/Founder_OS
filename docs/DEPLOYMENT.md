@@ -78,6 +78,7 @@ Use `npm run deployment:check -- --production --base-url https://<founder-os-hos
 - Use `/api/token-usage/summary?projectKey=<project>&windowHours=<hours>` to inspect token spend, burn rate, projected daily spend, and usage split by assistant, model, and environment.
 - Use `/api/ai-execution/audit?projectKey=<project>` to inspect recent AI execution decisions without exposing secrets or raw request text.
 - Use `/api/ai-execution/summary?projectKey=<project>` for a compact project-level view of allow, downgrade, block, risk, reasons, and estimated tokens under risk.
+- Use `/api/alerts?projectKey=<project>` to review budget breach, overdue key rotation, provider spend anomaly, and emergency-mode evidence without exposing raw prompts, provider invoices, bearer tokens, or plaintext provider keys.
 
 ## Project Onboarding
 
@@ -100,6 +101,7 @@ Current recommended local flow:
 13. Review `/api/token-usage/summary` for token spend and burn-rate monitoring.
 14. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
 15. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
+16. Review `/api/alerts` for launch evidence across budget, key lifecycle, provider spend, and emergency-mode conditions.
 
 Bulk policy payload example:
 
