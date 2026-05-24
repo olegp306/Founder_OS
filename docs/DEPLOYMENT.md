@@ -108,7 +108,7 @@ Current recommended local flow:
 14. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
 15. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
 16. Review `/api/alerts` for launch evidence across budget, key lifecycle, provider spend, and emergency-mode conditions.
-17. Run `projects:transfer` with `--write-launch-evidence` to capture `/api/projects/launch-evidence?projectKey=<project>&assistantKey=<assistant>` beside the transfer report before routing live traffic.
+17. Run `projects:transfer` with `--write-launch-evidence` and `--require-launch-evidence-ready` to capture `/api/projects/launch-evidence?projectKey=<project>&assistantKey=<assistant>` beside the transfer report and fail closed when launch blockers remain.
 18. For Telegram campaigns, create the workflow, run preview, dry-run, live-send approval, delivery handoff, then adapter receipt.
 
 Bulk policy payload example:
@@ -136,10 +136,10 @@ Use `docs/PROJECT_AI_SETUP.example.json` as the template for `.founderos/ai-setu
 For a one-command local transfer rehearsal, run:
 
 ```powershell
-npm run projects:transfer -- --root C:\Repos --setup-config C:\Repos\<project>\.founderos\ai-setup.json --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN> --write-report C:\Repos\<project>\.founderos\transfer-report.json --write-launch-evidence C:\Repos\<project>\.founderos\launch-evidence.json
+npm run projects:transfer -- --root C:\Repos --setup-config C:\Repos\<project>\.founderos\ai-setup.json --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN> --write-report C:\Repos\<project>\.founderos\transfer-report.json --write-launch-evidence C:\Repos\<project>\.founderos\launch-evidence.json --require-launch-evidence-ready
 ```
 
-Use `--dry-run` first to preview the discovered manifests, sanitized setup payload, and connection bundle URL. Use `docs/PROJECT_TRANSFER_REHEARSAL.md` as the launch checklist for the first real project.
+Use `--dry-run` first to preview the discovered manifests, sanitized setup payload, and connection bundle URL. Use `--require-launch-evidence-ready` on the real rehearsal so the command exits non-zero after writing `launch-evidence.json` if readiness, critical alerts, token spend, or campaign workflow blockers remain. Use `docs/PROJECT_TRANSFER_REHEARSAL.md` as the launch checklist for the first real project.
 
 The internal dashboard also shows the same transfer command, required environment variable names, route paths, remaining connection-bundle next steps, launch evidence blockers, safe AI key inventory budgets, and the bulk token-policy incident command for the configured dashboard project.
 

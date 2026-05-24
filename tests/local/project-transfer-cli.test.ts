@@ -45,6 +45,7 @@ describe("project transfer CLI", () => {
         "C:\\Repos\\booking\\.founderos\\transfer-report.json",
         "--write-launch-evidence",
         "C:\\Repos\\booking\\.founderos\\launch-evidence.json",
+        "--require-launch-evidence-ready",
         "--dry-run"
       ])
     ).toEqual({
@@ -54,6 +55,7 @@ describe("project transfer CLI", () => {
       token: "admin-token",
       writeReportPath: "C:\\Repos\\booking\\.founderos\\transfer-report.json",
       writeLaunchEvidencePath: "C:\\Repos\\booking\\.founderos\\launch-evidence.json",
+      requireLaunchEvidenceReady: true,
       dryRun: true
     });
   });
@@ -66,6 +68,7 @@ describe("project transfer CLI", () => {
       token: undefined,
       writeReportPath: undefined,
       writeLaunchEvidencePath: undefined,
+      requireLaunchEvidenceReady: false,
       dryRun: false
     });
   });
@@ -78,6 +81,7 @@ describe("project transfer CLI", () => {
         baseUrl: "http://localhost:3000",
         writeReportPath: undefined,
         writeLaunchEvidencePath: undefined,
+        requireLaunchEvidenceReady: false,
         dryRun: true
       },
       discover: async () => [
@@ -133,6 +137,7 @@ describe("project transfer CLI", () => {
         token: "admin-token",
         writeReportPath: undefined,
         writeLaunchEvidencePath: undefined,
+        requireLaunchEvidenceReady: false,
         dryRun: false
       },
       discover: async () => [
@@ -219,6 +224,7 @@ describe("project transfer CLI", () => {
           token: "admin-token",
           writeReportPath: reportPath,
           writeLaunchEvidencePath: launchEvidencePath,
+          requireLaunchEvidenceReady: false,
           dryRun: false
         },
         discover: async () => [
@@ -374,6 +380,73 @@ describe("project transfer CLI", () => {
         launchBlockers: ["missing:Token tracking"]
       });
       expect(JSON.stringify(launchEvidence)).not.toContain("token");
+      expect(JSON.stringify(launchEvidence)).not.toContain("vercel:");
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("fails after writing launch evidence when readiness is required and blockers remain", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "founder-os-transfer-"));
+    const launchEvidencePath = join(tempDir, "launch-evidence.json");
+
+    try {
+      await expect(
+        runProjectTransferCli({
+          options: {
+            rootPath: "C:\\Repos",
+            setupConfigPath: ".founderos/ai-setup.json",
+            baseUrl: "http://localhost:3000",
+            token: "admin-token",
+            writeReportPath: undefined,
+            writeLaunchEvidencePath: launchEvidencePath,
+            requireLaunchEvidenceReady: true,
+            dryRun: false
+          },
+          discover: async () => [
+            {
+              path: "C:\\Repos\\booking\\.founderos\\project.json",
+              content: "{\"project_id\":\"booking_assistant\"}"
+            }
+          ],
+          readSetupConfig: async () => JSON.stringify(setupPayload),
+          post: async (endpoint) => endpoint.endsWith("/api/projects/bulk-import")
+            ? { status: "imported" }
+            : { status: "configured" },
+          get: async (endpoint) => endpoint.includes("/api/projects/launch-evidence")
+            ? {
+                status: "built",
+                projectKey: "booking_assistant",
+                assistantKey: "support_bot",
+                ready: false,
+                launchBlockers: ["missing:Token tracking", "critical alerts present"],
+                secretRef: "vercel:SHOULD_NOT_WRITE"
+              }
+            : {
+                status: "built",
+                bundle: {
+                  projectKey: "booking_assistant",
+                  assistantKey: "support_bot",
+                  readiness: {
+                    ready: true,
+                    missing: []
+                  }
+                }
+              }
+        })
+      ).rejects.toThrow(
+        `Launch evidence is not ready; evidence written to ${launchEvidencePath}: missing:Token tracking, critical alerts present`
+      );
+
+      const launchEvidence = JSON.parse(await readFile(launchEvidencePath, "utf8"));
+      expect(launchEvidence).toEqual({
+        status: "built",
+        projectKey: "booking_assistant",
+        assistantKey: "support_bot",
+        ready: false,
+        launchBlockers: ["missing:Token tracking", "critical alerts present"]
+      });
+      expect(JSON.stringify(launchEvidence)).not.toContain("secretRef");
       expect(JSON.stringify(launchEvidence)).not.toContain("vercel:");
     } finally {
       await rm(tempDir, { recursive: true, force: true });

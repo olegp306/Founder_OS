@@ -12,6 +12,7 @@ export type ProjectTransferCliOptions = {
   token?: string;
   writeReportPath?: string;
   writeLaunchEvidencePath?: string;
+  requireLaunchEvidenceReady: boolean;
   dryRun: boolean;
 };
 
@@ -43,6 +44,7 @@ export function parseProjectTransferCliArgs(
     token: readOption(args, "--token") ?? env.FOUNDER_OS_ADMIN_TOKEN,
     writeReportPath: readOption(args, "--write-report"),
     writeLaunchEvidencePath: readOption(args, "--write-launch-evidence"),
+    requireLaunchEvidenceReady: args.includes("--require-launch-evidence-ready"),
     dryRun: args.includes("--dry-run")
   };
 }
@@ -96,7 +98,8 @@ export async function runProjectTransferCli(dependencies: ProjectTransferCliDepe
     import: await post(importEndpoint, buildBulkProjectImportPayload(manifests), headers),
     setup: await post(setupEndpoint, setupPayload, headers),
     connection: await get(connectionEndpoint, headers),
-    launchEvidence: dependencies.options.writeLaunchEvidencePath
+    launchEvidence: dependencies.options.writeLaunchEvidencePath ||
+      dependencies.options.requireLaunchEvidenceReady
       ? await get(launchEvidenceEndpoint, headers)
       : undefined
   };
@@ -111,7 +114,8 @@ export async function runProjectTransferCli(dependencies: ProjectTransferCliDepe
   });
   return withOptionalLaunchEvidence(
     dependencies.options.writeLaunchEvidencePath,
-    resultWithReport
+    resultWithReport,
+    dependencies.options.requireLaunchEvidenceReady
   );
 }
 
@@ -203,26 +207,68 @@ async function withOptionalReport<T extends { mode: "dry-run" | "transferred"; i
 
 async function withOptionalLaunchEvidence<T extends { launchEvidence?: unknown }>(
   launchEvidencePath: string | undefined,
-  result: T
+  result: T,
+  requireReady = false
 ): Promise<T & { launchEvidence?: unknown }> {
-  if (!launchEvidencePath || !result.launchEvidence) {
+  if (!result.launchEvidence) {
     return result;
   }
 
-  const { mkdir, writeFile } = await import("node:fs/promises");
-  const { dirname } = await import("node:path");
   const launchEvidence = sanitizeLaunchEvidence(result.launchEvidence);
 
-  await mkdir(dirname(launchEvidencePath), { recursive: true });
-  await writeFile(launchEvidencePath, `${JSON.stringify(launchEvidence, null, 2)}\n`, "utf8");
+  if (launchEvidencePath) {
+    const { mkdir, writeFile } = await import("node:fs/promises");
+    const { dirname } = await import("node:path");
+
+    await mkdir(dirname(launchEvidencePath), { recursive: true });
+    await writeFile(launchEvidencePath, `${JSON.stringify(launchEvidence, null, 2)}\n`, "utf8");
+  }
+
+  assertLaunchEvidenceReady(launchEvidence, requireReady, launchEvidencePath);
 
   return {
     ...result,
-    launchEvidence: {
-      path: launchEvidencePath,
-      written: true as const
-    }
+    launchEvidence: launchEvidencePath
+      ? {
+          path: launchEvidencePath,
+          written: true as const
+        }
+      : launchEvidence
   };
+}
+
+function assertLaunchEvidenceReady(
+  launchEvidence: unknown,
+  requireReady: boolean,
+  launchEvidencePath: string | undefined
+) {
+  if (!requireReady || !launchEvidence || typeof launchEvidence !== "object") {
+    return;
+  }
+
+  const ready = "ready" in launchEvidence ? (launchEvidence as { ready?: unknown }).ready : undefined;
+
+  if (ready === true) {
+    return;
+  }
+
+  const blockers = extractLaunchBlockers(launchEvidence);
+  const pathSuffix = launchEvidencePath ? `; evidence written to ${launchEvidencePath}` : "";
+  const blockerSuffix = blockers.length > 0 ? `: ${blockers.join(", ")}` : "";
+
+  throw new Error(`Launch evidence is not ready${pathSuffix}${blockerSuffix}`);
+}
+
+function extractLaunchBlockers(launchEvidence: object): string[] {
+  const blockers = "launchBlockers" in launchEvidence
+    ? (launchEvidence as { launchBlockers?: unknown }).launchBlockers
+    : undefined;
+
+  if (!Array.isArray(blockers)) {
+    return [];
+  }
+
+  return blockers.filter((blocker): blocker is string => typeof blocker === "string");
 }
 
 function buildTransferReport(

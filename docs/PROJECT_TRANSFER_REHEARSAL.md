@@ -44,10 +44,10 @@ Confirm the output references:
 
 ## Rehearsal Run
 
-Run the transfer and write the sanitized report plus launch evidence snapshot:
+Run the transfer and write the sanitized report plus launch evidence snapshot. The strict launch-evidence flag exits non-zero after writing the artifact if launch blockers remain.
 
 ```powershell
-npm run projects:transfer -- --root C:\Repos --setup-config C:\Repos\<project>\.founderos\ai-setup.json --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN> --write-report C:\Repos\<project>\.founderos\transfer-report.json --write-launch-evidence C:\Repos\<project>\.founderos\launch-evidence.json
+npm run projects:transfer -- --root C:\Repos --setup-config C:\Repos\<project>\.founderos\ai-setup.json --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN> --write-report C:\Repos\<project>\.founderos\transfer-report.json --write-launch-evidence C:\Repos\<project>\.founderos\launch-evidence.json --require-launch-evidence-ready
 ```
 
 The report includes:
@@ -84,6 +84,6 @@ Before production traffic, confirm:
 - `/api/token-policy` has a project or assistant policy for the transferred project.
 - `/api/token-usage/summary` is expected to show data after the connected product starts reporting usage.
 - `/api/provider-spend/import` has a source plan for provider billing exports.
-- `launch-evidence.json` has `ready: true`, or every `launchBlockers` item has an owner and fix plan.
+- `launch-evidence.json` has `ready: true`; with `--require-launch-evidence-ready`, the rehearsal command fails until every `launchBlockers` item has an owner and fix plan.
 
 Keep the report with launch notes. It is the replayable proof that the first project transfer is ready or shows exactly what remains blocked.
