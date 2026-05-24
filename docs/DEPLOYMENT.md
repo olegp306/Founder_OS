@@ -140,6 +140,8 @@ Use `--dry-run` first to preview the discovered manifests, sanitized setup paylo
 
 The internal dashboard also shows the same transfer command, required environment variable names, route paths, remaining connection-bundle next steps, safe AI key inventory budgets, and the bulk token-policy incident command for the configured dashboard project.
 
+The internal dashboard also shows Campaign Delivery status for the workflow, dry-run, live-send approval, external handoff, and adapter receipt contracts without exposing Telegram bot tokens, `botKeyRef` values, or recipient IDs.
+
 Use `/api/projects?assistantKey=<assistant>` or the Connected Projects dashboard section to review imported projects and see which ones still need AI key references, token policies, token tracking, feedback capture, or raw-message policy fixes.
 
 Keep an exported copy of onboarding manifests and `.founderos/ai-setup.json` files anyway. They are still the fastest disaster-recovery replay source for rebuilding a project registry or rotating secret references.

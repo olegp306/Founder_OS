@@ -146,6 +146,21 @@ export type DashboardBulkTokenPolicy = {
   };
 };
 
+export type DashboardCampaignDelivery = {
+  totalCampaigns: string;
+  readyForAdapter: string;
+  sentCampaigns: string;
+  failedCampaigns: string;
+  routes: string[];
+  workflows: Array<{
+    campaignKey: string;
+    status: string;
+    channel: string;
+    plannedRecipients: string;
+    blockedReasons: string[];
+  }>;
+};
+
 export type AiControlDashboardViewModel = {
   projectKey?: string;
   metrics: DashboardMetric[];
@@ -158,6 +173,7 @@ export type AiControlDashboardViewModel = {
   keyLifecycle: DashboardKeyLifecycle;
   launchGate: DashboardLaunchGate;
   bulkTokenPolicy: DashboardBulkTokenPolicy;
+  campaignDelivery: DashboardCampaignDelivery;
 };
 
 const demoSeedOperations = new WeakMap<
@@ -288,7 +304,8 @@ export async function buildAiControlDashboardViewModel(
     bulkTokenPolicy: buildDashboardBulkTokenPolicy(
       projectListResult.projects,
       assistantKey
-    )
+    ),
+    campaignDelivery: buildDashboardCampaignDelivery(runtime)
   };
 }
 
@@ -663,6 +680,32 @@ function buildDashboardBulkTokenPolicy(
       emergencyMode: true,
       reason: "cost_spike_or_provider_incident"
     }
+  };
+}
+
+function buildDashboardCampaignDelivery(runtime: FounderOsRuntime): DashboardCampaignDelivery {
+  const workflows = runtime.campaigns.allWorkflows();
+
+  return {
+    totalCampaigns: String(workflows.length),
+    readyForAdapter: String(workflows.filter((workflow) => workflow.status === "approved_for_live_send").length),
+    sentCampaigns: String(workflows.filter((workflow) => workflow.status === "sent").length),
+    failedCampaigns: String(workflows.filter((workflow) => workflow.status === "failed").length),
+    routes: [
+      "/api/campaigns/workflow",
+      "/api/campaigns/preview",
+      "/api/campaigns/telegram-dry-run",
+      "/api/campaigns/telegram-live-send/approve",
+      "/api/campaigns/telegram-delivery/handoff",
+      "/api/campaigns/telegram-delivery/receipt"
+    ],
+    workflows: workflows.slice(0, 5).map((workflow) => ({
+      campaignKey: workflow.campaignKey,
+      status: workflow.status,
+      channel: workflow.channel,
+      plannedRecipients: String(workflow.plannedRecipients),
+      blockedReasons: workflow.blockedReasons
+    }))
   };
 }
 

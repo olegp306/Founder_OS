@@ -377,6 +377,52 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section className="transfer-flow" aria-label="Campaign delivery">
+        <div className="section-heading">
+          <h2>Campaign Delivery</h2>
+          <span>{dashboard.campaignDelivery.totalCampaigns} campaigns</span>
+        </div>
+        <div className="spend-summary">
+          <article className="spend-card">
+            <span>Ready handoffs</span>
+            <strong>{dashboard.campaignDelivery.readyForAdapter}</strong>
+          </article>
+          <article className="spend-card">
+            <span>Sent</span>
+            <strong>{dashboard.campaignDelivery.sentCampaigns}</strong>
+          </article>
+          <article className="spend-card">
+            <span>Failed</span>
+            <strong>{dashboard.campaignDelivery.failedCampaigns}</strong>
+          </article>
+        </div>
+        <div className="transfer-grid">
+          <div className="transfer-list">
+            <h3>Routes</h3>
+            {dashboard.campaignDelivery.routes.map((route) => (
+              <code key={route}>{route}</code>
+            ))}
+          </div>
+          <div className="transfer-list">
+            <h3>Workflows</h3>
+            {dashboard.campaignDelivery.workflows.map((workflow) => (
+              <span key={workflow.campaignKey}>
+                {workflow.campaignKey}: {workflow.status}
+              </span>
+            ))}
+            {dashboard.campaignDelivery.workflows.length === 0 ? (
+              <strong>No campaign workflows</strong>
+            ) : null}
+          </div>
+          <div className="transfer-list">
+            <h3>Evidence</h3>
+            <span>No plaintext bot tokens</span>
+            <span>No Telegram recipient IDs</span>
+            <span>Receipts close sent or failed workflows</span>
+          </div>
+        </div>
+      </section>
+
       <section className="signal-table" aria-label="Recent AI execution signals">
         <div className="section-heading">
           <h2>Recent Signals</h2>

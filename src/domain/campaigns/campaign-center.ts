@@ -107,6 +107,10 @@ export class InMemoryCampaignStore {
     return this.workflows.get(campaignKey);
   }
 
+  allWorkflows(): CampaignWorkflowRecord[] {
+    return [...this.workflows.values()].sort((left, right) => left.campaignKey.localeCompare(right.campaignKey));
+  }
+
   auditTrail(): CampaignAuditRecord[] {
     return this.audit;
   }

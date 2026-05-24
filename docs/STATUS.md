@@ -33,6 +33,7 @@ Production 98 implementation complete:
 - Campaign workflow state now tracks draft, dry-run, approved, and blocked transitions before any Telegram delivery adapter is enabled.
 - Telegram delivery handoff now produces a safe adapter payload only after approval evidence, bot key reference match, and recipient-count match.
 - Telegram delivery receipts now close the workflow as `sent` or `failed` from external adapter outcomes.
+- Dashboard operator controls now show campaign delivery readiness, safe route contracts, and workflow outcome counts.
 - `/api/health` reports campaign live-send approval as part of private MVP readiness.
 
 External launch gate still required:
@@ -81,6 +82,7 @@ The current campaign center slice added:
 - Telegram live-send approval gate with manual confirmation, dry-run evidence, approved bot key reference, recipient-count check, and audit records.
 - Telegram delivery handoff with approved `botKeyRef`, recipient list, message, and audit records, without plaintext bot tokens.
 - Telegram delivery receipts that record sent/failed outcomes and close the workflow without storing provider tokens.
+- Dashboard campaign delivery panel with workflow counts, ready handoffs, sent/failed outcomes, and safe route contracts.
 
 Campaign delivery remains external until production Telegram credentials, deployment access controls, and a delivery adapter are configured. Founder OS now records readiness, emits a safe handoff payload, and accepts delivery receipts, but it does not store bot tokens or send messages itself.
 
@@ -219,6 +221,7 @@ Adds the first internal dashboard surface:
 - The home page now presents AI Execution Control instead of a static MVP landing status.
 - Dashboard sections show execution metrics, control routes, guardrails, and safe recent execution signals.
 - The UI calls out summary, audit, decide, and AI key reference contracts for connected projects.
+- Campaign delivery operator controls now surface workflow, dry-run, approval, handoff, and receipt routes without exposing bot tokens or recipient IDs.
 
 ### `codex/live-ai-dashboard-data`
 

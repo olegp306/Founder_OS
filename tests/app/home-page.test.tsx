@@ -35,6 +35,9 @@ describe("Founder OS home page", () => {
     expect(html).toContain("Provider budgets");
     expect(html).toContain("Bulk Token Policy");
     expect(html).toContain("/api/token-policy/bulk");
+    expect(html).toContain("Campaign Delivery");
+    expect(html).toContain("/api/campaigns/telegram-delivery/receipt");
+    expect(html).toContain("Ready handoffs");
     expect(html).toContain("cost_spike_or_provider_incident");
     expect(html).toContain("bulk-token-policy.json");
     expect(html).toContain("Token policy");
@@ -60,6 +63,7 @@ describe("Founder OS home page", () => {
     expect(html).toContain("gpt-5.4-mini");
     expect(html).toContain("Bulk Token Policy");
     expect(html).toContain("Emergency mode");
+    expect(html).toContain("Campaign Delivery");
     expect(html).toContain("prompt_injection_or_system_extraction");
     expect(html).not.toContain("demo-secret-ref");
     expect(html).not.toContain("world history");

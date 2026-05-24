@@ -7,6 +7,12 @@ import {
   handleProjectManifestOnboarding
 } from "@/server/project-ai-api-services";
 import {
+  handleCampaignWorkflowCreate,
+  handleTelegramDeliveryReceipt,
+  handleTelegramDryRun,
+  handleTelegramLiveSendApproval
+} from "@/server/engagement-api-services";
+import {
   buildAiControlDashboardViewModel,
   seedAiControlDashboardDemoData
 } from "@/server/dashboard-services";
@@ -357,6 +363,75 @@ describe("dashboard services", () => {
     });
     expect(JSON.stringify(viewModel.bulkTokenPolicy)).not.toContain("secret");
     expect(JSON.stringify(viewModel.bulkTokenPolicy)).not.toContain("sk-");
+  });
+
+  it("builds campaign delivery operator controls for the dashboard", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleCampaignWorkflowCreate(runtime, {
+      campaignKey: "booking_nudge",
+      name: "Booking nudge",
+      channel: "telegram",
+      purpose: "marketing",
+      message: "Want help automating bookings?",
+      actor: "founder"
+    });
+    await handleTelegramDryRun(runtime, {
+      campaignKey: "booking_nudge",
+      message: "Want help automating bookings?",
+      actor: "founder",
+      recipients: [{ personId: "person_1", telegramId: "123456" }]
+    });
+    await handleTelegramLiveSendApproval(runtime, {
+      campaignKey: "booking_nudge",
+      dryRunId: "dry_run_2026_05_24",
+      botKeyRef: "ai_key_telegram_booking_bot",
+      actor: "founder",
+      manualApproval: {
+        approvedBy: "founder@example.com",
+        approvedAt: "2026-05-24T15:00:00.000Z",
+        confirmed: true
+      },
+      expectedRecipients: 1,
+      dryRunPlannedRecipients: 1
+    });
+    await handleTelegramDeliveryReceipt(runtime, {
+      campaignKey: "booking_nudge",
+      adapterRunId: "telegram_run_1",
+      actor: "telegram_adapter",
+      delivered: [{ personId: "person_1", telegramId: "123456", deliveredAt: "2026-05-24T16:00:00.000Z" }],
+      failed: []
+    });
+
+    const viewModel = await buildAiControlDashboardViewModel(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot"
+    });
+
+    expect(viewModel.campaignDelivery).toEqual({
+      totalCampaigns: "1",
+      readyForAdapter: "0",
+      sentCampaigns: "1",
+      failedCampaigns: "0",
+      routes: [
+        "/api/campaigns/workflow",
+        "/api/campaigns/preview",
+        "/api/campaigns/telegram-dry-run",
+        "/api/campaigns/telegram-live-send/approve",
+        "/api/campaigns/telegram-delivery/handoff",
+        "/api/campaigns/telegram-delivery/receipt"
+      ],
+      workflows: [
+        {
+          campaignKey: "booking_nudge",
+          status: "sent",
+          channel: "telegram",
+          plannedRecipients: "1",
+          blockedReasons: []
+        }
+      ]
+    });
+    expect(JSON.stringify(viewModel.campaignDelivery)).not.toContain("123456");
+    expect(JSON.stringify(viewModel.campaignDelivery)).not.toContain("ai_key_telegram_booking_bot");
   });
 
   it("builds AI control dashboard metrics from runtime execution decisions", async () => {
