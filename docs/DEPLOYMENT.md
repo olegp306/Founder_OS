@@ -109,7 +109,8 @@ Current recommended local flow:
 15. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
 16. Review `/api/alerts` for launch evidence across budget, key lifecycle, provider spend, and emergency-mode conditions.
 17. Run `projects:transfer` with `--write-launch-evidence` and `--require-launch-evidence-ready` to capture `/api/projects/launch-evidence?projectKey=<project>&assistantKey=<assistant>` beside the transfer report and fail closed when launch blockers remain.
-18. For Telegram campaigns, create the workflow, run preview, dry-run, live-send approval, delivery handoff, then adapter receipt.
+18. Run `npm run launch:check` against `deployment-report.json`, `transfer-report.json`, and `launch-evidence.json` to produce one sanitized `launch-summary.json` gate before routing live traffic.
+19. For Telegram campaigns, create the workflow, run preview, dry-run, live-send approval, delivery handoff, then adapter receipt.
 
 Bulk policy payload example:
 
@@ -140,6 +141,14 @@ npm run projects:transfer -- --root C:\Repos --setup-config C:\Repos\<project>\.
 ```
 
 Use `--dry-run` first to preview the discovered manifests, sanitized setup payload, and connection bundle URL. Use `--require-launch-evidence-ready` on the real rehearsal so the command exits non-zero after writing `launch-evidence.json` if readiness, critical alerts, token spend, or campaign workflow blockers remain. Use `docs/PROJECT_TRANSFER_REHEARSAL.md` as the launch checklist for the first real project.
+
+Then run the combined launch bundle check:
+
+```powershell
+npm run launch:check -- --deployment-report C:\Repos\<project>\.founderos\deployment-report.json --transfer-report C:\Repos\<project>\.founderos\transfer-report.json --launch-evidence C:\Repos\<project>\.founderos\launch-evidence.json --write-summary C:\Repos\<project>\.founderos\launch-summary.json
+```
+
+The launch summary fails closed when deployment, transfer, or launch evidence artifacts are not ready and keeps the summary free of bearer tokens, plaintext provider keys, passwords, and `secretRef` values.
 
 The internal dashboard also shows the same transfer command, required environment variable names, route paths, remaining connection-bundle next steps, launch evidence blockers, safe AI key inventory budgets, and the bulk token-policy incident command for the configured dashboard project.
 

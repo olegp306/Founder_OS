@@ -29,6 +29,7 @@ Production 98 implementation complete:
 - Real-project transfer rehearsal reports can now be written as sanitized launch artifacts.
 - Per-project launch evidence snapshots now aggregate readiness, connection state, token spend, alerts, and campaign workflow counts without exposing secret refs, raw prompts, message bodies, or recipient IDs.
 - Project transfer rehearsal can now fail closed with `--require-launch-evidence-ready` after writing sanitized launch evidence when blockers remain.
+- `npm run launch:check` now validates deployment, transfer, and launch evidence artifacts together and writes a sanitized launch summary before live routing.
 - Dashboard operator controls now surface launch evidence readiness, blockers, alert count, campaign workflow count, and projected spend for the configured project.
 - Dashboard operator controls now show AI key lifecycle and production launch gate state.
 - Alert evidence now covers budget breaches, overdue key rotation, provider spend anomalies, and emergency-mode activation.
@@ -424,6 +425,7 @@ Adds the production 98 launch roadmap and starts AI key lifecycle readiness:
 - Adds `npm run deployment:check -- --write-report <path>` to persist a sanitized deployment launch artifact with checks, failed checks, health readiness, and no bearer tokens or plaintext secrets.
 - `/api/health` now exposes whether dashboard demo mode is enabled without exposing secret values.
 - Adds `npm run projects:transfer -- --write-report <path> --write-launch-evidence <path> --require-launch-evidence-ready` to write a sanitized transfer rehearsal report and a stricter launch evidence artifact with import, setup, connection, readiness, token, alert, and campaign evidence, then fail closed when launch blockers remain.
+- Adds `npm run launch:check` to validate `deployment-report.json`, `transfer-report.json`, and `launch-evidence.json` together and write a sanitized `launch-summary.json` without bearer tokens, plaintext secrets, or `secretRef` values.
 - Documents the first real-project rehearsal flow in `docs/PROJECT_TRANSFER_REHEARSAL.md`.
 - Surfaces dashboard operator controls for key lifecycle counts, provider rotation health, and launch gate readiness.
 - Adds `/api/alerts` for safe alert projections from token usage, token policy changes, provider spend imports, key lifecycle metadata, and project-filtered failed campaign delivery workflows.

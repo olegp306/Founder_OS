@@ -70,6 +70,16 @@ The report excludes:
 
 The launch evidence artifact captures the matching `/api/projects/launch-evidence` response with stricter sanitization that removes bearer tokens, plaintext keys, and `secretRef` values.
 
+## Launch Bundle Check
+
+After the deployment check and transfer rehearsal produce their artifacts, run the combined local gate:
+
+```powershell
+npm run launch:check -- --deployment-report C:\Repos\<project>\.founderos\deployment-report.json --transfer-report C:\Repos\<project>\.founderos\transfer-report.json --launch-evidence C:\Repos\<project>\.founderos\launch-evidence.json --write-summary C:\Repos\<project>\.founderos\launch-summary.json
+```
+
+The summary verifies deployment readiness, transfer readiness, and launch evidence together. It writes `launch-summary.json` without bearer tokens, plaintext keys, passwords, or `secretRef` values. If any artifact is not ready, the command exits non-zero and lists the deployment, transfer, or launch-evidence blockers.
+
 ## Acceptance
 
 Before production traffic, confirm:
@@ -77,6 +87,7 @@ Before production traffic, confirm:
 - `deployment-report.json` exists if `--write-report` was used.
 - `transfer-report.json` exists.
 - `launch-evidence.json` exists.
+- `launch-summary.json` exists and has `ready: true`.
 - The deployment report has `ready: true` and no bearer token, plaintext key, password, or `secretRef` values.
 - If the deployment report has `ready: false`, every item in `failedChecks` has an owner and fix plan before retrying the transfer.
 - `readiness.ready` is `true`, or every `readiness.missing` item has an owner and fix plan.
