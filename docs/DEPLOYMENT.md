@@ -150,7 +150,7 @@ npm run launch:check -- --deployment-report C:\Repos\<project>\.founderos\deploy
 
 The launch summary fails closed when deployment, transfer, or launch evidence artifacts are not ready and keeps the summary free of bearer tokens, plaintext provider keys, passwords, and `secretRef` values.
 
-The internal dashboard also shows the same transfer command, required environment variable names, route paths, remaining connection-bundle next steps, launch evidence blockers, safe AI key inventory budgets, and the bulk token-policy incident command for the configured dashboard project.
+The internal dashboard also shows the same transfer command, the final `launch:check` command, expected launch artifact names, required environment variable names, route paths, remaining connection-bundle next steps, launch evidence blockers, safe AI key inventory budgets, and the bulk token-policy incident command for the configured dashboard project.
 
 The internal dashboard also shows Campaign Delivery status for the workflow, owning project, safe export, dry-run, live-send approval, external handoff, and adapter receipt contracts without exposing Telegram bot tokens, `botKeyRef` values, or recipient IDs.
 

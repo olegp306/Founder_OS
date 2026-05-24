@@ -142,6 +142,15 @@ export type DashboardLaunchEvidence = {
   campaignWorkflows: string;
 };
 
+export type DashboardLaunchBundle = {
+  projectKey: string;
+  assistantKey: string;
+  command: string;
+  summaryPath: string;
+  artifacts: string[];
+  checks: string[];
+};
+
 export type DashboardBulkTokenPolicy = {
   route: string;
   command: string;
@@ -189,6 +198,7 @@ export type AiControlDashboardViewModel = {
   keyLifecycle: DashboardKeyLifecycle;
   launchGate: DashboardLaunchGate;
   launchEvidence: DashboardLaunchEvidence;
+  launchBundle: DashboardLaunchBundle;
   bulkTokenPolicy: DashboardBulkTokenPolicy;
   campaignDelivery: DashboardCampaignDelivery;
 };
@@ -332,6 +342,7 @@ export async function buildAiControlDashboardViewModel(
       input.projectKey,
       assistantKey
     ),
+    launchBundle: buildDashboardLaunchBundle(input.projectKey, assistantKey),
     bulkTokenPolicy: buildDashboardBulkTokenPolicy(
       projectListResult.projects,
       assistantKey
@@ -721,6 +732,32 @@ function buildDashboardLaunchEvidence(
     projectedDailySpend: formatUsd(evidence?.tokenSpend.projectedDailySpendUsd ?? 0),
     alertCount: String(evidence?.alerts.alertCount ?? 0),
     campaignWorkflows: String(evidence?.campaigns.workflowCount ?? 0)
+  };
+}
+
+function buildDashboardLaunchBundle(
+  projectKey: string | undefined,
+  assistantKey: string
+): DashboardLaunchBundle {
+  const safeProjectKey = projectKey ?? "unknown";
+  const artifactRoot = `C:\\Repos\\${safeProjectKey}\\.founderos`;
+  const deploymentReportPath = `${artifactRoot}\\deployment-report.json`;
+  const transferReportPath = `${artifactRoot}\\transfer-report.json`;
+  const launchEvidencePath = `${artifactRoot}\\launch-evidence.json`;
+  const summaryPath = `${artifactRoot}\\launch-summary.json`;
+
+  return {
+    projectKey: safeProjectKey,
+    assistantKey,
+    command: `npm run launch:check -- --deployment-report ${deploymentReportPath} --transfer-report ${transferReportPath} --launch-evidence ${launchEvidencePath} --write-summary ${summaryPath}`,
+    summaryPath,
+    artifacts: [
+      "deployment-report.json",
+      "transfer-report.json",
+      "launch-evidence.json",
+      "launch-summary.json"
+    ],
+    checks: ["deployment", "transfer", "launchEvidence"]
   };
 }
 

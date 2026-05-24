@@ -150,6 +150,23 @@ describe("dashboard services", () => {
       alertCount: "0",
       campaignWorkflows: "0"
     });
+    expect(viewModel.launchBundle).toEqual({
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot",
+      command: "npm run launch:check -- --deployment-report C:\\Repos\\booking_assistant\\.founderos\\deployment-report.json --transfer-report C:\\Repos\\booking_assistant\\.founderos\\transfer-report.json --launch-evidence C:\\Repos\\booking_assistant\\.founderos\\launch-evidence.json --write-summary C:\\Repos\\booking_assistant\\.founderos\\launch-summary.json",
+      summaryPath: "C:\\Repos\\booking_assistant\\.founderos\\launch-summary.json",
+      artifacts: [
+        "deployment-report.json",
+        "transfer-report.json",
+        "launch-evidence.json",
+        "launch-summary.json"
+      ],
+      checks: [
+        "deployment",
+        "transfer",
+        "launchEvidence"
+      ]
+    });
     expect(JSON.stringify(viewModel)).not.toContain("vercel:BOOKING_ASSISTANT_OPENAI_API_KEY");
   });
 

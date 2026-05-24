@@ -383,6 +383,36 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section className="transfer-flow" aria-label="Launch bundle gate">
+        <div className="section-heading">
+          <h2>Launch Bundle</h2>
+          <span>{dashboard.launchBundle.projectKey}</span>
+        </div>
+        <div className="transfer-command">
+          <span>Final local gate</span>
+          <code>{dashboard.launchBundle.command}</code>
+        </div>
+        <div className="transfer-grid">
+          <div className="transfer-list">
+            <h3>Artifacts</h3>
+            {dashboard.launchBundle.artifacts.map((artifact) => (
+              <code key={artifact}>{artifact}</code>
+            ))}
+          </div>
+          <div className="transfer-list">
+            <h3>Checks</h3>
+            {dashboard.launchBundle.checks.map((check) => (
+              <span key={check}>{check}</span>
+            ))}
+          </div>
+          <div className="transfer-list">
+            <h3>Summary</h3>
+            <code>{dashboard.launchBundle.summaryPath}</code>
+            <span>{dashboard.launchBundle.projectKey}/{dashboard.launchBundle.assistantKey}</span>
+          </div>
+        </div>
+      </section>
+
       <section className="transfer-flow" aria-label="Bulk token policy">
         <div className="section-heading">
           <h2>Bulk Token Policy</h2>
