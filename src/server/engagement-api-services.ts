@@ -63,6 +63,11 @@ export const campaignWorkflowGetRequestSchema = z.object({
   campaignKey: z.string().min(2)
 });
 
+export const campaignWorkflowExportRequestSchema = z.object({
+  projectKey: z.string().min(2).optional(),
+  asOf: z.string().datetime().optional()
+});
+
 export const telegramDryRunRequestSchema = z.object({
   campaignKey: z.string().min(2),
   message: z.string().min(1).max(4000),
@@ -159,6 +164,32 @@ export async function handleCampaignWorkflowGet(runtime: FounderOsRuntime, paylo
   return workflow
     ? { status: "found" as const, workflow }
     : { status: "not_found" as const, workflow: null };
+}
+
+export async function handleCampaignWorkflowExport(runtime: FounderOsRuntime, payload: unknown) {
+  const input = campaignWorkflowExportRequestSchema.parse(payload ?? {});
+  const workflows = runtime.campaigns
+    .allWorkflows()
+    .filter((workflow) => !input.projectKey || workflow.projectKey === input.projectKey)
+    .map((workflow) => ({
+      campaignKey: workflow.campaignKey,
+      projectKey: workflow.projectKey ?? "campaigns",
+      name: workflow.name,
+      channel: workflow.channel,
+      purpose: workflow.purpose,
+      status: workflow.status,
+      plannedRecipients: workflow.plannedRecipients,
+      blockedReasons: workflow.blockedReasons,
+      updatedAt: workflow.updatedAt
+    }));
+
+  return {
+    status: "exported" as const,
+    generatedAt: input.asOf ?? new Date().toISOString(),
+    projectKey: input.projectKey,
+    workflowCount: workflows.length,
+    workflows
+  };
 }
 
 export async function handleCampaignPreview(runtime: FounderOsRuntime, payload: unknown) {

@@ -415,6 +415,7 @@ describe("dashboard services", () => {
       failedCampaigns: "0",
       routes: [
         "/api/campaigns/workflow",
+        "/api/campaigns/workflow/export",
         "/api/campaigns/preview",
         "/api/campaigns/telegram-dry-run",
         "/api/campaigns/telegram-live-send/approve",

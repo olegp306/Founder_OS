@@ -13,6 +13,7 @@ describe("health route", () => {
     expect(body.serviceBackedRoutes).toContain("/api/provider-spend/import");
     expect(body.serviceBackedRoutes).toContain("/api/alerts");
     expect(body.serviceBackedRoutes).toContain("/api/campaigns/workflow");
+    expect(body.serviceBackedRoutes).toContain("/api/campaigns/workflow/export");
     expect(body.serviceBackedRoutes).toContain("/api/campaigns/telegram-live-send/approve");
     expect(body.serviceBackedRoutes).toContain("/api/campaigns/telegram-delivery/handoff");
     expect(body.serviceBackedRoutes).toContain("/api/campaigns/telegram-delivery/receipt");
@@ -25,6 +26,7 @@ describe("health route", () => {
     expect(body.privateMvpReadiness.providerSpendImport).toBe(true);
     expect(body.privateMvpReadiness.alertEvidence).toBe(true);
     expect(body.privateMvpReadiness.campaignWorkflowState).toBe(true);
+    expect(body.privateMvpReadiness.campaignWorkflowExport).toBe(true);
     expect(body.privateMvpReadiness.campaignLiveSendApproval).toBe(true);
     expect(body.privateMvpReadiness.campaignDeliveryHandoff).toBe(true);
     expect(body.privateMvpReadiness.campaignDeliveryReceipt).toBe(true);

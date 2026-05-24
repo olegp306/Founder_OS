@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createFounderOsRuntime } from "@/server/founder-os-runtime";
 import {
+  handleCampaignWorkflowExport,
   handleCampaignWorkflowCreate,
   handleCampaignWorkflowGet,
   handleCampaignPreview,
@@ -253,5 +254,74 @@ describe("engagement API services", () => {
     ).resolves.toMatchObject({
       workflow: { status: "sent" }
     });
+  });
+
+  it("exports project-filtered campaign workflow state without delivery secrets", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleCampaignWorkflowCreate(runtime, {
+      campaignKey: "booking_nudge",
+      projectKey: "booking_assistant",
+      name: "Booking nudge",
+      channel: "telegram",
+      purpose: "marketing",
+      message: "Want help automating bookings?",
+      actor: "founder"
+    });
+    await handleTelegramDryRun(runtime, {
+      campaignKey: "booking_nudge",
+      message: "Want help automating bookings?",
+      actor: "founder",
+      recipients: [{ personId: "person_1", telegramId: "123456" }]
+    });
+    await handleTelegramLiveSendApproval(runtime, {
+      campaignKey: "booking_nudge",
+      dryRunId: "dry_run_2026_05_24",
+      botKeyRef: "ai_key_telegram_booking_bot",
+      actor: "founder",
+      manualApproval: {
+        approvedBy: "founder@example.com",
+        approvedAt: "2026-05-24T15:00:00.000Z",
+        confirmed: true
+      },
+      expectedRecipients: 1,
+      dryRunPlannedRecipients: 1
+    });
+    await handleCampaignWorkflowCreate(runtime, {
+      campaignKey: "sales_followup",
+      projectKey: "sales_copilot",
+      name: "Sales followup",
+      channel: "telegram",
+      purpose: "marketing",
+      message: "Want help with sales followups?",
+      actor: "founder"
+    });
+
+    const result = await handleCampaignWorkflowExport(runtime, {
+      projectKey: "booking_assistant",
+      asOf: "2026-05-24T18:00:00.000Z"
+    });
+
+    expect(result).toEqual({
+      status: "exported",
+      generatedAt: "2026-05-24T18:00:00.000Z",
+      projectKey: "booking_assistant",
+      workflowCount: 1,
+      workflows: [
+        {
+          campaignKey: "booking_nudge",
+          projectKey: "booking_assistant",
+          name: "Booking nudge",
+          channel: "telegram",
+          purpose: "marketing",
+          status: "approved_for_live_send",
+          plannedRecipients: 1,
+          blockedReasons: [],
+          updatedAt: expect.any(String)
+        }
+      ]
+    });
+    expect(JSON.stringify(result)).not.toContain("123456");
+    expect(JSON.stringify(result)).not.toContain("ai_key_telegram_booking_bot");
+    expect(JSON.stringify(result)).not.toContain("sales_followup");
   });
 });

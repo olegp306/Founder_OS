@@ -694,6 +694,7 @@ function buildDashboardCampaignDelivery(runtime: FounderOsRuntime): DashboardCam
     failedCampaigns: String(workflows.filter((workflow) => workflow.status === "failed").length),
     routes: [
       "/api/campaigns/workflow",
+      "/api/campaigns/workflow/export",
       "/api/campaigns/preview",
       "/api/campaigns/telegram-dry-run",
       "/api/campaigns/telegram-live-send/approve",

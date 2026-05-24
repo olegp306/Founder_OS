@@ -35,6 +35,7 @@ Production 98 implementation complete:
 - Telegram delivery handoff now produces a safe adapter payload only after approval evidence, bot key reference match, and recipient-count match.
 - Telegram delivery receipts now close the workflow as `sent` or `failed` from external adapter outcomes.
 - Dashboard operator controls now show campaign delivery readiness, safe route contracts, workflow project attribution, and outcome counts.
+- Campaign workflow export now provides a project-filtered backup/rehearsal artifact without message bodies, Telegram recipient IDs, `botKeyRef`, or bot tokens.
 - `/api/health` reports campaign live-send approval as part of private MVP readiness.
 
 External launch gate still required:
@@ -85,6 +86,7 @@ The current campaign center slice added:
 - Telegram delivery receipts that record sent/failed outcomes and close the workflow without storing provider tokens.
 - Dashboard campaign delivery panel with workflow counts, ready handoffs, sent/failed outcomes, and safe route contracts.
 - Failed campaign delivery workflows now project into `/api/alerts?projectKey=<project>` without exposing Telegram IDs, `botKeyRef`, or bot tokens.
+- `/api/campaigns/workflow/export?projectKey=<project>` now exports safe campaign workflow state for private backup and launch rehearsal evidence.
 
 Campaign delivery remains external until production Telegram credentials, deployment access controls, and a delivery adapter are configured. Founder OS now records readiness, emits a safe handoff payload, and accepts delivery receipts, but it does not store bot tokens or send messages itself.
 
@@ -422,6 +424,7 @@ Adds the production 98 launch roadmap and starts AI key lifecycle readiness:
 - `/api/health` now reports `/api/alerts` and `privateMvpReadiness.alertEvidence`.
 - Adds `/api/campaigns/telegram-live-send/approve` as the guarded approval step between dry-run campaign planning and future live Telegram delivery.
 - Adds `/api/campaigns/workflow` for campaign workflow creation and state lookup.
+- Adds `/api/campaigns/workflow/export` for safe project-filtered campaign workflow backup evidence.
 - `/api/health` now reports `privateMvpReadiness.campaignWorkflowState`.
 - `/api/health` now reports `privateMvpReadiness.campaignLiveSendApproval`.
 - Adds `/api/campaigns/telegram-delivery/handoff` for safe external delivery adapter handoff.
