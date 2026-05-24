@@ -13,6 +13,7 @@ Completed capability areas:
 - Token usage ingestion foundation.
 - Person profiles, identity merge, consent checks, feedback capture, segment evaluation, and audit trail foundation.
 - Campaign eligibility, preview, and Telegram dry-run foundation.
+- Telegram live-send approval gate without plaintext bot tokens.
 - Production readiness foundation: admin API guard, health check, deployment docs, backup docs.
 
 Production 98 implementation complete:
@@ -25,6 +26,8 @@ Production 98 implementation complete:
 - Dashboard operator controls now show AI key lifecycle and production launch gate state.
 - Alert evidence now covers budget breaches, overdue key rotation, provider spend anomalies, and emergency-mode activation.
 - `/api/health` reports alert evidence as part of private MVP readiness.
+- Campaign live-send approval now requires dry-run evidence, manual confirmation, recipient-count match, and a safe bot key reference before any future delivery adapter can be used.
+- `/api/health` reports campaign live-send approval as part of private MVP readiness.
 
 External launch gate still required:
 
@@ -68,8 +71,9 @@ The current campaign center slice added:
 - Campaign preview with eligible and blocked recipient lists.
 - Telegram dry-run sender abstraction.
 - Dry-run audit records without real message delivery.
+- Telegram live-send approval gate with manual confirmation, dry-run evidence, approved bot key reference, recipient-count check, and audit records.
 
-Campaign sends remain dry-run only until production credentials, explicit approval UI, and deployment access controls are in place.
+Campaign delivery remains blocked until production Telegram credentials, deployment access controls, and a delivery adapter are configured. The approval gate records readiness for live send but does not store bot tokens or send messages itself.
 
 The production readiness slice added:
 
@@ -126,6 +130,7 @@ Moves engagement API logic into a dedicated service layer:
 - `/api/segments/evaluate`
 - `/api/campaigns/preview`
 - `/api/campaigns/telegram-dry-run`
+- `/api/campaigns/telegram-live-send/approve`
 
 These route handlers now delegate to `src/server/engagement-api-services.ts`. `/api/health` reports `serviceBackedRoutes`.
 
@@ -398,4 +403,6 @@ Adds the production 98 launch roadmap and starts AI key lifecycle readiness:
 - Surfaces dashboard operator controls for key lifecycle counts, provider rotation health, and launch gate readiness.
 - Adds `/api/alerts` for safe alert projections from token usage, token policy changes, provider spend imports, and key lifecycle metadata.
 - `/api/health` now reports `/api/alerts` and `privateMvpReadiness.alertEvidence`.
+- Adds `/api/campaigns/telegram-live-send/approve` as the guarded approval step between dry-run campaign planning and future live Telegram delivery.
+- `/api/health` now reports `privateMvpReadiness.campaignLiveSendApproval`.
 - Adds a Prisma migration for lifecycle metadata on `AiKeyReference`.

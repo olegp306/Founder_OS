@@ -30,12 +30,32 @@ export type CampaignAuditRecord = {
   createdAt: string;
 };
 
+export type TelegramLiveSendApproval = {
+  status: "approved_for_live_send" | "blocked";
+  campaignKey: string;
+  dryRunId: string;
+  botKeyRef: string;
+  approvedBy: string;
+  plannedRecipients: number;
+  blockedReasons: string[];
+};
+
 export class InMemoryCampaignStore {
   private readonly audit: CampaignAuditRecord[] = [];
+  private readonly approvals: TelegramLiveSendApproval[] = [];
 
   addAudit(record: CampaignAuditRecord): CampaignAuditRecord {
     this.audit.push(record);
     return record;
+  }
+
+  addApproval(approval: TelegramLiveSendApproval): TelegramLiveSendApproval {
+    this.approvals.push(approval);
+    return approval;
+  }
+
+  liveSendApprovals(): TelegramLiveSendApproval[] {
+    return this.approvals;
   }
 
   auditTrail(): CampaignAuditRecord[] {
@@ -73,6 +93,62 @@ export function evaluateCampaignEligibility(input: {
     allowed: reasons.length === 0,
     reasons
   };
+}
+
+export function approveTelegramCampaignForLiveSend(
+  store: InMemoryCampaignStore,
+  input: {
+    campaignKey: string;
+    dryRunId: string;
+    botKeyRef: string;
+    actor: string;
+    manualApproval: {
+      approvedBy: string;
+      approvedAt: string;
+      confirmed: boolean;
+    };
+    expectedRecipients: number;
+    dryRunPlannedRecipients: number;
+  }
+): TelegramLiveSendApproval {
+  const blockedReasons: string[] = [];
+
+  if (!input.manualApproval.confirmed) {
+    blockedReasons.push("manual_approval_required");
+  }
+
+  if (!input.dryRunId.trim()) {
+    blockedReasons.push("dry_run_evidence_required");
+  }
+
+  if (!input.botKeyRef.trim()) {
+    blockedReasons.push("approved_bot_key_ref_required");
+  }
+
+  if (input.expectedRecipients !== input.dryRunPlannedRecipients) {
+    blockedReasons.push("recipient_count_mismatch");
+  }
+
+  const approval = store.addApproval({
+    status: blockedReasons.length === 0 ? "approved_for_live_send" : "blocked",
+    campaignKey: input.campaignKey,
+    dryRunId: input.dryRunId,
+    botKeyRef: input.botKeyRef,
+    approvedBy: input.manualApproval.approvedBy,
+    plannedRecipients: input.dryRunPlannedRecipients,
+    blockedReasons
+  });
+
+  store.addAudit({
+    action: approval.status === "approved_for_live_send"
+      ? "campaign.telegram.live_send_approved"
+      : "campaign.telegram.live_send_blocked",
+    actor: input.actor,
+    subjectId: input.campaignKey,
+    createdAt: input.manualApproval.approvedAt
+  });
+
+  return approval;
 }
 
 export function createCampaignPreview(input: {

@@ -3,6 +3,7 @@ import {
   InMemoryCampaignStore,
   createCampaignPreview,
   evaluateCampaignEligibility,
+  approveTelegramCampaignForLiveSend,
   sendTelegramCampaignDryRun
 } from "@/domain/campaigns/campaign-center";
 import {
@@ -135,6 +136,81 @@ describe("campaign center", () => {
     expect(campaigns.auditTrail()).toContainEqual(
       expect.objectContaining({
         action: "campaign.telegram.dry_run",
+        actor: "founder",
+        subjectId: "booking_nudge"
+      })
+    );
+  });
+
+  it("approves a Telegram campaign for live send only with dry-run evidence, manual approval, and bot key reference", () => {
+    const campaigns = new InMemoryCampaignStore();
+
+    expect(
+      approveTelegramCampaignForLiveSend(campaigns, {
+        campaignKey: "booking_nudge",
+        dryRunId: "dry_run_2026_05_24",
+        botKeyRef: "ai_key_telegram_booking_bot",
+        actor: "founder",
+        manualApproval: {
+          approvedBy: "founder@example.com",
+          approvedAt: "2026-05-24T15:00:00.000Z",
+          confirmed: true
+        },
+        expectedRecipients: 2,
+        dryRunPlannedRecipients: 2
+      })
+    ).toEqual({
+      status: "approved_for_live_send",
+      campaignKey: "booking_nudge",
+      dryRunId: "dry_run_2026_05_24",
+      botKeyRef: "ai_key_telegram_booking_bot",
+      approvedBy: "founder@example.com",
+      plannedRecipients: 2,
+      blockedReasons: []
+    });
+    expect(campaigns.auditTrail()).toContainEqual(
+      expect.objectContaining({
+        action: "campaign.telegram.live_send_approved",
+        actor: "founder",
+        subjectId: "booking_nudge"
+      })
+    );
+  });
+
+  it("blocks Telegram live-send approval when approval evidence or recipient counts are unsafe", () => {
+    const campaigns = new InMemoryCampaignStore();
+
+    const result = approveTelegramCampaignForLiveSend(campaigns, {
+      campaignKey: "booking_nudge",
+      dryRunId: "",
+      botKeyRef: "",
+      actor: "founder",
+      manualApproval: {
+        approvedBy: "founder@example.com",
+        approvedAt: "2026-05-24T15:00:00.000Z",
+        confirmed: false
+      },
+      expectedRecipients: 3,
+      dryRunPlannedRecipients: 2
+    });
+
+    expect(result).toEqual({
+      status: "blocked",
+      campaignKey: "booking_nudge",
+      dryRunId: "",
+      botKeyRef: "",
+      approvedBy: "founder@example.com",
+      plannedRecipients: 2,
+      blockedReasons: [
+        "manual_approval_required",
+        "dry_run_evidence_required",
+        "approved_bot_key_ref_required",
+        "recipient_count_mismatch"
+      ]
+    });
+    expect(campaigns.auditTrail()).toContainEqual(
+      expect.objectContaining({
+        action: "campaign.telegram.live_send_blocked",
         actor: "founder",
         subjectId: "booking_nudge"
       })

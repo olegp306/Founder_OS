@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  approveTelegramCampaignForLiveSend,
   createCampaignPreview,
   sendTelegramCampaignDryRun
 } from "@/domain/campaigns/campaign-center";
@@ -56,6 +57,20 @@ export const telegramDryRunRequestSchema = z.object({
   )
 });
 
+export const telegramLiveSendApprovalRequestSchema = z.object({
+  campaignKey: z.string().min(2),
+  dryRunId: z.string(),
+  botKeyRef: z.string(),
+  actor: z.string().min(2),
+  manualApproval: z.object({
+    approvedBy: z.string().email(),
+    approvedAt: z.string().datetime(),
+    confirmed: z.boolean()
+  }),
+  expectedRecipients: z.number().int().min(0),
+  dryRunPlannedRecipients: z.number().int().min(0)
+});
+
 export async function handleConsentRecord(runtime: FounderOsRuntime, payload: unknown) {
   const input = consentRequestSchema.parse(payload);
   const consent = grantConsent(runtime.profileOps, input);
@@ -92,5 +107,12 @@ export async function handleTelegramDryRun(runtime: FounderOsRuntime, payload: u
   return sendTelegramCampaignDryRun(
     runtime.campaigns,
     telegramDryRunRequestSchema.parse(payload)
+  );
+}
+
+export async function handleTelegramLiveSendApproval(runtime: FounderOsRuntime, payload: unknown) {
+  return approveTelegramCampaignForLiveSend(
+    runtime.campaigns,
+    telegramLiveSendApprovalRequestSchema.parse(payload)
   );
 }

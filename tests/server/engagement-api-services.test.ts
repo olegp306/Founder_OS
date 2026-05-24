@@ -5,6 +5,7 @@ import {
   handleConsentRecord,
   handleFeedbackCapture,
   handleSegmentEvaluation,
+  handleTelegramLiveSendApproval,
   handleTelegramDryRun
 } from "@/server/engagement-api-services";
 import { grantConsent, linkIdentity } from "@/domain/profiles/profile-operations";
@@ -112,6 +113,29 @@ describe("engagement API services", () => {
       status: "dry_run",
       sent: 0,
       planned: 1
+    });
+  });
+
+  it("approves Telegram live-send readiness through the runtime campaign store", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+
+    await expect(
+      handleTelegramLiveSendApproval(runtime, {
+        campaignKey: "booking_nudge",
+        dryRunId: "dry_run_2026_05_24",
+        botKeyRef: "ai_key_telegram_booking_bot",
+        actor: "founder",
+        manualApproval: {
+          approvedBy: "founder@example.com",
+          approvedAt: "2026-05-24T15:00:00.000Z",
+          confirmed: true
+        },
+        expectedRecipients: 1,
+        dryRunPlannedRecipients: 1
+      })
+    ).resolves.toMatchObject({
+      status: "approved_for_live_send",
+      blockedReasons: []
     });
   });
 });
