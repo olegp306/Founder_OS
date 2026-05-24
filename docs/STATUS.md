@@ -45,8 +45,7 @@ External launch gate still required:
 - Deploy to the production host.
 - Configure production `DATABASE_URL` and `FOUNDER_OS_ADMIN_TOKEN`.
 - Run `npm run deployment:check -- --production --base-url <founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>`.
-- Produce one real-project transfer rehearsal report before routing live AI traffic.
-- Capture `/api/projects/launch-evidence?projectKey=<project>&assistantKey=<assistant>` for the first real project and keep it with launch notes.
+- Produce one real-project transfer rehearsal report and launch evidence artifact before routing live AI traffic.
 
 ## Branching Rule
 
@@ -421,7 +420,7 @@ Adds the production 98 launch roadmap and starts AI key lifecycle readiness:
 - Provider spend imports deduplicate by project, provider, period, and source, and reject raw invoice or secret payload fields.
 - Adds `npm run deployment:check -- --production` as a strict launch gate that fails on memory persistence, memory repositories, enabled dashboard demo mode, missing admin token configuration, plaintext secret storage, or incomplete readiness flags.
 - `/api/health` now exposes whether dashboard demo mode is enabled without exposing secret values.
-- Adds `npm run projects:transfer -- --write-report <path>` to write a sanitized transfer rehearsal report with import, setup, connection, readiness, and missing steps.
+- Adds `npm run projects:transfer -- --write-report <path> --write-launch-evidence <path>` to write a sanitized transfer rehearsal report and a stricter launch evidence artifact with import, setup, connection, readiness, token, alert, and campaign evidence.
 - Documents the first real-project rehearsal flow in `docs/PROJECT_TRANSFER_REHEARSAL.md`.
 - Surfaces dashboard operator controls for key lifecycle counts, provider rotation health, and launch gate readiness.
 - Adds `/api/alerts` for safe alert projections from token usage, token policy changes, provider spend imports, key lifecycle metadata, and project-filtered failed campaign delivery workflows.

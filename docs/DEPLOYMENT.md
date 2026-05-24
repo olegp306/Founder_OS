@@ -108,7 +108,7 @@ Current recommended local flow:
 14. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
 15. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
 16. Review `/api/alerts` for launch evidence across budget, key lifecycle, provider spend, and emergency-mode conditions.
-17. Capture `/api/projects/launch-evidence?projectKey=<project>&assistantKey=<assistant>` and keep it with launch notes before routing live traffic.
+17. Run `projects:transfer` with `--write-launch-evidence` to capture `/api/projects/launch-evidence?projectKey=<project>&assistantKey=<assistant>` beside the transfer report before routing live traffic.
 18. For Telegram campaigns, create the workflow, run preview, dry-run, live-send approval, delivery handoff, then adapter receipt.
 
 Bulk policy payload example:
@@ -136,7 +136,7 @@ Use `docs/PROJECT_AI_SETUP.example.json` as the template for `.founderos/ai-setu
 For a one-command local transfer rehearsal, run:
 
 ```powershell
-npm run projects:transfer -- --root C:\Repos --setup-config C:\Repos\<project>\.founderos\ai-setup.json --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN> --write-report C:\Repos\<project>\.founderos\transfer-report.json
+npm run projects:transfer -- --root C:\Repos --setup-config C:\Repos\<project>\.founderos\ai-setup.json --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN> --write-report C:\Repos\<project>\.founderos\transfer-report.json --write-launch-evidence C:\Repos\<project>\.founderos\launch-evidence.json
 ```
 
 Use `--dry-run` first to preview the discovered manifests, sanitized setup payload, and connection bundle URL. Use `docs/PROJECT_TRANSFER_REHEARSAL.md` as the launch checklist for the first real project.

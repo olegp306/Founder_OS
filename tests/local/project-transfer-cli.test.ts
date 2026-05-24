@@ -43,6 +43,8 @@ describe("project transfer CLI", () => {
         "admin-token",
         "--write-report",
         "C:\\Repos\\booking\\.founderos\\transfer-report.json",
+        "--write-launch-evidence",
+        "C:\\Repos\\booking\\.founderos\\launch-evidence.json",
         "--dry-run"
       ])
     ).toEqual({
@@ -51,6 +53,7 @@ describe("project transfer CLI", () => {
       baseUrl: "https://founder-os.example.com",
       token: "admin-token",
       writeReportPath: "C:\\Repos\\booking\\.founderos\\transfer-report.json",
+      writeLaunchEvidencePath: "C:\\Repos\\booking\\.founderos\\launch-evidence.json",
       dryRun: true
     });
   });
@@ -62,6 +65,7 @@ describe("project transfer CLI", () => {
       baseUrl: "http://localhost:3000",
       token: undefined,
       writeReportPath: undefined,
+      writeLaunchEvidencePath: undefined,
       dryRun: false
     });
   });
@@ -73,6 +77,7 @@ describe("project transfer CLI", () => {
         setupConfigPath: ".founderos/ai-setup.json",
         baseUrl: "http://localhost:3000",
         writeReportPath: undefined,
+        writeLaunchEvidencePath: undefined,
         dryRun: true
       },
       discover: async () => [
@@ -109,6 +114,10 @@ describe("project transfer CLI", () => {
       connection: {
         endpoint:
           "http://localhost:3000/api/projects/connection?projectKey=booking_assistant&assistantKey=support_bot"
+      },
+      launchEvidence: {
+        endpoint:
+          "http://localhost:3000/api/projects/launch-evidence?projectKey=booking_assistant&assistantKey=support_bot"
       }
     });
   });
@@ -123,6 +132,7 @@ describe("project transfer CLI", () => {
         baseUrl: "http://localhost:3000",
         token: "admin-token",
         writeReportPath: undefined,
+        writeLaunchEvidencePath: undefined,
         dryRun: false
       },
       discover: async () => [
@@ -197,8 +207,10 @@ describe("project transfer CLI", () => {
   it("writes a sanitized transfer rehearsal report", async () => {
     const tempDir = await mkdtemp(join(tmpdir(), "founder-os-transfer-"));
     const reportPath = join(tempDir, "transfer-report.json");
+    const launchEvidencePath = join(tempDir, "launch-evidence.json");
 
     try {
+      const getCalls: string[] = [];
       const result = await runProjectTransferCli({
         options: {
           rootPath: "C:\\Repos",
@@ -206,6 +218,7 @@ describe("project transfer CLI", () => {
           baseUrl: "http://localhost:3000",
           token: "admin-token",
           writeReportPath: reportPath,
+          writeLaunchEvidencePath: launchEvidencePath,
           dryRun: false
         },
         discover: async () => [
@@ -231,29 +244,51 @@ describe("project transfer CLI", () => {
                 }
               }
             },
-        get: async () => ({
-          status: "built",
-          bundle: {
-            projectKey: "booking_assistant",
-            assistantKey: "support_bot",
-            readiness: {
-              ready: false,
-              missing: ["token usage tracking"]
-            },
-            keyReferences: [
-              {
-                provider: "openai",
-                secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY"
+        get: async (endpoint) => {
+          getCalls.push(endpoint);
+          return endpoint.includes("/api/projects/launch-evidence")
+            ? {
+                status: "built",
+                generatedAt: "2026-05-24T18:00:00.000Z",
+                projectKey: "booking_assistant",
+                assistantKey: "support_bot",
+                ready: false,
+                launchBlockers: ["missing:Token tracking"],
+                token: "should-not-write",
+                secretRef: "vercel:SHOULD_NOT_WRITE"
               }
-            ]
-          }
-        })
+            : {
+                status: "built",
+                bundle: {
+                  projectKey: "booking_assistant",
+                  assistantKey: "support_bot",
+                  readiness: {
+                    ready: false,
+                    missing: ["token usage tracking"]
+                  },
+                  keyReferences: [
+                    {
+                      provider: "openai",
+                      secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY"
+                    }
+                  ]
+                }
+              };
+        }
       });
 
       expect(result.report).toEqual({
         path: reportPath,
         written: true
       });
+      expect(result.launchEvidence).toEqual({
+        path: launchEvidencePath,
+        written: true
+      });
+      expect(getCalls).toEqual([
+        "http://localhost:3000/api/projects/connection?projectKey=booking_assistant&assistantKey=support_bot",
+        "http://localhost:3000/api/projects/launch-evidence?projectKey=booking_assistant&assistantKey=support_bot"
+      ]);
 
       const report = JSON.parse(await readFile(reportPath, "utf8"));
       expect(report).toEqual({
@@ -263,7 +298,9 @@ describe("project transfer CLI", () => {
           import: "http://localhost:3000/api/projects/bulk-import",
           setup: "http://localhost:3000/api/projects/ai-setup",
           connection:
-            "http://localhost:3000/api/projects/connection?projectKey=booking_assistant&assistantKey=support_bot"
+            "http://localhost:3000/api/projects/connection?projectKey=booking_assistant&assistantKey=support_bot",
+          launchEvidence:
+            "http://localhost:3000/api/projects/launch-evidence?projectKey=booking_assistant&assistantKey=support_bot"
         },
         project: {
           projectKey: "booking_assistant",
@@ -326,6 +363,18 @@ describe("project transfer CLI", () => {
       });
       expect(JSON.stringify(report)).not.toContain("plaintextSecret");
       expect(JSON.stringify(report)).not.toContain("sk-never-send");
+
+      const launchEvidence = JSON.parse(await readFile(launchEvidencePath, "utf8"));
+      expect(launchEvidence).toEqual({
+        status: "built",
+        generatedAt: "2026-05-24T18:00:00.000Z",
+        projectKey: "booking_assistant",
+        assistantKey: "support_bot",
+        ready: false,
+        launchBlockers: ["missing:Token tracking"]
+      });
+      expect(JSON.stringify(launchEvidence)).not.toContain("token");
+      expect(JSON.stringify(launchEvidence)).not.toContain("vercel:");
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }

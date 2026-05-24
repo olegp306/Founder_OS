@@ -38,10 +38,10 @@ Confirm the output references:
 
 ## Rehearsal Run
 
-Run the transfer and write the sanitized report:
+Run the transfer and write the sanitized report plus launch evidence snapshot:
 
 ```powershell
-npm run projects:transfer -- --root C:\Repos --setup-config C:\Repos\<project>\.founderos\ai-setup.json --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN> --write-report C:\Repos\<project>\.founderos\transfer-report.json
+npm run projects:transfer -- --root C:\Repos --setup-config C:\Repos\<project>\.founderos\ai-setup.json --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN> --write-report C:\Repos\<project>\.founderos\transfer-report.json --write-launch-evidence C:\Repos\<project>\.founderos\launch-evidence.json
 ```
 
 The report includes:
@@ -62,18 +62,19 @@ The report excludes:
 - raw provider invoices
 - bearer tokens
 
-After writing the transfer report, capture the matching `/api/projects/launch-evidence` response and keep that snapshot beside the report.
+The launch evidence artifact captures the matching `/api/projects/launch-evidence` response with stricter sanitization that removes bearer tokens, plaintext keys, and `secretRef` values.
 
 ## Acceptance
 
 Before production traffic, confirm:
 
 - `transfer-report.json` exists.
+- `launch-evidence.json` exists.
 - `readiness.ready` is `true`, or every `readiness.missing` item has an owner and fix plan.
 - `secretRef` values point to real deployment secrets.
 - `/api/token-policy` has a project or assistant policy for the transferred project.
 - `/api/token-usage/summary` is expected to show data after the connected product starts reporting usage.
 - `/api/provider-spend/import` has a source plan for provider billing exports.
-- `/api/projects/launch-evidence?projectKey=<project>&assistantKey=<assistant>` returns `ready: true`, or every `launchBlockers` item has an owner and fix plan.
+- `launch-evidence.json` has `ready: true`, or every `launchBlockers` item has an owner and fix plan.
 
 Keep the report with launch notes. It is the replayable proof that the first project transfer is ready or shows exactly what remains blocked.

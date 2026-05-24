@@ -11,6 +11,7 @@ export type ProjectTransferCliOptions = {
   baseUrl: string;
   token?: string;
   writeReportPath?: string;
+  writeLaunchEvidencePath?: string;
   dryRun: boolean;
 };
 
@@ -41,6 +42,7 @@ export function parseProjectTransferCliArgs(
     ),
     token: readOption(args, "--token") ?? env.FOUNDER_OS_ADMIN_TOKEN,
     writeReportPath: readOption(args, "--write-report"),
+    writeLaunchEvidencePath: readOption(args, "--write-launch-evidence"),
     dryRun: args.includes("--dry-run")
   };
 }
@@ -57,6 +59,7 @@ export async function runProjectTransferCli(dependencies: ProjectTransferCliDepe
   const importEndpoint = `${dependencies.options.baseUrl}/api/projects/bulk-import`;
   const setupEndpoint = `${dependencies.options.baseUrl}/api/projects/ai-setup`;
   const connectionEndpoint = buildConnectionEndpoint(dependencies.options.baseUrl, setupPayload);
+  const launchEvidenceEndpoint = buildLaunchEvidenceEndpoint(dependencies.options.baseUrl, setupPayload);
   const headers = buildHeaders(dependencies.options.token);
 
   if (dependencies.options.dryRun) {
@@ -72,6 +75,9 @@ export async function runProjectTransferCli(dependencies: ProjectTransferCliDepe
       },
       connection: {
         endpoint: connectionEndpoint
+      },
+      launchEvidence: {
+        endpoint: launchEvidenceEndpoint
       }
     };
 
@@ -79,6 +85,7 @@ export async function runProjectTransferCli(dependencies: ProjectTransferCliDepe
       importEndpoint,
       setupEndpoint,
       connectionEndpoint,
+      launchEvidenceEndpoint,
       manifestCount: manifests.length,
       setupPayload
     });
@@ -88,16 +95,24 @@ export async function runProjectTransferCli(dependencies: ProjectTransferCliDepe
     mode: "transferred" as const,
     import: await post(importEndpoint, buildBulkProjectImportPayload(manifests), headers),
     setup: await post(setupEndpoint, setupPayload, headers),
-    connection: await get(connectionEndpoint, headers)
+    connection: await get(connectionEndpoint, headers),
+    launchEvidence: dependencies.options.writeLaunchEvidencePath
+      ? await get(launchEvidenceEndpoint, headers)
+      : undefined
   };
 
-  return withOptionalReport(dependencies.options.writeReportPath, result, {
+  const resultWithReport = await withOptionalReport(dependencies.options.writeReportPath, result, {
     importEndpoint,
     setupEndpoint,
     connectionEndpoint,
+    launchEvidenceEndpoint,
     manifestCount: manifests.length,
     setupPayload
   });
+  return withOptionalLaunchEvidence(
+    dependencies.options.writeLaunchEvidencePath,
+    resultWithReport
+  );
 }
 
 async function postJson(endpoint: string, payload: unknown, headers: Record<string, string>) {
@@ -145,6 +160,15 @@ function sanitizeSetupPayload(payload: ProjectAiSetupPayload): ProjectAiSetupPay
   };
 }
 
+function buildLaunchEvidenceEndpoint(baseUrl: string, payload: ProjectAiSetupPayload): string {
+  const params = new URLSearchParams({
+    projectKey: payload.projectKey,
+    assistantKey: payload.assistantKey
+  });
+
+  return `${baseUrl}/api/projects/launch-evidence?${params.toString()}`;
+}
+
 async function withOptionalReport<T extends { mode: "dry-run" | "transferred"; import: unknown; setup: unknown; connection: unknown }>(
   reportPath: string | undefined,
   result: T,
@@ -152,6 +176,7 @@ async function withOptionalReport<T extends { mode: "dry-run" | "transferred"; i
     importEndpoint: string;
     setupEndpoint: string;
     connectionEndpoint: string;
+    launchEvidenceEndpoint: string;
     manifestCount: number;
     setupPayload: ProjectAiSetupPayload;
   }
@@ -176,12 +201,37 @@ async function withOptionalReport<T extends { mode: "dry-run" | "transferred"; i
   };
 }
 
+async function withOptionalLaunchEvidence<T extends { launchEvidence?: unknown }>(
+  launchEvidencePath: string | undefined,
+  result: T
+): Promise<T & { launchEvidence?: unknown }> {
+  if (!launchEvidencePath || !result.launchEvidence) {
+    return result;
+  }
+
+  const { mkdir, writeFile } = await import("node:fs/promises");
+  const { dirname } = await import("node:path");
+  const launchEvidence = sanitizeLaunchEvidence(result.launchEvidence);
+
+  await mkdir(dirname(launchEvidencePath), { recursive: true });
+  await writeFile(launchEvidencePath, `${JSON.stringify(launchEvidence, null, 2)}\n`, "utf8");
+
+  return {
+    ...result,
+    launchEvidence: {
+      path: launchEvidencePath,
+      written: true as const
+    }
+  };
+}
+
 function buildTransferReport(
-  result: { mode: "dry-run" | "transferred"; import: unknown; setup: unknown; connection: unknown },
+  result: { mode: "dry-run" | "transferred"; import: unknown; setup: unknown; connection: unknown; launchEvidence?: unknown },
   context: {
     importEndpoint: string;
     setupEndpoint: string;
     connectionEndpoint: string;
+    launchEvidenceEndpoint: string;
     manifestCount: number;
     setupPayload: ProjectAiSetupPayload;
   }
@@ -198,7 +248,8 @@ function buildTransferReport(
     endpoints: {
       import: context.importEndpoint,
       setup: context.setupEndpoint,
-      connection: context.connectionEndpoint
+      connection: context.connectionEndpoint,
+      launchEvidence: context.launchEvidenceEndpoint
     },
     project: {
       projectKey: context.setupPayload.projectKey,
@@ -265,6 +316,22 @@ function sanitizeUnknown(value: unknown): unknown {
   );
 }
 
+function sanitizeLaunchEvidence(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeLaunchEvidence(item));
+  }
+
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !isUnsafeLaunchEvidenceKey(key))
+      .map(([key, nestedValue]) => [key, sanitizeLaunchEvidence(nestedValue)])
+  );
+}
+
 function isUnsafeReportKey(key: string): boolean {
   const normalized = key.toLowerCase();
   return normalized.includes("plaintext") ||
@@ -273,6 +340,10 @@ function isUnsafeReportKey(key: string): boolean {
     normalized === "token" ||
     normalized === "apikey" ||
     normalized === "api_key";
+}
+
+function isUnsafeLaunchEvidenceKey(key: string): boolean {
+  return isUnsafeReportKey(key) || key.toLowerCase() === "secretref";
 }
 
 function buildHeaders(token: string | undefined): Record<string, string> {
