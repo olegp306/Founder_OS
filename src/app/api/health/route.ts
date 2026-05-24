@@ -20,6 +20,7 @@ export async function GET() {
       "/api/consents",
       "/api/feedback",
       "/api/segments/evaluate",
+      "/api/campaigns/workflow",
       "/api/campaigns/preview",
       "/api/campaigns/telegram-dry-run",
       "/api/campaigns/telegram-live-send/approve",
@@ -53,6 +54,7 @@ export async function GET() {
       projectConnectionBundle: true,
       providerSpendImport: true,
       alertEvidence: true,
+      campaignWorkflowState: true,
       campaignLiveSendApproval: true,
       plaintextSecretsStored: false
     },

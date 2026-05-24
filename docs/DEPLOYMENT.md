@@ -79,6 +79,7 @@ Use `npm run deployment:check -- --production --base-url https://<founder-os-hos
 - Use `/api/ai-execution/audit?projectKey=<project>` to inspect recent AI execution decisions without exposing secrets or raw request text.
 - Use `/api/ai-execution/summary?projectKey=<project>` for a compact project-level view of allow, downgrade, block, risk, reasons, and estimated tokens under risk.
 - Use `/api/alerts?projectKey=<project>` to review budget breach, overdue key rotation, provider spend anomaly, and emergency-mode evidence without exposing raw prompts, provider invoices, bearer tokens, or plaintext provider keys.
+- Use `/api/campaigns/workflow` to create or inspect the campaign workflow record before preview, dry-run, approval, or future delivery.
 - Use `/api/campaigns/telegram-dry-run` before any Telegram campaign, then record `/api/campaigns/telegram-live-send/approve` with dry-run evidence, manual approval, matching recipient counts, and a safe `botKeyRef`. Founder OS should still keep plaintext Telegram bot tokens in the deployment secret store.
 
 ## Project Onboarding
@@ -103,7 +104,7 @@ Current recommended local flow:
 14. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
 15. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
 16. Review `/api/alerts` for launch evidence across budget, key lifecycle, provider spend, and emergency-mode conditions.
-17. For Telegram campaigns, run preview, dry-run, then live-send approval before enabling any delivery adapter.
+17. For Telegram campaigns, create the workflow, run preview, dry-run, then live-send approval before enabling any delivery adapter.
 
 Bulk policy payload example:
 

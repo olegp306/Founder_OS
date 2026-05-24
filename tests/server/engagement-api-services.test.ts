@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createFounderOsRuntime } from "@/server/founder-os-runtime";
 import {
+  handleCampaignWorkflowCreate,
+  handleCampaignWorkflowGet,
   handleCampaignPreview,
   handleConsentRecord,
   handleFeedbackCapture,
@@ -11,6 +13,38 @@ import {
 import { grantConsent, linkIdentity } from "@/domain/profiles/profile-operations";
 
 describe("engagement API services", () => {
+  it("creates and reads campaign workflow state through the runtime campaign store", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+
+    await expect(
+      handleCampaignWorkflowCreate(runtime, {
+        campaignKey: "booking_nudge",
+        name: "Booking nudge",
+        channel: "telegram",
+        purpose: "marketing",
+        message: "Want help automating bookings?",
+        actor: "founder"
+      })
+    ).resolves.toMatchObject({
+      status: "draft",
+      workflow: {
+        campaignKey: "booking_nudge",
+        status: "draft",
+        channel: "telegram"
+      }
+    });
+
+    await expect(
+      handleCampaignWorkflowGet(runtime, { campaignKey: "booking_nudge" })
+    ).resolves.toMatchObject({
+      status: "found",
+      workflow: {
+        campaignKey: "booking_nudge",
+        name: "Booking nudge"
+      }
+    });
+  });
+
   it("records consent and returns current contact eligibility", async () => {
     const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
     const identity = linkIdentity(runtime.profileOps, {

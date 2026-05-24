@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   InMemoryCampaignStore,
+  createCampaignWorkflow,
   createCampaignPreview,
   evaluateCampaignEligibility,
+  getCampaignWorkflow,
   approveTelegramCampaignForLiveSend,
   sendTelegramCampaignDryRun
 } from "@/domain/campaigns/campaign-center";
@@ -13,6 +15,60 @@ import {
 } from "@/domain/profiles/profile-operations";
 
 describe("campaign center", () => {
+  it("tracks campaign workflow state from draft through dry-run and live-send approval", () => {
+    const campaigns = new InMemoryCampaignStore();
+
+    expect(
+      createCampaignWorkflow(campaigns, {
+        campaignKey: "booking_nudge",
+        name: "Booking nudge",
+        channel: "telegram",
+        purpose: "marketing",
+        message: "Want help automating photo studio bookings?",
+        actor: "founder"
+      })
+    ).toMatchObject({
+      campaignKey: "booking_nudge",
+      status: "draft",
+      channel: "telegram",
+      plannedRecipients: 0,
+      blockedReasons: []
+    });
+
+    sendTelegramCampaignDryRun(campaigns, {
+      campaignKey: "booking_nudge",
+      message: "Want help automating photo studio bookings?",
+      recipients: [{ personId: "person_1", telegramId: "123456" }],
+      actor: "founder"
+    });
+
+    expect(getCampaignWorkflow(campaigns, "booking_nudge")).toMatchObject({
+      status: "dry_run",
+      plannedRecipients: 1
+    });
+
+    approveTelegramCampaignForLiveSend(campaigns, {
+      campaignKey: "booking_nudge",
+      dryRunId: "dry_run_2026_05_24",
+      botKeyRef: "ai_key_telegram_booking_bot",
+      actor: "founder",
+      manualApproval: {
+        approvedBy: "founder@example.com",
+        approvedAt: "2026-05-24T15:00:00.000Z",
+        confirmed: true
+      },
+      expectedRecipients: 1,
+      dryRunPlannedRecipients: 1
+    });
+
+    expect(getCampaignWorkflow(campaigns, "booking_nudge")).toMatchObject({
+      status: "approved_for_live_send",
+      approvedBy: "founder@example.com",
+      botKeyRef: "ai_key_telegram_booking_bot",
+      blockedReasons: []
+    });
+  });
+
   it("allows an eligible Telegram campaign recipient with consent inside their local send window", () => {
     const profiles = new InMemoryProfileOperationsStore();
     const identity = linkIdentity(profiles, {

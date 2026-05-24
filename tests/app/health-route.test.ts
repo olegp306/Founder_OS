@@ -12,6 +12,7 @@ describe("health route", () => {
     expect(body.serviceBackedRoutes).toContain("/api/ai-keys");
     expect(body.serviceBackedRoutes).toContain("/api/provider-spend/import");
     expect(body.serviceBackedRoutes).toContain("/api/alerts");
+    expect(body.serviceBackedRoutes).toContain("/api/campaigns/workflow");
     expect(body.serviceBackedRoutes).toContain("/api/campaigns/telegram-live-send/approve");
     expect(body.repositoryBackedRoutes).toContain("/api/token-policy/bulk");
     expect(body.privateMvpReadiness.projectConnectionBundle).toBe(true);
@@ -21,6 +22,7 @@ describe("health route", () => {
     expect(body.privateMvpReadiness.bulkTokenPolicy).toBe(true);
     expect(body.privateMvpReadiness.providerSpendImport).toBe(true);
     expect(body.privateMvpReadiness.alertEvidence).toBe(true);
+    expect(body.privateMvpReadiness.campaignWorkflowState).toBe(true);
     expect(body.privateMvpReadiness.campaignLiveSendApproval).toBe(true);
   });
 });

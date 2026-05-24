@@ -1,7 +1,9 @@
 import { z } from "zod";
 import {
   approveTelegramCampaignForLiveSend,
+  createCampaignWorkflow,
   createCampaignPreview,
+  getCampaignWorkflow,
   sendTelegramCampaignDryRun
 } from "@/domain/campaigns/campaign-center";
 import {
@@ -43,6 +45,19 @@ export const campaignPreviewRequestSchema = z.object({
   localHour: z.number().int().min(0).max(23),
   hourlyLimit: z.number().int().min(1),
   alreadySentInLastHourByPerson: z.record(z.number().int().min(0)).default({})
+});
+
+export const campaignWorkflowCreateRequestSchema = z.object({
+  campaignKey: z.string().min(2),
+  name: z.string().min(2),
+  channel: z.enum(["telegram", "email", "sms", "web"]),
+  purpose: z.enum(["product_updates", "marketing", "support", "token_metering"]),
+  message: z.string().min(1).max(4000),
+  actor: z.string().min(2)
+});
+
+export const campaignWorkflowGetRequestSchema = z.object({
+  campaignKey: z.string().min(2)
 });
 
 export const telegramDryRunRequestSchema = z.object({
@@ -91,6 +106,24 @@ export async function handleFeedbackCapture(runtime: FounderOsRuntime, payload: 
 export async function handleSegmentEvaluation(runtime: FounderOsRuntime, payload: unknown) {
   const segment = evaluateSegment(runtime.profileOps, segmentRequestSchema.parse(payload));
   return { status: "evaluated" as const, segment };
+}
+
+export async function handleCampaignWorkflowCreate(runtime: FounderOsRuntime, payload: unknown) {
+  const workflow = createCampaignWorkflow(
+    runtime.campaigns,
+    campaignWorkflowCreateRequestSchema.parse(payload)
+  );
+
+  return { status: workflow.status, workflow };
+}
+
+export async function handleCampaignWorkflowGet(runtime: FounderOsRuntime, payload: unknown) {
+  const input = campaignWorkflowGetRequestSchema.parse(payload);
+  const workflow = getCampaignWorkflow(runtime.campaigns, input.campaignKey);
+
+  return workflow
+    ? { status: "found" as const, workflow }
+    : { status: "not_found" as const, workflow: null };
 }
 
 export async function handleCampaignPreview(runtime: FounderOsRuntime, payload: unknown) {
