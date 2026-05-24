@@ -73,7 +73,7 @@ Use `npm run deployment:check -- --production --base-url https://<founder-os-hos
 - Use `/api/token-policy/bulk` to apply the same preferred model, fallback model, budgets, request limit, or emergency mode across several project/assistant targets during cost spikes or provider incidents.
 - Use token policy emergency mode for central fallback-model enforcement during cost spikes or provider incidents. Policy changes are recorded as `token.policy.changed` audit events.
 - Use `/api/projects/readiness?projectKeys=<project>&assistantKey=<assistant>` after onboarding to confirm manifest import, AI key reference, and token policy configuration before connecting production AI traffic.
-- Use `/api/projects/launch-evidence?projectKey=<project>&assistantKey=<assistant>` before live routing to capture one safe snapshot of readiness, connection next steps, token spend, alerts, and campaign workflow counts without returning secret refs, raw prompts, message bodies, or recipient IDs.
+- Use `/api/projects/launch-evidence?projectKey=<project>&assistantKey=<assistant>` before live routing to capture one safe snapshot of readiness, connection next steps, token spend, alerts, and campaign workflow counts without returning secret refs, raw prompts, message bodies, or recipient IDs. The internal dashboard mirrors this as the Launch Evidence panel for the configured dashboard project.
 - The internal dashboard mirrors the same readiness checks for the configured dashboard project so missing transfer steps are visible before live AI usage begins.
 - The internal dashboard also mirrors `/api/token-usage/summary` spend and burn-rate data so projected daily cost is visible without calling the API manually.
 - Use `/api/token-usage/summary?projectKey=<project>&windowHours=<hours>` to inspect token spend, burn rate, projected daily spend, and usage split by assistant, model, and environment.
@@ -141,7 +141,7 @@ npm run projects:transfer -- --root C:\Repos --setup-config C:\Repos\<project>\.
 
 Use `--dry-run` first to preview the discovered manifests, sanitized setup payload, and connection bundle URL. Use `docs/PROJECT_TRANSFER_REHEARSAL.md` as the launch checklist for the first real project.
 
-The internal dashboard also shows the same transfer command, required environment variable names, route paths, remaining connection-bundle next steps, safe AI key inventory budgets, and the bulk token-policy incident command for the configured dashboard project.
+The internal dashboard also shows the same transfer command, required environment variable names, route paths, remaining connection-bundle next steps, launch evidence blockers, safe AI key inventory budgets, and the bulk token-policy incident command for the configured dashboard project.
 
 The internal dashboard also shows Campaign Delivery status for the workflow, owning project, safe export, dry-run, live-send approval, external handoff, and adapter receipt contracts without exposing Telegram bot tokens, `botKeyRef` values, or recipient IDs.
 

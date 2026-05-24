@@ -27,6 +27,7 @@ Production 98 implementation complete:
 - Strict production launch gate is now implemented for Prisma persistence, disabled dashboard demo mode, admin token readiness, and private MVP readiness flags.
 - Real-project transfer rehearsal reports can now be written as sanitized launch artifacts.
 - Per-project launch evidence snapshots now aggregate readiness, connection state, token spend, alerts, and campaign workflow counts without exposing secret refs, raw prompts, message bodies, or recipient IDs.
+- Dashboard operator controls now surface launch evidence readiness, blockers, alert count, campaign workflow count, and projected spend for the configured project.
 - Dashboard operator controls now show AI key lifecycle and production launch gate state.
 - Alert evidence now covers budget breaches, overdue key rotation, provider spend anomalies, and emergency-mode activation.
 - Alert evidence now also covers failed Telegram campaign delivery workflows and filters them by `projectKey`.
@@ -35,7 +36,7 @@ Production 98 implementation complete:
 - Campaign workflow state now tracks draft, dry-run, approved, and blocked transitions before any Telegram delivery adapter is enabled.
 - Telegram delivery handoff now produces a safe adapter payload only after approval evidence, bot key reference match, and recipient-count match.
 - Telegram delivery receipts now close the workflow as `sent` or `failed` from external adapter outcomes.
-- Dashboard operator controls now show campaign delivery readiness, safe route contracts, workflow project attribution, and outcome counts.
+- Dashboard operator controls now show campaign delivery readiness, safe route contracts, workflow project attribution, launch evidence, and outcome counts.
 - Campaign workflow export now provides a project-filtered backup/rehearsal artifact without message bodies, Telegram recipient IDs, `botKeyRef`, or bot tokens.
 - `/api/health` reports campaign live-send approval as part of private MVP readiness.
 
@@ -89,7 +90,7 @@ The current campaign center slice added:
 - Dashboard campaign delivery panel with workflow counts, ready handoffs, sent/failed outcomes, and safe route contracts.
 - Failed campaign delivery workflows now project into `/api/alerts?projectKey=<project>` without exposing Telegram IDs, `botKeyRef`, or bot tokens.
 - `/api/campaigns/workflow/export?projectKey=<project>` now exports safe campaign workflow state for private backup and launch rehearsal evidence.
-- `/api/projects/launch-evidence?projectKey=<project>&assistantKey=<assistant>` now aggregates safe project launch evidence across readiness, connection next steps, token spend, alerts, and campaign workflow counts.
+- `/api/projects/launch-evidence?projectKey=<project>&assistantKey=<assistant>` now aggregates safe project launch evidence across readiness, connection next steps, token spend, alerts, and campaign workflow counts; the dashboard mirrors this snapshot for the configured project.
 
 Campaign delivery remains external until production Telegram credentials, deployment access controls, and a delivery adapter are configured. Founder OS now records readiness, emits a safe handoff payload, and accepts delivery receipts, but it does not store bot tokens or send messages itself.
 

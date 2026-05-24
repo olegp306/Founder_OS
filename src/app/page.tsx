@@ -341,6 +341,48 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section className="transfer-flow" aria-label="Project launch evidence">
+        <div className="section-heading">
+          <h2>Launch Evidence</h2>
+          <span>{dashboard.launchEvidence.ready ? "ready" : "blocked"}</span>
+        </div>
+        <div className="spend-summary">
+          <article className="spend-card">
+            <span>Alerts</span>
+            <strong>{dashboard.launchEvidence.alertCount}</strong>
+          </article>
+          <article className="spend-card">
+            <span>Campaign workflows</span>
+            <strong>{dashboard.launchEvidence.campaignWorkflows}</strong>
+          </article>
+          <article className="spend-card">
+            <span>Projected daily</span>
+            <strong>{dashboard.launchEvidence.projectedDailySpend}</strong>
+          </article>
+        </div>
+        <div className="transfer-grid">
+          <div className="transfer-list">
+            <h3>Snapshot</h3>
+            <code>/api/projects/launch-evidence</code>
+            <code>{dashboard.launchEvidence.projectKey}/{dashboard.launchEvidence.assistantKey}</code>
+          </div>
+          <div className="transfer-list">
+            <h3>Checks</h3>
+            <span>Readiness {dashboard.launchEvidence.readiness}</span>
+            <span>Connection {dashboard.launchEvidence.connection}</span>
+            <span>Token spend {dashboard.launchEvidence.tokenSpend}</span>
+          </div>
+          <div className="transfer-list">
+            <h3>Blockers</h3>
+            {dashboard.launchEvidence.launchBlockers.length === 0 ? (
+              <strong>No launch blockers</strong>
+            ) : (
+              dashboard.launchEvidence.launchBlockers.map((blocker) => <span key={blocker}>{blocker}</span>)
+            )}
+          </div>
+        </div>
+      </section>
+
       <section className="transfer-flow" aria-label="Bulk token policy">
         <div className="section-heading">
           <h2>Bulk Token Policy</h2>

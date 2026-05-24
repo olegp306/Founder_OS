@@ -29,6 +29,8 @@ describe("Founder OS home page", () => {
     expect(html).toContain("Production keys");
     expect(html).toContain("Rotation due");
     expect(html).toContain("Launch Gate");
+    expect(html).toContain("Launch Evidence");
+    expect(html).toContain("/api/projects/launch-evidence");
     expect(html).toContain("Dashboard demo");
     expect(html).toContain("Persistence");
     expect(html).toContain("Key references");

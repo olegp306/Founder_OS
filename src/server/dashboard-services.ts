@@ -16,6 +16,7 @@ import {
   handleProjectReadinessList
 } from "@/server/project-ai-api-services";
 import { parseFounderOsEnv } from "@/domain/readiness/readiness";
+import { handleProjectLaunchEvidence } from "@/server/launch-evidence-services";
 
 export type DashboardMetric = {
   label: string;
@@ -127,6 +128,20 @@ export type DashboardLaunchGate = {
   items: DashboardReadinessItem[];
 };
 
+export type DashboardLaunchEvidence = {
+  ready: boolean;
+  generatedAt: string;
+  projectKey: string;
+  assistantKey: string;
+  launchBlockers: string[];
+  readiness: string;
+  connection: string;
+  tokenSpend: string;
+  projectedDailySpend: string;
+  alertCount: string;
+  campaignWorkflows: string;
+};
+
 export type DashboardBulkTokenPolicy = {
   route: string;
   command: string;
@@ -173,6 +188,7 @@ export type AiControlDashboardViewModel = {
   aiKeyInventory: DashboardAiKeyInventory;
   keyLifecycle: DashboardKeyLifecycle;
   launchGate: DashboardLaunchGate;
+  launchEvidence: DashboardLaunchEvidence;
   bulkTokenPolicy: DashboardBulkTokenPolicy;
   campaignDelivery: DashboardCampaignDelivery;
 };
@@ -201,7 +217,8 @@ export async function buildAiControlDashboardViewModel(
     tokenSpendResult,
     transferResult,
     projectListResult,
-    aiKeyInventoryResult
+    aiKeyInventoryResult,
+    launchEvidenceResult
   ] = await Promise.all([
     handleAiExecutionSummary(runtime, input),
     handleAiExecutionDecisionAuditList(runtime, {
@@ -246,7 +263,15 @@ export async function buildAiControlDashboardViewModel(
           }
         }),
     handleProjectList(runtime, { assistantKey: input.assistantKey }),
-    handleAiKeyReferenceInventory(runtime, { asOf: input.asOf })
+    handleAiKeyReferenceInventory(runtime, { asOf: input.asOf }),
+    input.projectKey && input.assistantKey
+      ? handleProjectLaunchEvidence(runtime, {
+          projectKey: input.projectKey,
+          assistantKey: input.assistantKey,
+          tokenWindowHours,
+          asOf: input.asOf
+        })
+      : Promise.resolve(undefined)
   ]);
   const total = summary.totalDecisions;
   const downgradeCount = Number(summary.actionCounts.downgrade ?? 0);
@@ -302,6 +327,11 @@ export async function buildAiControlDashboardViewModel(
     aiKeyInventory: buildDashboardAiKeyInventory(aiKeyInventoryResult),
     keyLifecycle: buildDashboardKeyLifecycle(aiKeyInventoryResult),
     launchGate: buildDashboardLaunchGate(runtime, input.env ?? process.env),
+    launchEvidence: buildDashboardLaunchEvidence(
+      launchEvidenceResult,
+      input.projectKey,
+      assistantKey
+    ),
     bulkTokenPolicy: buildDashboardBulkTokenPolicy(
       projectListResult.projects,
       assistantKey
@@ -655,6 +685,42 @@ function buildDashboardLaunchGate(
     readyCount: items.filter((item) => item.ready).length,
     totalCount: items.length,
     items
+  };
+}
+
+function buildDashboardLaunchEvidence(
+  evidence:
+    | {
+        ready: boolean;
+        generatedAt: string;
+        projectKey: string;
+        assistantKey: string;
+        launchBlockers: string[];
+        readiness: { ready: boolean };
+        connection: { ready: boolean };
+        tokenSpend: {
+          totalCostUsd: number;
+          projectedDailySpendUsd: number;
+        };
+        alerts: { alertCount: number };
+        campaigns: { workflowCount: number };
+      }
+    | undefined,
+  projectKey: string | undefined,
+  assistantKey: string
+): DashboardLaunchEvidence {
+  return {
+    ready: evidence?.ready ?? false,
+    generatedAt: evidence?.generatedAt ?? "not generated",
+    projectKey: evidence?.projectKey ?? projectKey ?? "unknown",
+    assistantKey: evidence?.assistantKey ?? assistantKey,
+    launchBlockers: evidence?.launchBlockers ?? ["project_or_assistant_not_selected"],
+    readiness: evidence?.readiness.ready ? "ready" : "blocked",
+    connection: evidence?.connection.ready ? "ready" : "blocked",
+    tokenSpend: formatUsd(evidence?.tokenSpend.totalCostUsd ?? 0),
+    projectedDailySpend: formatUsd(evidence?.tokenSpend.projectedDailySpendUsd ?? 0),
+    alertCount: String(evidence?.alerts.alertCount ?? 0),
+    campaignWorkflows: String(evidence?.campaigns.workflowCount ?? 0)
   };
 }
 

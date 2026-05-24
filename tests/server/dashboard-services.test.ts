@@ -137,6 +137,19 @@ describe("dashboard services", () => {
       ],
       nextSteps: []
     });
+    expect(viewModel.launchEvidence).toEqual({
+      ready: true,
+      generatedAt: expect.any(String),
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot",
+      launchBlockers: [],
+      readiness: "ready",
+      connection: "ready",
+      tokenSpend: "$0.00",
+      projectedDailySpend: "$0.00",
+      alertCount: "0",
+      campaignWorkflows: "0"
+    });
     expect(JSON.stringify(viewModel)).not.toContain("vercel:BOOKING_ASSISTANT_OPENAI_API_KEY");
   });
 
