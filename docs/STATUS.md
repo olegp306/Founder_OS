@@ -26,6 +26,7 @@ Production 98 implementation complete:
 - Provider spend import is now implemented for daily OpenAI, Anthropic, Google, and other provider totals.
 - Strict production launch gate is now implemented for Prisma persistence, disabled dashboard demo mode, admin token readiness, and private MVP readiness flags.
 - Real-project transfer rehearsal reports can now be written as sanitized launch artifacts.
+- Per-project launch evidence snapshots now aggregate readiness, connection state, token spend, alerts, and campaign workflow counts without exposing secret refs, raw prompts, message bodies, or recipient IDs.
 - Dashboard operator controls now show AI key lifecycle and production launch gate state.
 - Alert evidence now covers budget breaches, overdue key rotation, provider spend anomalies, and emergency-mode activation.
 - Alert evidence now also covers failed Telegram campaign delivery workflows and filters them by `projectKey`.
@@ -44,6 +45,7 @@ External launch gate still required:
 - Configure production `DATABASE_URL` and `FOUNDER_OS_ADMIN_TOKEN`.
 - Run `npm run deployment:check -- --production --base-url <founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>`.
 - Produce one real-project transfer rehearsal report before routing live AI traffic.
+- Capture `/api/projects/launch-evidence?projectKey=<project>&assistantKey=<assistant>` for the first real project and keep it with launch notes.
 
 ## Branching Rule
 
@@ -87,6 +89,7 @@ The current campaign center slice added:
 - Dashboard campaign delivery panel with workflow counts, ready handoffs, sent/failed outcomes, and safe route contracts.
 - Failed campaign delivery workflows now project into `/api/alerts?projectKey=<project>` without exposing Telegram IDs, `botKeyRef`, or bot tokens.
 - `/api/campaigns/workflow/export?projectKey=<project>` now exports safe campaign workflow state for private backup and launch rehearsal evidence.
+- `/api/projects/launch-evidence?projectKey=<project>&assistantKey=<assistant>` now aggregates safe project launch evidence across readiness, connection next steps, token spend, alerts, and campaign workflow counts.
 
 Campaign delivery remains external until production Telegram credentials, deployment access controls, and a delivery adapter are configured. Founder OS now records readiness, emits a safe handoff payload, and accepts delivery receipts, but it does not store bot tokens or send messages itself.
 
@@ -425,6 +428,7 @@ Adds the production 98 launch roadmap and starts AI key lifecycle readiness:
 - Adds `/api/campaigns/telegram-live-send/approve` as the guarded approval step between dry-run campaign planning and future live Telegram delivery.
 - Adds `/api/campaigns/workflow` for campaign workflow creation and state lookup.
 - Adds `/api/campaigns/workflow/export` for safe project-filtered campaign workflow backup evidence.
+- Adds `/api/projects/launch-evidence` for safe per-project launch evidence before routing live traffic.
 - `/api/health` now reports `privateMvpReadiness.campaignWorkflowState`.
 - `/api/health` now reports `privateMvpReadiness.campaignLiveSendApproval`.
 - Adds `/api/campaigns/telegram-delivery/handoff` for safe external delivery adapter handoff.

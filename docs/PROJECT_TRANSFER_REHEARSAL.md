@@ -62,6 +62,8 @@ The report excludes:
 - raw provider invoices
 - bearer tokens
 
+After writing the transfer report, capture the matching `/api/projects/launch-evidence` response and keep that snapshot beside the report.
+
 ## Acceptance
 
 Before production traffic, confirm:
@@ -72,5 +74,6 @@ Before production traffic, confirm:
 - `/api/token-policy` has a project or assistant policy for the transferred project.
 - `/api/token-usage/summary` is expected to show data after the connected product starts reporting usage.
 - `/api/provider-spend/import` has a source plan for provider billing exports.
+- `/api/projects/launch-evidence?projectKey=<project>&assistantKey=<assistant>` returns `ready: true`, or every `launchBlockers` item has an owner and fix plan.
 
 Keep the report with launch notes. It is the replayable proof that the first project transfer is ready or shows exactly what remains blocked.

@@ -132,7 +132,8 @@ describe("dashboard services", () => {
         "/api/ai-execution/decide",
         "/api/token-usage",
         "/api/token-usage/summary",
-        "/api/projects/readiness"
+        "/api/projects/readiness",
+        "/api/projects/launch-evidence"
       ],
       nextSteps: []
     });

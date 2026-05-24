@@ -795,6 +795,11 @@ export async function handleProjectConnectionBundle(
           method: "GET",
           path: "/api/projects/readiness",
           purpose: "verify project transfer readiness"
+        },
+        {
+          method: "GET",
+          path: "/api/projects/launch-evidence",
+          purpose: "collect safe launch evidence before routing live traffic"
         }
       ],
       aiKeyReferences,

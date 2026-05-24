@@ -701,7 +701,8 @@ describe("AI usage API services", () => {
           { method: "POST", path: "/api/ai-execution/decide", purpose: "preflight model, budget, and abuse control before provider execution" },
           { method: "POST", path: "/api/token-usage", purpose: "record token usage after provider execution" },
           { method: "GET", path: "/api/token-usage/summary", purpose: "inspect token spend, burn rate, and projected daily spend" },
-          { method: "GET", path: "/api/projects/readiness", purpose: "verify project transfer readiness" }
+          { method: "GET", path: "/api/projects/readiness", purpose: "verify project transfer readiness" },
+          { method: "GET", path: "/api/projects/launch-evidence", purpose: "collect safe launch evidence before routing live traffic" }
         ],
         aiKeyReferences: [
           {

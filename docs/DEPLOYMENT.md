@@ -73,6 +73,7 @@ Use `npm run deployment:check -- --production --base-url https://<founder-os-hos
 - Use `/api/token-policy/bulk` to apply the same preferred model, fallback model, budgets, request limit, or emergency mode across several project/assistant targets during cost spikes or provider incidents.
 - Use token policy emergency mode for central fallback-model enforcement during cost spikes or provider incidents. Policy changes are recorded as `token.policy.changed` audit events.
 - Use `/api/projects/readiness?projectKeys=<project>&assistantKey=<assistant>` after onboarding to confirm manifest import, AI key reference, and token policy configuration before connecting production AI traffic.
+- Use `/api/projects/launch-evidence?projectKey=<project>&assistantKey=<assistant>` before live routing to capture one safe snapshot of readiness, connection next steps, token spend, alerts, and campaign workflow counts without returning secret refs, raw prompts, message bodies, or recipient IDs.
 - The internal dashboard mirrors the same readiness checks for the configured dashboard project so missing transfer steps are visible before live AI usage begins.
 - The internal dashboard also mirrors `/api/token-usage/summary` spend and burn-rate data so projected daily cost is visible without calling the API manually.
 - Use `/api/token-usage/summary?projectKey=<project>&windowHours=<hours>` to inspect token spend, burn rate, projected daily spend, and usage split by assistant, model, and environment.
@@ -107,7 +108,8 @@ Current recommended local flow:
 14. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
 15. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
 16. Review `/api/alerts` for launch evidence across budget, key lifecycle, provider spend, and emergency-mode conditions.
-17. For Telegram campaigns, create the workflow, run preview, dry-run, live-send approval, delivery handoff, then adapter receipt.
+17. Capture `/api/projects/launch-evidence?projectKey=<project>&assistantKey=<assistant>` and keep it with launch notes before routing live traffic.
+18. For Telegram campaigns, create the workflow, run preview, dry-run, live-send approval, delivery handoff, then adapter receipt.
 
 Bulk policy payload example:
 

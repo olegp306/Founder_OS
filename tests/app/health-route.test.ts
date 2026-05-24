@@ -7,6 +7,7 @@ describe("health route", () => {
     const body = await response.json();
 
     expect(body.serviceBackedRoutes).toContain("/api/projects/connection");
+    expect(body.serviceBackedRoutes).toContain("/api/projects/launch-evidence");
     expect(body.serviceBackedRoutes).toContain("/api/projects/ai-setup");
     expect(body.serviceBackedRoutes).toContain("/api/projects");
     expect(body.serviceBackedRoutes).toContain("/api/ai-keys");
@@ -19,6 +20,7 @@ describe("health route", () => {
     expect(body.serviceBackedRoutes).toContain("/api/campaigns/telegram-delivery/receipt");
     expect(body.repositoryBackedRoutes).toContain("/api/token-policy/bulk");
     expect(body.privateMvpReadiness.projectConnectionBundle).toBe(true);
+    expect(body.privateMvpReadiness.projectLaunchEvidence).toBe(true);
     expect(body.privateMvpReadiness.projectAiSetup).toBe(true);
     expect(body.privateMvpReadiness.projectList).toBe(true);
     expect(body.privateMvpReadiness.aiKeyInventory).toBe(true);
