@@ -55,7 +55,8 @@ export async function GET() {
     environment: parseFounderOsEnv({
       DATABASE_URL: process.env.DATABASE_URL,
       FOUNDER_OS_ADMIN_EMAIL: process.env.FOUNDER_OS_ADMIN_EMAIL,
-      FOUNDER_OS_ADMIN_TOKEN: process.env.FOUNDER_OS_ADMIN_TOKEN
+      FOUNDER_OS_ADMIN_TOKEN: process.env.FOUNDER_OS_ADMIN_TOKEN,
+      FOUNDER_OS_ENABLE_DASHBOARD_DEMO: process.env.FOUNDER_OS_ENABLE_DASHBOARD_DEMO
     })
   });
 }

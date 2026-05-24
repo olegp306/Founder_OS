@@ -5,6 +5,7 @@ export type DeploymentCheckCliOptions = {
   baseUrl: string;
   token?: string;
   expectedPersistence: "memory" | "prisma";
+  production: boolean;
   dryRun: boolean;
 };
 
@@ -22,12 +23,14 @@ export type DeploymentHealthResponse = {
   repositoryKind?: string;
   environment?: {
     adminTokenConfigured?: boolean;
+    dashboardDemoEnabled?: boolean;
   };
   privateMvpReadiness?: {
     plaintextSecretsStored?: boolean;
     projectOnboarding?: boolean;
     aiKeyReferences?: boolean;
     projectConnectionBundle?: boolean;
+    [key: string]: boolean | undefined;
   };
 };
 
@@ -49,6 +52,7 @@ export function parseDeploymentCheckCliArgs(
     expectedPersistence: parseExpectedPersistence(
       readOption(args, "--expected-persistence") ?? env.FOUNDER_OS_EXPECTED_PERSISTENCE ?? "prisma"
     ),
+    production: args.includes("--production"),
     dryRun: args.includes("--dry-run")
   };
 }
@@ -131,7 +135,8 @@ export async function runDeploymentCheckCli(dependencies: DeploymentCheckCliDepe
       passed: health.privateMvpReadiness?.projectConnectionBundle === true,
       actual: health.privateMvpReadiness?.projectConnectionBundle,
       expected: true
-    }
+    },
+    ...productionChecks(dependencies.options, health)
   ];
   const ready = checks.every((check) => check.passed);
 
@@ -181,6 +186,63 @@ function buildHeaders(token: string | undefined): Record<string, string> {
 
 function parseExpectedPersistence(value: string): DeploymentCheckCliOptions["expectedPersistence"] {
   return value === "memory" ? "memory" : "prisma";
+}
+
+function productionChecks(
+  options: DeploymentCheckCliOptions,
+  health: DeploymentHealthResponse
+): DeploymentCheck[] {
+  if (!options.production) {
+    return [];
+  }
+
+  return [
+    {
+      name: "productionPersistenceMode",
+      passed: health.persistenceMode === "prisma",
+      actual: health.persistenceMode,
+      expected: "prisma"
+    },
+    {
+      name: "productionRepositoryKind",
+      passed: health.repositoryKind === "prisma",
+      actual: health.repositoryKind,
+      expected: "prisma"
+    },
+    {
+      name: "dashboardDemoDisabled",
+      passed: health.environment?.dashboardDemoEnabled === false,
+      actual: health.environment?.dashboardDemoEnabled,
+      expected: false
+    },
+    ...privateReadinessChecks(health.privateMvpReadiness)
+  ];
+}
+
+function privateReadinessChecks(
+  readiness: DeploymentHealthResponse["privateMvpReadiness"]
+): DeploymentCheck[] {
+  if (!readiness) {
+    return [
+      {
+        name: "privateReadiness",
+        passed: false,
+        actual: undefined,
+        expected: "all readiness flags"
+      }
+    ];
+  }
+
+  return Object.entries(readiness).map(([name, value]) => {
+    const expected = name === "plaintextSecretsStored" ? false : true;
+
+    return {
+      name: `privateReadiness:${name}`,
+      passed: value === expected,
+      actual: value,
+      expected
+    };
+  });
 }
 
 function stripTrailingSlash(value: string): string {

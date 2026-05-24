@@ -121,7 +121,7 @@ Run: `npm test -- tests/server/provider-spend-services.test.ts tests/app/health-
 - Modify: `tests/local/deployment-check-cli.test.ts`
 - Modify: `docs/DEPLOYMENT.md`
 
-- [ ] **Step 1: Write failing deployment-check tests**
+- [x] **Step 1: Write failing deployment-check tests**
 
 Add tests requiring production checks to fail when:
 
@@ -135,11 +135,11 @@ Add tests requiring production checks to fail when:
 }
 ```
 
-- [ ] **Step 2: Implement strict launch gate**
+- [x] **Step 2: Implement strict launch gate**
 
 Add `--production` mode to `npm run deployment:check` that requires Prisma persistence, no dashboard demo, admin token configured, and all private readiness flags true.
 
-- [ ] **Step 3: Verify deployment gate**
+- [x] **Step 3: Verify deployment gate**
 
 Run: `npm test -- tests/local/deployment-check-cli.test.ts`
 

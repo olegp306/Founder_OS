@@ -14,12 +14,14 @@ describe("deployment check CLI", () => {
         "admin-token",
         "--expected-persistence",
         "prisma",
+        "--production",
         "--dry-run"
       ])
     ).toEqual({
       baseUrl: "https://founder-os.example.com",
       token: "admin-token",
       expectedPersistence: "prisma",
+      production: true,
       dryRun: true
     });
   });
@@ -34,6 +36,7 @@ describe("deployment check CLI", () => {
       baseUrl: "https://founder-os.example.com",
       token: "admin-token",
       expectedPersistence: "prisma",
+      production: false,
       dryRun: false
     });
   });
@@ -44,6 +47,7 @@ describe("deployment check CLI", () => {
         baseUrl: "https://founder-os.example.com",
         token: "admin-token",
         expectedPersistence: "prisma",
+        production: false,
         dryRun: true
       },
       get: async () => {
@@ -74,6 +78,7 @@ describe("deployment check CLI", () => {
         baseUrl: "https://founder-os.example.com",
         token: "admin-token",
         expectedPersistence: "prisma",
+        production: true,
         dryRun: false
       },
       hasMigrationDeployScript: () => true,
@@ -84,13 +89,16 @@ describe("deployment check CLI", () => {
           persistenceMode: "prisma",
           repositoryKind: "prisma",
           environment: {
-            adminTokenConfigured: true
+            adminTokenConfigured: true,
+            dashboardDemoEnabled: false
           },
           privateMvpReadiness: {
             plaintextSecretsStored: false,
             projectOnboarding: true,
             aiKeyReferences: true,
-            projectConnectionBundle: true
+            projectConnectionBundle: true,
+            bulkTokenPolicy: true,
+            providerSpendImport: true
           }
         };
       }
@@ -122,6 +130,7 @@ describe("deployment check CLI", () => {
           baseUrl: "https://founder-os.example.com",
           token: "admin-token",
           expectedPersistence: "prisma",
+          production: true,
           dryRun: false
         },
         hasMigrationDeployScript: () => true,
@@ -130,16 +139,83 @@ describe("deployment check CLI", () => {
           persistenceMode: "memory",
           repositoryKind: "memory",
           environment: {
-            adminTokenConfigured: true
+            adminTokenConfigured: true,
+            dashboardDemoEnabled: false
           },
           privateMvpReadiness: {
             plaintextSecretsStored: false,
             projectOnboarding: true,
             aiKeyReferences: true,
-            projectConnectionBundle: true
+            projectConnectionBundle: true,
+            bulkTokenPolicy: true,
+            providerSpendImport: true
           }
         })
       })
     ).rejects.toThrow("Deployment check failed");
+  });
+
+  it("fails production checks when dashboard demo mode is enabled", async () => {
+    await expect(
+      runDeploymentCheckCli({
+        options: {
+          baseUrl: "https://founder-os.example.com",
+          token: "admin-token",
+          expectedPersistence: "prisma",
+          production: true,
+          dryRun: false
+        },
+        hasMigrationDeployScript: () => true,
+        get: async () => ({
+          status: "ok",
+          persistenceMode: "prisma",
+          repositoryKind: "prisma",
+          environment: {
+            adminTokenConfigured: true,
+            dashboardDemoEnabled: true
+          },
+          privateMvpReadiness: {
+            plaintextSecretsStored: false,
+            projectOnboarding: true,
+            aiKeyReferences: true,
+            projectConnectionBundle: true,
+            bulkTokenPolicy: true,
+            providerSpendImport: true
+          }
+        })
+      })
+    ).rejects.toThrow("dashboardDemoDisabled");
+  });
+
+  it("fails production checks when any private readiness flag is not ready", async () => {
+    await expect(
+      runDeploymentCheckCli({
+        options: {
+          baseUrl: "https://founder-os.example.com",
+          token: "admin-token",
+          expectedPersistence: "prisma",
+          production: true,
+          dryRun: false
+        },
+        hasMigrationDeployScript: () => true,
+        get: async () => ({
+          status: "ok",
+          persistenceMode: "prisma",
+          repositoryKind: "prisma",
+          environment: {
+            adminTokenConfigured: true,
+            dashboardDemoEnabled: false
+          },
+          privateMvpReadiness: {
+            plaintextSecretsStored: false,
+            projectOnboarding: true,
+            aiKeyReferences: true,
+            projectConnectionBundle: true,
+            bulkTokenPolicy: false,
+            providerSpendImport: true
+          }
+        })
+      })
+    ).rejects.toThrow("privateReadiness:bulkTokenPolicy");
   });
 });

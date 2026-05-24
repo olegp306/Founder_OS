@@ -7,6 +7,7 @@ export type FounderOsEnvSummary = {
   databaseConfigured: boolean;
   adminEmail: string;
   adminTokenConfigured: boolean;
+  dashboardDemoEnabled: boolean;
 };
 
 export type AuditLogEventInput = {
@@ -55,7 +56,8 @@ export function parseFounderOsEnv(env: Record<string, string | undefined>): Foun
   return {
     databaseConfigured: Boolean(env.DATABASE_URL),
     adminEmail: env.FOUNDER_OS_ADMIN_EMAIL ?? "",
-    adminTokenConfigured: Boolean(env.FOUNDER_OS_ADMIN_TOKEN)
+    adminTokenConfigured: Boolean(env.FOUNDER_OS_ADMIN_TOKEN),
+    dashboardDemoEnabled: env.FOUNDER_OS_ENABLE_DASHBOARD_DEMO === "true"
   };
 }
 
