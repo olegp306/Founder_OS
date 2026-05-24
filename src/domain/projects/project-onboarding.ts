@@ -54,6 +54,9 @@ export type AiKeyReference = {
   allowedModels: string[];
   defaultModel: string;
   monthlyBudgetUsd: number;
+  environment?: "local" | "staging" | "production";
+  rotationDueAt?: string;
+  lastVerifiedAt?: string;
   status: "active";
 };
 
@@ -164,6 +167,9 @@ export function buildAiKeyReference(
     allowedModels: input.allowedModels,
     defaultModel: input.defaultModel,
     monthlyBudgetUsd: input.monthlyBudgetUsd,
+    environment: input.environment ?? "production",
+    rotationDueAt: input.rotationDueAt,
+    lastVerifiedAt: input.lastVerifiedAt,
     status: "active" as const
   };
 }

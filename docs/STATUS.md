@@ -1,10 +1,10 @@
 # Founder OS Status
 
-Date: 2026-05-22
+Date: 2026-05-24
 
 ## Current Progress
 
-MVP progress: 80%
+MVP progress: 86%
 
 Completed capability areas:
 
@@ -17,9 +17,8 @@ Completed capability areas:
 
 In progress:
 
-- Database-backed persistence adapters and migrations.
-- Token Control Plane persistence and admin dashboard.
-- Feature-branch and pull-request workflow for all follow-up work.
+- Production 98 launch gate: strict deploy checks, real-project rehearsal, provider spend imports, key lifecycle, dashboard operator controls, and alerts.
+- AI key lifecycle metadata for OpenAI, Anthropic, Google, and other provider references.
 
 ## Branching Rule
 
@@ -67,6 +66,8 @@ The production readiness slice added:
 - Backup and recovery guidance for Postgres and secrets.
 
 The 80% gate has been reached. New feature work should now use `codex/` feature branches, pushes to `origin`, and draft pull requests for user merge.
+
+The production 98 roadmap is now tracked in `docs/superpowers/plans/2026-05-24-production-98-roadmap.md`.
 
 ## Post-80% Feature Branches
 
@@ -367,3 +368,12 @@ Surfaces fleet-wide token policy controls in the dashboard:
 - The dashboard view model now includes the bulk policy route, incident command, target count, target list, and emergency-mode template.
 - The home page shows a Bulk Token Policy section with imported project targets, fallback-model emergency controls, and budget ceilings.
 - The dashboard keeps this incident surface free of plaintext secrets and raw provider keys.
+
+### `codex/production-readiness-roadmap`
+
+Adds the production 98 launch roadmap and starts AI key lifecycle readiness:
+
+- Documents the remaining launch gate from 86% to 98% across key lifecycle, provider spend imports, strict deployment checks, transfer rehearsal, dashboard operator controls, and alert evidence.
+- Extends AI key references with environment, rotation due date, and last verified timestamp metadata.
+- AI key inventory now reports rotation status and provider-level due/overdue counts without storing plaintext provider keys.
+- Adds a Prisma migration for lifecycle metadata on `AiKeyReference`.

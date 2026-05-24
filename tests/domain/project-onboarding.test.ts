@@ -72,6 +72,9 @@ describe("project onboarding and AI controls", () => {
       allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
       defaultModel: "gpt-5.4-mini",
       monthlyBudgetUsd: 250,
+      environment: "production",
+      rotationDueAt: undefined,
+      lastVerifiedAt: undefined,
       status: "active"
     });
     expect(JSON.stringify(store.aiKeysForProject("booking_assistant"))).not.toContain(

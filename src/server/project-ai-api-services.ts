@@ -56,12 +56,16 @@ export const aiKeyReferenceSchema = z.object({
   allowedModels: z.array(z.string().min(2)).min(1),
   defaultModel: z.string().min(2),
   monthlyBudgetUsd: z.number().min(0),
+  environment: z.enum(["local", "staging", "production"]).default("production"),
+  rotationDueAt: z.string().datetime().optional(),
+  lastVerifiedAt: z.string().datetime().optional(),
   plaintextSecret: z.string().optional()
 });
 
 export const aiKeyReferenceInventorySchema = z.object({
   projectKey: z.string().min(2).optional(),
-  provider: z.enum(["openai", "anthropic", "google", "other"]).optional()
+  provider: z.enum(["openai", "anthropic", "google", "other"]).optional(),
+  asOf: z.string().datetime().optional()
 });
 
 export const aiControlResolveSchema = z.object({
@@ -149,6 +153,7 @@ export async function handleAiKeyReferenceInventory(
   payload: unknown
 ) {
   const input = aiKeyReferenceInventorySchema.parse(payload ?? {});
+  const asOf = input.asOf ? new Date(input.asOf) : new Date();
   const projects = (await runtime.repositories.projects.allProjects())
     .filter((project) => !input.projectKey || project.key === input.projectKey);
   const inventoryProjects = await Promise.all(projects.map(async (project) => {
@@ -161,6 +166,10 @@ export async function handleAiKeyReferenceInventory(
         allowedModels: reference.allowedModels,
         defaultModel: reference.defaultModel,
         monthlyBudgetUsd: reference.monthlyBudgetUsd,
+        environment: reference.environment ?? "production",
+        rotationDueAt: reference.rotationDueAt,
+        lastVerifiedAt: reference.lastVerifiedAt,
+        rotationStatus: rotationStatusFor(reference.rotationDueAt, asOf),
         status: reference.status
       }))
       .sort((left, right) =>
@@ -474,24 +483,53 @@ function summarizeAiKeyProviders(
   references: Array<{
     provider: string;
     monthlyBudgetUsd: number;
+    rotationStatus: string;
   }>
 ) {
-  const providers = new Map<string, { provider: string; referenceCount: number; monthlyBudgetUsd: number }>();
+  const providers = new Map<string, {
+    provider: string;
+    referenceCount: number;
+    monthlyBudgetUsd: number;
+    rotationDueSoonCount: number;
+    rotationOverdueCount: number;
+  }>();
 
   for (const reference of references) {
     const current = providers.get(reference.provider) ?? {
       provider: reference.provider,
       referenceCount: 0,
-      monthlyBudgetUsd: 0
+      monthlyBudgetUsd: 0,
+      rotationDueSoonCount: 0,
+      rotationOverdueCount: 0
     };
     providers.set(reference.provider, {
       provider: reference.provider,
       referenceCount: current.referenceCount + 1,
-      monthlyBudgetUsd: current.monthlyBudgetUsd + reference.monthlyBudgetUsd
+      monthlyBudgetUsd: current.monthlyBudgetUsd + reference.monthlyBudgetUsd,
+      rotationDueSoonCount: current.rotationDueSoonCount + (reference.rotationStatus === "due_soon" ? 1 : 0),
+      rotationOverdueCount: current.rotationOverdueCount + (reference.rotationStatus === "overdue" ? 1 : 0)
     });
   }
 
   return [...providers.values()].sort((left, right) => left.provider.localeCompare(right.provider));
+}
+
+function rotationStatusFor(rotationDueAt: string | undefined, asOf: Date) {
+  if (!rotationDueAt) {
+    return "unknown" as const;
+  }
+
+  const dueAt = new Date(rotationDueAt);
+  if (Number.isNaN(dueAt.valueOf())) {
+    return "unknown" as const;
+  }
+
+  if (dueAt.getTime() < asOf.getTime()) {
+    return "overdue" as const;
+  }
+
+  const daysUntilDue = (dueAt.getTime() - asOf.getTime()) / (1000 * 60 * 60 * 24);
+  return daysUntilDue <= 30 ? "due_soon" as const : "ok" as const;
 }
 
 async function resolveProjectAiControlFromRepository(

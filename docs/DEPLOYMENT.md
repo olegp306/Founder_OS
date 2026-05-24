@@ -62,6 +62,7 @@ Use `npm run deployment:check -- --base-url https://<founder-os-host> --token <F
 - Store AI provider keys in the deployment platform or a secret manager. Founder OS should store only `secretRef` values such as `vercel:PROJECT_OPENAI_API_KEY`.
 - Use `/api/projects/ai-setup` after manifest import to register the project's AI key reference and token policy in one protected admin call.
 - Use `GET /api/ai-keys` to review the safe AI key reference inventory across projects, providers, allowed models, and monthly budgets without exposing plaintext provider keys.
+- Track `environment`, `rotationDueAt`, `lastVerifiedAt`, and inventory `rotationStatus` for each AI key reference so OpenAI, Anthropic, Google, and other provider keys can be rotated before production risk accumulates.
 - Use `/api/projects/connection?projectKey=<project>&assistantKey=<assistant>` after onboarding to get the safe integration bundle for the connected project.
 - Connected products should ask `/api/ai-control/resolve` which provider, model, secret reference, and budget metadata to use before high-cost AI work.
 - Connected assistants should call `/api/ai-usage/assess` before expensive or open-ended AI work. Respect `recommendedAction` and `modelDirective` to downgrade, rate-limit, block, or temporarily suspend abusive usage.

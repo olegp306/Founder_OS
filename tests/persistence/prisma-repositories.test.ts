@@ -241,6 +241,9 @@ describe("Prisma repository set", () => {
           allowedModels: ["gpt-5.4-mini"],
           defaultModel: "gpt-5.4-mini",
           monthlyBudgetUsd: "250",
+          environment: "production",
+          rotationDueAt: new Date("2026-06-10T00:00:00.000Z"),
+          lastVerifiedAt: new Date("2026-05-20T00:00:00.000Z"),
           status: "active"
         }),
         findMany: vi.fn().mockResolvedValue([
@@ -251,6 +254,9 @@ describe("Prisma repository set", () => {
             allowedModels: ["gpt-5.4-mini"],
             defaultModel: "gpt-5.4-mini",
             monthlyBudgetUsd: "250",
+            environment: "production",
+            rotationDueAt: new Date("2026-06-10T00:00:00.000Z"),
+            lastVerifiedAt: new Date("2026-05-20T00:00:00.000Z"),
             status: "active"
           }
         ])
@@ -290,6 +296,9 @@ describe("Prisma repository set", () => {
       allowedModels: ["gpt-5.4-mini"],
       defaultModel: "gpt-5.4-mini",
       monthlyBudgetUsd: 250,
+      environment: "production",
+      rotationDueAt: "2026-06-10T00:00:00.000Z",
+      lastVerifiedAt: "2026-05-20T00:00:00.000Z",
       status: "active"
     });
 
@@ -306,12 +315,28 @@ describe("Prisma repository set", () => {
       tokenTrackingRequired: true
     });
     await expect(repositories.projects.aiKeysForProject("booking_assistant")).resolves.toEqual([
-      expect.objectContaining({ secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY" })
+      expect.objectContaining({
+        secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+        environment: "production",
+        rotationDueAt: "2026-06-10T00:00:00.000Z",
+        lastVerifiedAt: "2026-05-20T00:00:00.000Z"
+      })
     ]);
 
     expect(prisma.project.upsert).toHaveBeenCalledOnce();
     expect(prisma.repository.upsert).toHaveBeenCalledOnce();
     expect(prisma.projectControl.upsert).toHaveBeenCalledOnce();
-    expect(prisma.aiKeyReference.upsert).toHaveBeenCalledOnce();
+    expect(prisma.aiKeyReference.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({
+        environment: "production",
+        rotationDueAt: new Date("2026-06-10T00:00:00.000Z"),
+        lastVerifiedAt: new Date("2026-05-20T00:00:00.000Z")
+      }),
+      update: expect.objectContaining({
+        environment: "production",
+        rotationDueAt: new Date("2026-06-10T00:00:00.000Z"),
+        lastVerifiedAt: new Date("2026-05-20T00:00:00.000Z")
+      })
+    }));
   });
 });
