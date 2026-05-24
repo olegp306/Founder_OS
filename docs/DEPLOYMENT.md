@@ -55,7 +55,7 @@ Use `npm run deployment:check -- --production --base-url https://<founder-os-hos
 
 ## Production Guardrails
 
-- Keep campaign delivery behind `/api/campaigns/telegram-live-send/approve` and `/api/campaigns/telegram-delivery/handoff` until Telegram bot tokens, deployment access controls, and the external delivery adapter are configured.
+- Keep campaign delivery behind `/api/campaigns/telegram-live-send/approve`, `/api/campaigns/telegram-delivery/handoff`, and `/api/campaigns/telegram-delivery/receipt` until Telegram bot tokens, deployment access controls, and the external delivery adapter are configured.
 - Keep raw conversation storage disabled by default.
 - Run `npm run deployment:check -- --production` before routing personal projects to the deployment; production mode fails closed on memory repositories, enabled dashboard demo data, missing admin-token configuration, or incomplete private readiness flags.
 - Rotate `FOUNDER_OS_ADMIN_TOKEN` immediately if it is exposed.
@@ -82,6 +82,7 @@ Use `npm run deployment:check -- --production --base-url https://<founder-os-hos
 - Use `/api/campaigns/workflow` to create or inspect the campaign workflow record before preview, dry-run, approval, or future delivery.
 - Use `/api/campaigns/telegram-dry-run` before any Telegram campaign, then record `/api/campaigns/telegram-live-send/approve` with dry-run evidence, manual approval, matching recipient counts, and a safe `botKeyRef`. Founder OS should still keep plaintext Telegram bot tokens in the deployment secret store.
 - Use `/api/campaigns/telegram-delivery/handoff` after approval to produce the safe delivery adapter payload. The handoff contains `botKeyRef`, message, approved recipient ids, and audit evidence, but never the Telegram bot token.
+- Use `/api/campaigns/telegram-delivery/receipt` from the external adapter to close the workflow as sent or failed after delivery.
 
 ## Project Onboarding
 
@@ -105,7 +106,7 @@ Current recommended local flow:
 14. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
 15. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
 16. Review `/api/alerts` for launch evidence across budget, key lifecycle, provider spend, and emergency-mode conditions.
-17. For Telegram campaigns, create the workflow, run preview, dry-run, live-send approval, then delivery handoff before enabling any external adapter.
+17. For Telegram campaigns, create the workflow, run preview, dry-run, live-send approval, delivery handoff, then adapter receipt.
 
 Bulk policy payload example:
 

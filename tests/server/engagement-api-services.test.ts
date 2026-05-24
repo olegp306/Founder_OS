@@ -7,6 +7,7 @@ import {
   handleConsentRecord,
   handleFeedbackCapture,
   handleSegmentEvaluation,
+  handleTelegramDeliveryReceipt,
   handleTelegramDeliveryHandoff,
   handleTelegramLiveSendApproval,
   handleTelegramDryRun
@@ -216,6 +217,38 @@ describe("engagement API services", () => {
       status: "handoff_ready",
       message: "Want help automating bookings?",
       blockedReasons: []
+    });
+  });
+
+  it("records Telegram delivery receipt through the runtime campaign store", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleCampaignWorkflowCreate(runtime, {
+      campaignKey: "booking_nudge",
+      name: "Booking nudge",
+      channel: "telegram",
+      purpose: "marketing",
+      message: "Want help automating bookings?",
+      actor: "founder"
+    });
+
+    await expect(
+      handleTelegramDeliveryReceipt(runtime, {
+        campaignKey: "booking_nudge",
+        adapterRunId: "telegram_run_1",
+        actor: "telegram_adapter",
+        delivered: [{ personId: "person_1", telegramId: "123456", deliveredAt: "2026-05-24T16:00:00.000Z" }],
+        failed: []
+      })
+    ).resolves.toMatchObject({
+      status: "sent",
+      deliveredCount: 1,
+      failedCount: 0
+    });
+
+    await expect(
+      handleCampaignWorkflowGet(runtime, { campaignKey: "booking_nudge" })
+    ).resolves.toMatchObject({
+      workflow: { status: "sent" }
     });
   });
 });

@@ -5,6 +5,7 @@ import {
   createCampaignPreview,
   createTelegramDeliveryHandoff,
   getCampaignWorkflow,
+  recordTelegramDeliveryReceipt,
   sendTelegramCampaignDryRun
 } from "@/domain/campaigns/campaign-center";
 import {
@@ -99,6 +100,26 @@ export const telegramDeliveryHandoffRequestSchema = z.object({
   )
 });
 
+export const telegramDeliveryReceiptRequestSchema = z.object({
+  campaignKey: z.string().min(2),
+  adapterRunId: z.string().min(2),
+  actor: z.string().min(2),
+  delivered: z.array(
+    z.object({
+      personId: z.string().min(1),
+      telegramId: z.string().min(1),
+      deliveredAt: z.string().datetime()
+    })
+  ),
+  failed: z.array(
+    z.object({
+      personId: z.string().min(1),
+      telegramId: z.string().min(1),
+      reason: z.string().min(1)
+    })
+  )
+});
+
 export async function handleConsentRecord(runtime: FounderOsRuntime, payload: unknown) {
   const input = consentRequestSchema.parse(payload);
   const consent = grantConsent(runtime.profileOps, input);
@@ -167,5 +188,12 @@ export async function handleTelegramDeliveryHandoff(runtime: FounderOsRuntime, p
   return createTelegramDeliveryHandoff(
     runtime.campaigns,
     telegramDeliveryHandoffRequestSchema.parse(payload)
+  );
+}
+
+export async function handleTelegramDeliveryReceipt(runtime: FounderOsRuntime, payload: unknown) {
+  return recordTelegramDeliveryReceipt(
+    runtime.campaigns,
+    telegramDeliveryReceiptRequestSchema.parse(payload)
   );
 }

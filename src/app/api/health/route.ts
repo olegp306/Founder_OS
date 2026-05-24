@@ -25,6 +25,7 @@ export async function GET() {
       "/api/campaigns/telegram-dry-run",
       "/api/campaigns/telegram-live-send/approve",
       "/api/campaigns/telegram-delivery/handoff",
+      "/api/campaigns/telegram-delivery/receipt",
       "/api/projects/onboard",
       "/api/projects/bulk-import",
       "/api/projects",
@@ -58,6 +59,7 @@ export async function GET() {
       campaignWorkflowState: true,
       campaignLiveSendApproval: true,
       campaignDeliveryHandoff: true,
+      campaignDeliveryReceipt: true,
       plaintextSecretsStored: false
     },
     environment: parseFounderOsEnv({

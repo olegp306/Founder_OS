@@ -15,6 +15,7 @@ describe("health route", () => {
     expect(body.serviceBackedRoutes).toContain("/api/campaigns/workflow");
     expect(body.serviceBackedRoutes).toContain("/api/campaigns/telegram-live-send/approve");
     expect(body.serviceBackedRoutes).toContain("/api/campaigns/telegram-delivery/handoff");
+    expect(body.serviceBackedRoutes).toContain("/api/campaigns/telegram-delivery/receipt");
     expect(body.repositoryBackedRoutes).toContain("/api/token-policy/bulk");
     expect(body.privateMvpReadiness.projectConnectionBundle).toBe(true);
     expect(body.privateMvpReadiness.projectAiSetup).toBe(true);
@@ -26,5 +27,6 @@ describe("health route", () => {
     expect(body.privateMvpReadiness.campaignWorkflowState).toBe(true);
     expect(body.privateMvpReadiness.campaignLiveSendApproval).toBe(true);
     expect(body.privateMvpReadiness.campaignDeliveryHandoff).toBe(true);
+    expect(body.privateMvpReadiness.campaignDeliveryReceipt).toBe(true);
   });
 });

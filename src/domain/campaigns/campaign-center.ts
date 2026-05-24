@@ -30,7 +30,7 @@ export type CampaignAuditRecord = {
   createdAt: string;
 };
 
-export type CampaignWorkflowStatus = "draft" | "dry_run" | "approved_for_live_send" | "blocked";
+export type CampaignWorkflowStatus = "draft" | "dry_run" | "approved_for_live_send" | "blocked" | "sent" | "failed";
 
 export type CampaignWorkflowRecord = {
   campaignKey: string;
@@ -67,6 +67,15 @@ export type TelegramDeliveryHandoff = {
     personId: string;
     telegramId: string;
   }>;
+  blockedReasons: string[];
+};
+
+export type TelegramDeliveryReceipt = {
+  status: "sent" | "failed";
+  campaignKey: string;
+  adapterRunId: string;
+  deliveredCount: number;
+  failedCount: number;
   blockedReasons: string[];
 };
 
@@ -312,6 +321,52 @@ export function createTelegramDeliveryHandoff(
   });
 
   return handoff;
+}
+
+export function recordTelegramDeliveryReceipt(
+  store: InMemoryCampaignStore,
+  input: {
+    campaignKey: string;
+    adapterRunId: string;
+    actor: string;
+    delivered: Array<{
+      personId: string;
+      telegramId: string;
+      deliveredAt: string;
+    }>;
+    failed: Array<{
+      personId: string;
+      telegramId: string;
+      reason: string;
+    }>;
+  }
+): TelegramDeliveryReceipt {
+  const blockedReasons = input.failed.length > 0 ? ["delivery_failures_reported"] : [];
+  const status = blockedReasons.length === 0 ? "sent" : "failed";
+
+  updateCampaignWorkflow(store, input.campaignKey, {
+    status,
+    plannedRecipients: input.delivered.length + input.failed.length,
+    blockedReasons
+  });
+
+  store.addAudit({
+    action: status === "sent"
+      ? "campaign.telegram.delivery_sent"
+      : "campaign.telegram.delivery_failed",
+    actor: input.actor,
+    subjectId: input.campaignKey,
+    createdAt: new Date().toISOString()
+  });
+
+  return {
+    status,
+    campaignKey: input.campaignKey,
+    adapterRunId: input.adapterRunId,
+    deliveredCount: input.delivered.length,
+    failedCount: input.failed.length,
+    blockedReasons
+  };
 }
 
 export function createCampaignPreview(input: {
