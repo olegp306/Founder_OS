@@ -12,7 +12,7 @@ const alertListSchema = z.object({
 
 export type FounderOsAlert = {
   id: string;
-  type: "budget_breach" | "key_rotation_overdue" | "provider_spend_anomaly" | "emergency_mode_enabled";
+  type: "budget_breach" | "key_rotation_overdue" | "provider_spend_anomaly" | "campaign_delivery_failed" | "emergency_mode_enabled";
   severity: "critical" | "high" | "medium";
   projectKey: string;
   provider?: string;
@@ -29,6 +29,7 @@ export async function handleAlertList(runtime: FounderOsRuntime, payload: unknow
     ...await buildBudgetAlerts(runtime, input.projectKey, input.tokenWindowHours, asOf),
     ...await buildKeyRotationAlerts(runtime, input.projectKey, asOf),
     ...buildProviderSpendAlerts(runtime, input.projectKey),
+    ...buildCampaignDeliveryAlerts(runtime, input.projectKey),
     ...buildEmergencyModeAlerts(runtime, input.projectKey)
   ].sort(compareAlerts);
 
@@ -230,6 +231,28 @@ function buildEmergencyModeAlerts(runtime: FounderOsRuntime, projectKey: string 
   });
 }
 
+function buildCampaignDeliveryAlerts(runtime: FounderOsRuntime, projectKey: string | undefined): FounderOsAlert[] {
+  return runtime.campaigns
+    .allWorkflows()
+    .filter((workflow) => workflow.status === "failed")
+    .map((workflow) => ({
+      id: `campaign-delivery-failed:${workflow.campaignKey}`,
+      type: "campaign_delivery_failed" as const,
+      severity: "medium" as const,
+      projectKey: "campaigns",
+      provider: workflow.channel === "telegram" ? "telegram" : undefined,
+      title: "Campaign delivery failed",
+      detail: `${workflow.campaignKey} ended with failed ${formatChannel(workflow.channel)} delivery.`,
+      evidence: {
+        campaignKey: workflow.campaignKey,
+        channel: workflow.channel,
+        plannedRecipients: workflow.plannedRecipients,
+        blockedReasons: workflow.blockedReasons
+      },
+      occurredAt: workflow.updatedAt
+    }));
+}
+
 function latestPolicyEvent(events: StructuredEvent[], projectKey: string, assistantKey: string) {
   return events
     .filter((event) => event.project === projectKey)
@@ -279,6 +302,10 @@ function uniqueSorted(values: string[]): string[] {
 
 function formatUsd(value: number): string {
   return `$${value.toFixed(2)}`;
+}
+
+function formatChannel(channel: string): string {
+  return channel.charAt(0).toUpperCase() + channel.slice(1);
 }
 
 function roundMoney(value: number): number {

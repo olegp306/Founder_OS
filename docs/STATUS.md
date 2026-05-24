@@ -28,6 +28,7 @@ Production 98 implementation complete:
 - Real-project transfer rehearsal reports can now be written as sanitized launch artifacts.
 - Dashboard operator controls now show AI key lifecycle and production launch gate state.
 - Alert evidence now covers budget breaches, overdue key rotation, provider spend anomalies, and emergency-mode activation.
+- Alert evidence now also covers failed Telegram campaign delivery workflows.
 - `/api/health` reports alert evidence as part of private MVP readiness.
 - Campaign live-send approval now requires dry-run evidence, manual confirmation, recipient-count match, and a safe bot key reference before any future delivery adapter can be used.
 - Campaign workflow state now tracks draft, dry-run, approved, and blocked transitions before any Telegram delivery adapter is enabled.
@@ -83,6 +84,7 @@ The current campaign center slice added:
 - Telegram delivery handoff with approved `botKeyRef`, recipient list, message, and audit records, without plaintext bot tokens.
 - Telegram delivery receipts that record sent/failed outcomes and close the workflow without storing provider tokens.
 - Dashboard campaign delivery panel with workflow counts, ready handoffs, sent/failed outcomes, and safe route contracts.
+- Failed campaign delivery workflows now project into `/api/alerts` without exposing Telegram IDs, `botKeyRef`, or bot tokens.
 
 Campaign delivery remains external until production Telegram credentials, deployment access controls, and a delivery adapter are configured. Founder OS now records readiness, emits a safe handoff payload, and accepts delivery receipts, but it does not store bot tokens or send messages itself.
 
@@ -416,7 +418,7 @@ Adds the production 98 launch roadmap and starts AI key lifecycle readiness:
 - Adds `npm run projects:transfer -- --write-report <path>` to write a sanitized transfer rehearsal report with import, setup, connection, readiness, and missing steps.
 - Documents the first real-project rehearsal flow in `docs/PROJECT_TRANSFER_REHEARSAL.md`.
 - Surfaces dashboard operator controls for key lifecycle counts, provider rotation health, and launch gate readiness.
-- Adds `/api/alerts` for safe alert projections from token usage, token policy changes, provider spend imports, and key lifecycle metadata.
+- Adds `/api/alerts` for safe alert projections from token usage, token policy changes, provider spend imports, key lifecycle metadata, and failed campaign delivery workflows.
 - `/api/health` now reports `/api/alerts` and `privateMvpReadiness.alertEvidence`.
 - Adds `/api/campaigns/telegram-live-send/approve` as the guarded approval step between dry-run campaign planning and future live Telegram delivery.
 - Adds `/api/campaigns/workflow` for campaign workflow creation and state lookup.

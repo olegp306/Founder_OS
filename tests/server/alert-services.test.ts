@@ -10,6 +10,10 @@ import {
   handleAiKeyReferenceRegistration,
   handleProjectManifestOnboarding
 } from "@/server/project-ai-api-services";
+import {
+  handleCampaignWorkflowCreate,
+  handleTelegramDeliveryReceipt
+} from "@/server/engagement-api-services";
 import { handleProviderSpendImport } from "@/server/provider-spend-services";
 import { handleAlertList } from "@/server/alert-services";
 
@@ -102,6 +106,21 @@ describe("alert services", () => {
       },
       occurredAt: "2026-05-24T08:00:00.000Z"
     });
+    await handleCampaignWorkflowCreate(runtime, {
+      campaignKey: "booking_nudge",
+      name: "Booking nudge",
+      channel: "telegram",
+      purpose: "marketing",
+      message: "Want help automating bookings?",
+      actor: "founder"
+    });
+    await handleTelegramDeliveryReceipt(runtime, {
+      campaignKey: "booking_nudge",
+      adapterRunId: "telegram_run_1",
+      actor: "telegram_adapter",
+      delivered: [],
+      failed: [{ personId: "person_1", telegramId: "123456", reason: "bot_blocked" }]
+    });
 
     const result = await handleAlertList(runtime, {
       projectKey: "booking_assistant",
@@ -111,7 +130,7 @@ describe("alert services", () => {
 
     expect(result).toEqual({
       status: "listed",
-      alertCount: 4,
+      alertCount: 5,
       alerts: [
         {
           id: "budget-breach:booking_assistant:support_bot",
@@ -159,6 +178,22 @@ describe("alert services", () => {
             source: "openai_usage_export"
           },
           occurredAt: "2026-05-24T08:00:00.000Z"
+        },
+        {
+          id: "campaign-delivery-failed:booking_nudge",
+          type: "campaign_delivery_failed",
+          severity: "medium",
+          projectKey: "campaigns",
+          provider: "telegram",
+          title: "Campaign delivery failed",
+          detail: "booking_nudge ended with failed Telegram delivery.",
+          evidence: {
+            campaignKey: "booking_nudge",
+            channel: "telegram",
+            plannedRecipients: 1,
+            blockedReasons: ["delivery_failures_reported"]
+          },
+          occurredAt: expect.any(String)
         },
         {
           id: "emergency-mode:booking_assistant:support_bot",
