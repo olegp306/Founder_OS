@@ -19,6 +19,7 @@ In progress:
 
 - Production 98 launch gate: strict deploy checks, real-project rehearsal, provider spend imports, key lifecycle, dashboard operator controls, and alerts.
 - AI key lifecycle metadata for OpenAI, Anthropic, Google, and other provider references.
+- Provider spend import is now implemented for daily OpenAI, Anthropic, Google, and other provider totals.
 
 ## Branching Rule
 
@@ -376,4 +377,6 @@ Adds the production 98 launch roadmap and starts AI key lifecycle readiness:
 - Documents the remaining launch gate from 86% to 98% across key lifecycle, provider spend imports, strict deployment checks, transfer rehearsal, dashboard operator controls, and alert evidence.
 - Extends AI key references with environment, rotation due date, and last verified timestamp metadata.
 - AI key inventory now reports rotation status and provider-level due/overdue counts without storing plaintext provider keys.
+- Adds `/api/provider-spend/import` to import provider cost totals as safe `provider.spend.imported` structured events.
+- Provider spend imports deduplicate by project, provider, period, and source, and reject raw invoice or secret payload fields.
 - Adds a Prisma migration for lifecycle metadata on `AiKeyReference`.

@@ -98,19 +98,19 @@ Expected: all selected tests pass.
 - Test: `tests/server/provider-spend-services.test.ts`
 - Test: `tests/app/health-route.test.ts`
 
-- [ ] **Step 1: Write failing tests for provider spend import**
+- [x] **Step 1: Write failing tests for provider spend import**
 
 Test an admin payload that imports daily provider totals for `openai`, `anthropic`, `google`, and `other`, linked by `projectKey`, `provider`, `periodStart`, `periodEnd`, `costUsd`, and `source`.
 
-- [ ] **Step 2: Implement safe import service**
+- [x] **Step 2: Implement safe import service**
 
 Normalize provider spend into structured events named `provider.spend.imported`, with no raw invoices and no secrets.
 
-- [ ] **Step 3: Add route and health readiness flag**
+- [x] **Step 3: Add route and health readiness flag**
 
 Expose `POST /api/provider-spend/import` and add `privateMvpReadiness.providerSpendImport = true`.
 
-- [ ] **Step 4: Verify selected tests**
+- [x] **Step 4: Verify selected tests**
 
 Run: `npm test -- tests/server/provider-spend-services.test.ts tests/app/health-route.test.ts`
 
@@ -217,4 +217,3 @@ Founder OS reaches 98% when these checks are true:
 - AI key inventory shows provider, environment, budget, status, rotation status, and safe secret references.
 - Dashboard shows project readiness, token spend, AI key inventory, key lifecycle, bulk token policy, and launch gate status.
 - No route returns plaintext provider keys, raw prompts, raw conversations, or unapproved user intelligence.
-

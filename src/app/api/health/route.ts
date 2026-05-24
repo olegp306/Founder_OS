@@ -28,6 +28,7 @@ export async function GET() {
       "/api/projects/ai-setup",
       "/api/projects/connection",
       "/api/ai-keys",
+      "/api/provider-spend/import",
       "/api/ai-control/resolve",
       "/api/ai-usage/assess",
       "/api/ai-execution/decide",
@@ -48,6 +49,7 @@ export async function GET() {
       projectList: true,
       projectAiSetup: true,
       projectConnectionBundle: true,
+      providerSpendImport: true,
       plaintextSecretsStored: false
     },
     environment: parseFounderOsEnv({

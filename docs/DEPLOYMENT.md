@@ -63,6 +63,7 @@ Use `npm run deployment:check -- --base-url https://<founder-os-host> --token <F
 - Use `/api/projects/ai-setup` after manifest import to register the project's AI key reference and token policy in one protected admin call.
 - Use `GET /api/ai-keys` to review the safe AI key reference inventory across projects, providers, allowed models, and monthly budgets without exposing plaintext provider keys.
 - Track `environment`, `rotationDueAt`, `lastVerifiedAt`, and inventory `rotationStatus` for each AI key reference so OpenAI, Anthropic, Google, and other provider keys can be rotated before production risk accumulates.
+- Import daily OpenAI, Anthropic, Google, or other provider cost totals through `/api/provider-spend/import`; send only aggregate project/provider/period totals and never raw invoices, provider tokens, or plaintext secrets.
 - Use `/api/projects/connection?projectKey=<project>&assistantKey=<assistant>` after onboarding to get the safe integration bundle for the connected project.
 - Connected products should ask `/api/ai-control/resolve` which provider, model, secret reference, and budget metadata to use before high-cost AI work.
 - Connected assistants should call `/api/ai-usage/assess` before expensive or open-ended AI work. Respect `recommendedAction` and `modelDirective` to downgrade, rate-limit, block, or temporarily suspend abusive usage.
@@ -90,13 +91,14 @@ Current recommended local flow:
 5. If needed, update key references with `POST /api/ai-keys` or token policy with `/api/token-policy`.
 6. Check `/api/projects/readiness?projectKeys=<project>&assistantKey=<assistant>` and confirm `manifestImported`, `aiKeyConfigured`, and `tokenPolicyConfigured` are true.
 7. Review `GET /api/ai-keys` to confirm the inventory contains only expected `secretRef` metadata and budgets.
-8. Fetch `/api/projects/connection?projectKey=<project>&assistantKey=<assistant>` and apply the returned environment variable names, route contracts, key references, and next steps.
-9. Configure the connected project to call `/api/ai-control/resolve` before high-cost AI work.
-10. Configure connected assistants to call `/api/ai-usage/assess` before expensive or open-ended AI work.
-11. For new integrations, use `/api/ai-execution/decide` as the single AI preflight before model execution.
-12. Review `/api/token-usage/summary` for token spend and burn-rate monitoring.
-13. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
-14. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
+8. Import provider spend totals with `/api/provider-spend/import` once provider billing exports are available.
+9. Fetch `/api/projects/connection?projectKey=<project>&assistantKey=<assistant>` and apply the returned environment variable names, route contracts, key references, and next steps.
+10. Configure the connected project to call `/api/ai-control/resolve` before high-cost AI work.
+11. Configure connected assistants to call `/api/ai-usage/assess` before expensive or open-ended AI work.
+12. For new integrations, use `/api/ai-execution/decide` as the single AI preflight before model execution.
+13. Review `/api/token-usage/summary` for token spend and burn-rate monitoring.
+14. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
+15. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
 
 Bulk policy payload example:
 
