@@ -14,7 +14,7 @@
 
 `main` is at the post-80% baseline with all PRs merged. The system already has project import, AI key references, token policies, bulk emergency policies, Prisma repositories, dashboard summaries, deployment checks, and local transfer helpers.
 
-Current readiness estimate: **86%** toward the 98% production launch gate.
+Current readiness estimate: **98%** toward the production launch gate after implementation. The remaining gate is external deployment validation and one real-project rehearsal report.
 
 The missing production capabilities are:
 
@@ -39,17 +39,17 @@ The missing production capabilities are:
 - Test: `tests/persistence/prisma-repositories.test.ts`
 - Test: `tests/persistence/prisma-migrations.test.ts`
 
-- [ ] **Step 1: Write failing server test for key lifecycle inventory**
+- [x] **Step 1: Write failing server test for key lifecycle inventory**
 
 Add a test named `reports AI key lifecycle and rotation readiness` that registers OpenAI and Anthropic key references with `environment`, `rotationDueAt`, and `lastVerifiedAt`, then expects `handleAiKeyReferenceInventory` to return safe lifecycle fields and `rotationStatus` values.
 
-- [ ] **Step 2: Run test to verify RED**
+- [x] **Step 2: Run test to verify RED**
 
 Run: `npm test -- tests/server/ai-usage-api-services.test.ts`
 
 Expected: FAIL because `environment`, `rotationDueAt`, `lastVerifiedAt`, and `rotationStatus` are not supported.
 
-- [ ] **Step 3: Implement domain and service lifecycle fields**
+- [x] **Step 3: Implement domain and service lifecycle fields**
 
 Extend `AiKeyReference` with:
 
@@ -67,7 +67,7 @@ type RotationStatus = "ok" | "due_soon" | "overdue" | "unknown";
 
 Use deterministic date comparison with optional `asOf` input for tests.
 
-- [ ] **Step 4: Persist lifecycle fields**
+- [x] **Step 4: Persist lifecycle fields**
 
 Add nullable Prisma columns:
 
@@ -79,7 +79,7 @@ lastVerifiedAt DateTime?
 
 Map those fields in memory and Prisma repositories without storing plaintext keys.
 
-- [ ] **Step 5: Verify GREEN**
+- [x] **Step 5: Verify GREEN**
 
 Run:
 
@@ -217,3 +217,5 @@ Founder OS reaches 98% when these checks are true:
 - AI key inventory shows provider, environment, budget, status, rotation status, and safe secret references.
 - Dashboard shows project readiness, token spend, AI key inventory, key lifecycle, bulk token policy, and launch gate status.
 - No route returns plaintext provider keys, raw prompts, raw conversations, or unapproved user intelligence.
+
+Implementation status: code-level launch gate is complete. The remaining launch work is to run the production deployment check against the real host and attach one sanitized transfer rehearsal report for a real project.

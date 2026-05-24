@@ -33,7 +33,8 @@ export async function GET() {
       "/api/ai-usage/assess",
       "/api/ai-execution/decide",
       "/api/ai-execution/audit",
-      "/api/ai-execution/summary"
+      "/api/ai-execution/summary",
+      "/api/alerts"
     ],
     privateMvpReadiness: {
       projectOnboarding: true,
@@ -50,6 +51,7 @@ export async function GET() {
       projectAiSetup: true,
       projectConnectionBundle: true,
       providerSpendImport: true,
+      alertEvidence: true,
       plaintextSecretsStored: false
     },
     environment: parseFounderOsEnv({

@@ -4,7 +4,7 @@ Date: 2026-05-24
 
 ## Current Progress
 
-MVP progress: 86%
+MVP progress: 98%
 
 Completed capability areas:
 
@@ -15,7 +15,7 @@ Completed capability areas:
 - Campaign eligibility, preview, and Telegram dry-run foundation.
 - Production readiness foundation: admin API guard, health check, deployment docs, backup docs.
 
-In progress:
+Production 98 implementation complete:
 
 - Production 98 launch gate: strict deploy checks, real-project rehearsal, provider spend imports, key lifecycle, dashboard operator controls, and alerts.
 - AI key lifecycle metadata for OpenAI, Anthropic, Google, and other provider references.
@@ -24,6 +24,14 @@ In progress:
 - Real-project transfer rehearsal reports can now be written as sanitized launch artifacts.
 - Dashboard operator controls now show AI key lifecycle and production launch gate state.
 - Alert evidence now covers budget breaches, overdue key rotation, provider spend anomalies, and emergency-mode activation.
+- `/api/health` reports alert evidence as part of private MVP readiness.
+
+External launch gate still required:
+
+- Deploy to the production host.
+- Configure production `DATABASE_URL` and `FOUNDER_OS_ADMIN_TOKEN`.
+- Run `npm run deployment:check -- --production --base-url <founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>`.
+- Produce one real-project transfer rehearsal report before routing live AI traffic.
 
 ## Branching Rule
 
@@ -389,4 +397,5 @@ Adds the production 98 launch roadmap and starts AI key lifecycle readiness:
 - Documents the first real-project rehearsal flow in `docs/PROJECT_TRANSFER_REHEARSAL.md`.
 - Surfaces dashboard operator controls for key lifecycle counts, provider rotation health, and launch gate readiness.
 - Adds `/api/alerts` for safe alert projections from token usage, token policy changes, provider spend imports, and key lifecycle metadata.
+- `/api/health` now reports `/api/alerts` and `privateMvpReadiness.alertEvidence`.
 - Adds a Prisma migration for lifecycle metadata on `AiKeyReference`.
