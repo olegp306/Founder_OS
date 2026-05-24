@@ -141,16 +141,21 @@ export async function runDeploymentCheckCli(dependencies: DeploymentCheckCliDepe
     ...productionChecks(dependencies.options, health)
   ];
   const ready = checks.every((check) => check.passed);
+  const failedChecks = checks.filter((check) => !check.passed);
   const result = {
     mode: "checked" as const,
     ready,
     checks,
+    failedChecks,
     health
   };
 
   if (!ready) {
     withOptionalReport(dependencies.options, healthEndpoint, result);
-    throw new Error(`Deployment check failed: ${JSON.stringify(checks.filter((check) => !check.passed))}`);
+    const reportSuffix = dependencies.options.writeReportPath
+      ? `; report written to ${dependencies.options.writeReportPath}`
+      : "";
+    throw new Error(`Deployment check failed${reportSuffix}: ${JSON.stringify(failedChecks)}`);
   }
 
   return withOptionalReport(dependencies.options, healthEndpoint, result);
@@ -160,6 +165,7 @@ function withOptionalReport<
   T extends {
     mode: "dry-run" | "checked";
     checks: DeploymentCheck[];
+    failedChecks?: DeploymentCheck[];
     ready?: boolean;
     health?: DeploymentHealthResponse;
   }
@@ -174,6 +180,7 @@ function withOptionalReport<
     ready: result.ready ?? false,
     endpoint,
     checks: sanitizeForReport(result.checks),
+    failedChecks: sanitizeForReport(result.failedChecks ?? result.checks.filter((check) => !check.passed)),
     ...(result.health ? { health: sanitizeForReport(result.health) } : {})
   };
 

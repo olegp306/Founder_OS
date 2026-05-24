@@ -78,6 +78,7 @@ Before production traffic, confirm:
 - `transfer-report.json` exists.
 - `launch-evidence.json` exists.
 - The deployment report has `ready: true` and no bearer token, plaintext key, password, or `secretRef` values.
+- If the deployment report has `ready: false`, every item in `failedChecks` has an owner and fix plan before retrying the transfer.
 - `readiness.ready` is `true`, or every `readiness.missing` item has an owner and fix plan.
 - `secretRef` values point to real deployment secrets.
 - `/api/token-policy` has a project or assistant policy for the transferred project.

@@ -194,35 +194,73 @@ describe("deployment check CLI", () => {
   });
 
   it("fails when production is still running memory repositories", async () => {
-    await expect(
-      runDeploymentCheckCli({
-        options: {
-          baseUrl: "https://founder-os.example.com",
-          token: "admin-token",
-          expectedPersistence: "prisma",
-          production: true,
-          dryRun: false
-        },
-        hasMigrationDeployScript: () => true,
-        get: async () => ({
-          status: "ok",
-          persistenceMode: "memory",
-          repositoryKind: "memory",
-          environment: {
-            adminTokenConfigured: true,
-            dashboardDemoEnabled: false
+    const tempDir = mkdtempSync(join(tmpdir(), "founder-os-deployment-check-"));
+    const reportPath = join(tempDir, "failed-deployment-report.json");
+
+    try {
+      await expect(
+        runDeploymentCheckCli({
+          options: {
+            baseUrl: "https://founder-os.example.com",
+            token: "admin-token",
+            expectedPersistence: "prisma",
+            production: true,
+            dryRun: false,
+            writeReportPath: reportPath
           },
-          privateMvpReadiness: {
-            plaintextSecretsStored: false,
-            projectOnboarding: true,
-            aiKeyReferences: true,
-            projectConnectionBundle: true,
-            bulkTokenPolicy: true,
-            providerSpendImport: true
-          }
+          hasMigrationDeployScript: () => true,
+          get: async () => ({
+            status: "ok",
+            persistenceMode: "memory",
+            repositoryKind: "memory",
+            environment: {
+              adminTokenConfigured: true,
+              dashboardDemoEnabled: false
+            },
+            privateMvpReadiness: {
+              plaintextSecretsStored: false,
+              projectOnboarding: true,
+              aiKeyReferences: true,
+              projectConnectionBundle: true,
+              bulkTokenPolicy: true,
+              providerSpendImport: true
+            }
+          })
         })
-      })
-    ).rejects.toThrow("Deployment check failed");
+      ).rejects.toThrow(`Deployment check failed; report written to ${reportPath}`);
+      const report = JSON.parse(readFileSync(reportPath, "utf8"));
+
+      expect(report).toMatchObject({
+        mode: "checked",
+        ready: false,
+        failedChecks: [
+          {
+            name: "persistenceMode",
+            actual: "memory",
+            expected: "prisma"
+          },
+          {
+            name: "repositoryKind",
+            actual: "memory",
+            expected: "prisma"
+          },
+          {
+            name: "productionPersistenceMode",
+            actual: "memory",
+            expected: "prisma"
+          },
+          {
+            name: "productionRepositoryKind",
+            actual: "memory",
+            expected: "prisma"
+          }
+        ]
+      });
+      expect(JSON.stringify(report)).not.toContain("admin-token");
+      expect(JSON.stringify(report)).not.toContain("Authorization");
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 
   it("fails production checks when dashboard demo mode is enabled", async () => {
