@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 export type DeploymentCheckCliOptions = {
   baseUrl: string;
@@ -7,6 +7,7 @@ export type DeploymentCheckCliOptions = {
   expectedPersistence: "memory" | "prisma";
   production: boolean;
   dryRun: boolean;
+  writeReportPath?: string;
 };
 
 export type DeploymentCheck = {
@@ -53,7 +54,8 @@ export function parseDeploymentCheckCliArgs(
       readOption(args, "--expected-persistence") ?? env.FOUNDER_OS_EXPECTED_PERSISTENCE ?? "prisma"
     ),
     production: args.includes("--production"),
-    dryRun: args.includes("--dry-run")
+    dryRun: args.includes("--dry-run"),
+    writeReportPath: readOption(args, "--write-report")
   };
 }
 
@@ -79,10 +81,10 @@ export async function runDeploymentCheckCli(dependencies: DeploymentCheckCliDepe
   ];
 
   if (dependencies.options.dryRun) {
-    return {
+    return withOptionalReport(dependencies.options, healthEndpoint, {
       mode: "dry-run" as const,
       checks: baseChecks
-    };
+    });
   }
 
   const health = await get(healthEndpoint, buildHeaders(dependencies.options.token));
@@ -139,17 +141,84 @@ export async function runDeploymentCheckCli(dependencies: DeploymentCheckCliDepe
     ...productionChecks(dependencies.options, health)
   ];
   const ready = checks.every((check) => check.passed);
-
-  if (!ready) {
-    throw new Error(`Deployment check failed: ${JSON.stringify(checks.filter((check) => !check.passed))}`);
-  }
-
-  return {
+  const result = {
     mode: "checked" as const,
     ready,
     checks,
     health
   };
+
+  if (!ready) {
+    withOptionalReport(dependencies.options, healthEndpoint, result);
+    throw new Error(`Deployment check failed: ${JSON.stringify(checks.filter((check) => !check.passed))}`);
+  }
+
+  return withOptionalReport(dependencies.options, healthEndpoint, result);
+}
+
+function withOptionalReport<
+  T extends {
+    mode: "dry-run" | "checked";
+    checks: DeploymentCheck[];
+    ready?: boolean;
+    health?: DeploymentHealthResponse;
+  }
+>(options: DeploymentCheckCliOptions, endpoint: string, result: T) {
+  if (!options.writeReportPath) {
+    return result;
+  }
+
+  const report = {
+    generatedAt: new Date().toISOString(),
+    mode: result.mode,
+    ready: result.ready ?? false,
+    endpoint,
+    checks: sanitizeForReport(result.checks),
+    ...(result.health ? { health: sanitizeForReport(result.health) } : {})
+  };
+
+  mkdirSync(dirname(options.writeReportPath), { recursive: true });
+  writeFileSync(options.writeReportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+
+  return {
+    ...result,
+    report: {
+      path: options.writeReportPath,
+      written: true
+    }
+  };
+}
+
+function sanitizeForReport(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeForReport(item));
+  }
+
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !isSensitiveReportKey(key))
+      .map(([key, nestedValue]) => [key, sanitizeForReport(nestedValue)])
+  );
+}
+
+function isSensitiveReportKey(key: string) {
+  const normalized = key.toLowerCase();
+  return (
+    normalized === "authorization" ||
+    normalized === "token" ||
+    normalized === "accesstoken" ||
+    normalized === "refreshtoken" ||
+    normalized === "authtoken" ||
+    normalized === "bearertoken" ||
+    normalized.includes("secret") ||
+    normalized.includes("password") ||
+    normalized.includes("apikey") ||
+    normalized.includes("api_key")
+  );
 }
 
 async function getJson(endpoint: string, headers: Record<string, string>) {

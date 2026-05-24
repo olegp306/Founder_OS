@@ -16,6 +16,12 @@ Create one repeatable, sanitized evidence artifact that proves a project can be 
 npm run deployment:check -- --production --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>
 ```
 
+- Optional sanitized deployment evidence path:
+
+```powershell
+npm run deployment:check -- --production --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN> --write-report C:\Repos\<project>\.founderos\deployment-report.json
+```
+
 - A project manifest at `<project>\.founderos\project.json`.
 - A setup file at `<project>\.founderos\ai-setup.json`.
 - Provider keys stored only in the deployment secret store. The setup file must use `secretRef` values, not plaintext keys.
@@ -68,8 +74,10 @@ The launch evidence artifact captures the matching `/api/projects/launch-evidenc
 
 Before production traffic, confirm:
 
+- `deployment-report.json` exists if `--write-report` was used.
 - `transfer-report.json` exists.
 - `launch-evidence.json` exists.
+- The deployment report has `ready: true` and no bearer token, plaintext key, password, or `secretRef` values.
 - `readiness.ready` is `true`, or every `readiness.missing` item has an owner and fix plan.
 - `secretRef` values point to real deployment secrets.
 - `/api/token-policy` has a project or assistant policy for the transferred project.

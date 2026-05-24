@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import {
   parseDeploymentCheckCliArgs,
   runDeploymentCheckCli
@@ -15,14 +18,17 @@ describe("deployment check CLI", () => {
         "--expected-persistence",
         "prisma",
         "--production",
-        "--dry-run"
+        "--dry-run",
+        "--write-report",
+        "C:\\Repos\\Founder_OS\\.founderos\\deployment-report.json"
       ])
     ).toEqual({
       baseUrl: "https://founder-os.example.com",
       token: "admin-token",
       expectedPersistence: "prisma",
       production: true,
-      dryRun: true
+      dryRun: true,
+      writeReportPath: "C:\\Repos\\Founder_OS\\.founderos\\deployment-report.json"
     });
   });
 
@@ -37,7 +43,8 @@ describe("deployment check CLI", () => {
       token: "admin-token",
       expectedPersistence: "prisma",
       production: false,
-      dryRun: false
+      dryRun: false,
+      writeReportPath: undefined
     });
   });
 
@@ -48,7 +55,8 @@ describe("deployment check CLI", () => {
         token: "admin-token",
         expectedPersistence: "prisma",
         production: false,
-        dryRun: true
+        dryRun: true,
+        writeReportPath: undefined
       },
       get: async () => {
         throw new Error("dry-run should not fetch");
@@ -68,6 +76,68 @@ describe("deployment check CLI", () => {
         }
       ]
     });
+  });
+
+  it("writes a sanitized deployment report artifact after a passing production check", async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "founder-os-deployment-check-"));
+    const reportPath = join(tempDir, "deployment-report.json");
+
+    try {
+      const result = await runDeploymentCheckCli({
+        options: {
+          baseUrl: "https://founder-os.example.com",
+          token: "admin-token",
+          expectedPersistence: "prisma",
+          production: true,
+          dryRun: false,
+          writeReportPath: reportPath
+        },
+        hasMigrationDeployScript: () => true,
+        get: async () => ({
+          status: "ok",
+          persistenceMode: "prisma",
+          repositoryKind: "prisma",
+          environment: {
+            adminTokenConfigured: true,
+            dashboardDemoEnabled: false
+          },
+          privateMvpReadiness: {
+            plaintextSecretsStored: false,
+            projectOnboarding: true,
+            aiKeyReferences: true,
+            projectConnectionBundle: true,
+            bulkTokenPolicy: true,
+            providerSpendImport: true
+          }
+        })
+      });
+      const report = JSON.parse(readFileSync(reportPath, "utf8"));
+
+      expect(result).toMatchObject({
+        report: {
+          path: reportPath,
+          written: true
+        }
+      });
+      expect(report).toMatchObject({
+        mode: "checked",
+        ready: true,
+        endpoint: "https://founder-os.example.com/api/health",
+        health: {
+          status: "ok",
+          persistenceMode: "prisma",
+          repositoryKind: "prisma",
+          environment: {
+            adminTokenConfigured: true,
+            dashboardDemoEnabled: false
+          }
+        }
+      });
+      expect(JSON.stringify(report)).not.toContain("admin-token");
+      expect(JSON.stringify(report)).not.toContain("Authorization");
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 
   it("passes when production health reports prisma repositories", async () => {

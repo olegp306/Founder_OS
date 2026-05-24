@@ -29,7 +29,7 @@ Do not commit real environment values. Store production values in the hosting pr
 3. Run `npm run prisma:migrate:deploy` from the deployment pipeline.
 4. Deploy the Next.js app.
 5. Put the dashboard behind Cloudflare Access or Tailscale before connecting real product integrations.
-6. Run `npm run deployment:check -- --production --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>`.
+6. Run `npm run deployment:check -- --production --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN> --write-report C:\Repos\<project>\.founderos\deployment-report.json`.
 7. Configure connected products to call Founder OS APIs with `Authorization: Bearer <FOUNDER_OS_ADMIN_TOKEN>`.
 
 ## Persistence Mode
@@ -51,13 +51,13 @@ When `DATABASE_URL` is set and `FOUNDER_OS_FORCE_MEMORY` is not `true`, the runt
 
 Use `npm run prisma:migrate:deploy` against each fresh Postgres database before routing connected products to Founder OS. The initial migration creates the private control-plane tables for projects, repositories, project controls, AI key references, events, token usage, token policies, profiles, consents, feedback, segments, campaigns, and audit logs.
 
-Use `npm run deployment:check -- --production --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>` after deploy. It checks the migration deploy script, bearer token configuration, `/api/health`, Prisma persistence mode, Prisma repository kind, every private MVP readiness flag, disabled dashboard demo mode, and verifies plaintext secrets are not centrally stored.
+Use `npm run deployment:check -- --production --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN> --write-report C:\Repos\<project>\.founderos\deployment-report.json` after deploy. It checks the migration deploy script, bearer token configuration, `/api/health`, Prisma persistence mode, Prisma repository kind, every private MVP readiness flag, disabled dashboard demo mode, and verifies plaintext secrets are not centrally stored. The optional report is a sanitized JSON launch artifact with the health endpoint, checks, readiness flags, and no bearer token or plaintext secret values.
 
 ## Production Guardrails
 
 - Keep campaign delivery behind `/api/campaigns/telegram-live-send/approve`, `/api/campaigns/telegram-delivery/handoff`, and `/api/campaigns/telegram-delivery/receipt` until Telegram bot tokens, deployment access controls, and the external delivery adapter are configured.
 - Keep raw conversation storage disabled by default.
-- Run `npm run deployment:check -- --production` before routing personal projects to the deployment; production mode fails closed on memory repositories, enabled dashboard demo data, missing admin-token configuration, or incomplete private readiness flags.
+- Run `npm run deployment:check -- --production --write-report <path>` before routing personal projects to the deployment; production mode fails closed on memory repositories, enabled dashboard demo data, missing admin-token configuration, or incomplete private readiness flags, and can write a sanitized deployment evidence artifact.
 - Rotate `FOUNDER_OS_ADMIN_TOKEN` immediately if it is exposed.
 - Use separate database credentials for local, staging, and production.
 - Store AI provider keys in the deployment platform or a secret manager. Founder OS should store only `secretRef` values such as `vercel:PROJECT_OPENAI_API_KEY`.

@@ -25,6 +25,7 @@ Production 98 implementation complete:
 - AI key lifecycle metadata for OpenAI, Anthropic, Google, and other provider references.
 - Provider spend import is now implemented for daily OpenAI, Anthropic, Google, and other provider totals.
 - Strict production launch gate is now implemented for Prisma persistence, disabled dashboard demo mode, admin token readiness, and private MVP readiness flags.
+- Deployment checks can now write a sanitized deployment report artifact for the production launch gate without exposing bearer tokens or plaintext secrets.
 - Real-project transfer rehearsal reports can now be written as sanitized launch artifacts.
 - Per-project launch evidence snapshots now aggregate readiness, connection state, token spend, alerts, and campaign workflow counts without exposing secret refs, raw prompts, message bodies, or recipient IDs.
 - Dashboard operator controls now surface launch evidence readiness, blockers, alert count, campaign workflow count, and projected spend for the configured project.
@@ -44,7 +45,7 @@ External launch gate still required:
 
 - Deploy to the production host.
 - Configure production `DATABASE_URL` and `FOUNDER_OS_ADMIN_TOKEN`.
-- Run `npm run deployment:check -- --production --base-url <founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>`.
+- Run `npm run deployment:check -- --production --base-url <founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN> --write-report <project>\.founderos\deployment-report.json`.
 - Produce one real-project transfer rehearsal report and launch evidence artifact before routing live AI traffic.
 
 ## Branching Rule
@@ -419,6 +420,7 @@ Adds the production 98 launch roadmap and starts AI key lifecycle readiness:
 - Adds `/api/provider-spend/import` to import provider cost totals as safe `provider.spend.imported` structured events.
 - Provider spend imports deduplicate by project, provider, period, and source, and reject raw invoice or secret payload fields.
 - Adds `npm run deployment:check -- --production` as a strict launch gate that fails on memory persistence, memory repositories, enabled dashboard demo mode, missing admin token configuration, plaintext secret storage, or incomplete readiness flags.
+- Adds `npm run deployment:check -- --write-report <path>` to persist a sanitized deployment launch artifact with checks, health readiness, and no bearer tokens or plaintext secrets.
 - `/api/health` now exposes whether dashboard demo mode is enabled without exposing secret values.
 - Adds `npm run projects:transfer -- --write-report <path> --write-launch-evidence <path>` to write a sanitized transfer rehearsal report and a stricter launch evidence artifact with import, setup, connection, readiness, token, alert, and campaign evidence.
 - Documents the first real-project rehearsal flow in `docs/PROJECT_TRANSFER_REHEARSAL.md`.
