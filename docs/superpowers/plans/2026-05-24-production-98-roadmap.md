@@ -150,15 +150,15 @@ Run: `npm test -- tests/local/deployment-check-cli.test.ts`
 - Modify: `src/local/project-transfer-cli.ts`
 - Modify: `tests/local/project-transfer-cli.test.ts`
 
-- [ ] **Step 1: Write failing transfer rehearsal tests**
+- [x] **Step 1: Write failing transfer rehearsal tests**
 
 Add a `--write-report <path>` test that expects a sanitized JSON report with import, setup, connection, readiness, and missing steps.
 
-- [ ] **Step 2: Implement report output**
+- [x] **Step 2: Implement report output**
 
 Write a local report that contains no plaintext secrets and can be attached to launch notes.
 
-- [ ] **Step 3: Document first-project rehearsal**
+- [x] **Step 3: Document first-project rehearsal**
 
 Document exactly how to rehearse one personal project before live traffic.
 

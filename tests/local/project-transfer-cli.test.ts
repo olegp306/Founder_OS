@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import {
   parseProjectTransferCliArgs,
   runProjectTransferCli
@@ -38,6 +41,8 @@ describe("project transfer CLI", () => {
         "https://founder-os.example.com",
         "--token",
         "admin-token",
+        "--write-report",
+        "C:\\Repos\\booking\\.founderos\\transfer-report.json",
         "--dry-run"
       ])
     ).toEqual({
@@ -45,6 +50,7 @@ describe("project transfer CLI", () => {
       setupConfigPath: "C:\\Repos\\booking\\.founderos\\ai-setup.json",
       baseUrl: "https://founder-os.example.com",
       token: "admin-token",
+      writeReportPath: "C:\\Repos\\booking\\.founderos\\transfer-report.json",
       dryRun: true
     });
   });
@@ -55,6 +61,7 @@ describe("project transfer CLI", () => {
       setupConfigPath: ".founderos/ai-setup.json",
       baseUrl: "http://localhost:3000",
       token: undefined,
+      writeReportPath: undefined,
       dryRun: false
     });
   });
@@ -65,6 +72,7 @@ describe("project transfer CLI", () => {
         rootPath: "C:\\Repos",
         setupConfigPath: ".founderos/ai-setup.json",
         baseUrl: "http://localhost:3000",
+        writeReportPath: undefined,
         dryRun: true
       },
       discover: async () => [
@@ -114,6 +122,7 @@ describe("project transfer CLI", () => {
         setupConfigPath: ".founderos/ai-setup.json",
         baseUrl: "http://localhost:3000",
         token: "admin-token",
+        writeReportPath: undefined,
         dryRun: false
       },
       discover: async () => [
@@ -183,5 +192,142 @@ describe("project transfer CLI", () => {
       setup: { status: "configured", bundle: { ready: true } },
       connection: { status: "built", bundle: { projectKey: "booking_assistant", ready: true } }
     });
+  });
+
+  it("writes a sanitized transfer rehearsal report", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "founder-os-transfer-"));
+    const reportPath = join(tempDir, "transfer-report.json");
+
+    try {
+      const result = await runProjectTransferCli({
+        options: {
+          rootPath: "C:\\Repos",
+          setupConfigPath: ".founderos/ai-setup.json",
+          baseUrl: "http://localhost:3000",
+          token: "admin-token",
+          writeReportPath: reportPath,
+          dryRun: false
+        },
+        discover: async () => [
+          {
+            path: "C:\\Repos\\booking\\.founderos\\project.json",
+            content: "{\"project_id\":\"booking_assistant\"}"
+          }
+        ],
+        readSetupConfig: async () => JSON.stringify(setupPayload),
+        post: async (endpoint) => endpoint.endsWith("/api/projects/bulk-import")
+          ? {
+              status: "imported",
+              imported: [{ projectKey: "booking_assistant" }],
+              skipped: [],
+              invalid: []
+            }
+          : {
+              status: "configured",
+              bundle: {
+                readiness: {
+                  ready: false,
+                  missing: ["token usage tracking"]
+                }
+              }
+            },
+        get: async () => ({
+          status: "built",
+          bundle: {
+            projectKey: "booking_assistant",
+            assistantKey: "support_bot",
+            readiness: {
+              ready: false,
+              missing: ["token usage tracking"]
+            },
+            keyReferences: [
+              {
+                provider: "openai",
+                secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY"
+              }
+            ]
+          }
+        })
+      });
+
+      expect(result.report).toEqual({
+        path: reportPath,
+        written: true
+      });
+
+      const report = JSON.parse(await readFile(reportPath, "utf8"));
+      expect(report).toEqual({
+        generatedAt: expect.any(String),
+        mode: "transferred",
+        endpoints: {
+          import: "http://localhost:3000/api/projects/bulk-import",
+          setup: "http://localhost:3000/api/projects/ai-setup",
+          connection:
+            "http://localhost:3000/api/projects/connection?projectKey=booking_assistant&assistantKey=support_bot"
+        },
+        project: {
+          projectKey: "booking_assistant",
+          assistantKey: "support_bot"
+        },
+        import: {
+          manifestCount: 1,
+          result: {
+            status: "imported",
+            imported: [{ projectKey: "booking_assistant" }],
+            skipped: [],
+            invalid: []
+          }
+        },
+        setup: {
+          provider: "openai",
+          defaultModel: "gpt-5.4-mini",
+          monthlyBudgetUsd: 250,
+          tokenPolicy: {
+            preferredModel: "gpt-5.4",
+            fallbackModel: "gpt-5.4-mini",
+            dailyBudgetUsd: 20,
+            monthlyBudgetUsd: 250,
+            maxTokensPerRequest: 8000,
+            emergencyMode: false
+          },
+          result: {
+            status: "configured",
+            bundle: {
+              readiness: {
+                ready: false,
+                missing: ["token usage tracking"]
+              }
+            }
+          }
+        },
+        connection: {
+          result: {
+            status: "built",
+            bundle: {
+              projectKey: "booking_assistant",
+              assistantKey: "support_bot",
+              readiness: {
+                ready: false,
+                missing: ["token usage tracking"]
+              },
+              keyReferences: [
+                {
+                  provider: "openai",
+                  secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY"
+                }
+              ]
+            }
+          }
+        },
+        readiness: {
+          ready: false,
+          missing: ["token usage tracking"]
+        }
+      });
+      expect(JSON.stringify(report)).not.toContain("plaintextSecret");
+      expect(JSON.stringify(report)).not.toContain("sk-never-send");
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
   });
 });

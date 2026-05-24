@@ -123,13 +123,13 @@ Bulk policy payload example:
 
 Use `docs/PROJECT_AI_SETUP.example.json` as the template for `.founderos/ai-setup.json`. Keep real provider keys in Vercel, Supabase, Neon, Cloudflare, Tailscale, or another secret manager; the file should contain only `secretRef` values.
 
-For a one-command local transfer, run:
+For a one-command local transfer rehearsal, run:
 
 ```powershell
-npm run projects:transfer -- --root C:\Repos --setup-config C:\Repos\<project>\.founderos\ai-setup.json --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>
+npm run projects:transfer -- --root C:\Repos --setup-config C:\Repos\<project>\.founderos\ai-setup.json --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN> --write-report C:\Repos\<project>\.founderos\transfer-report.json
 ```
 
-Use `--dry-run` first to preview the discovered manifests, sanitized setup payload, and connection bundle URL.
+Use `--dry-run` first to preview the discovered manifests, sanitized setup payload, and connection bundle URL. Use `docs/PROJECT_TRANSFER_REHEARSAL.md` as the launch checklist for the first real project.
 
 The internal dashboard also shows the same transfer command, required environment variable names, route paths, remaining connection-bundle next steps, safe AI key inventory budgets, and the bulk token-policy incident command for the configured dashboard project.
 

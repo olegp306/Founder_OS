@@ -21,6 +21,7 @@ In progress:
 - AI key lifecycle metadata for OpenAI, Anthropic, Google, and other provider references.
 - Provider spend import is now implemented for daily OpenAI, Anthropic, Google, and other provider totals.
 - Strict production launch gate is now implemented for Prisma persistence, disabled dashboard demo mode, admin token readiness, and private MVP readiness flags.
+- Real-project transfer rehearsal reports can now be written as sanitized launch artifacts.
 
 ## Branching Rule
 
@@ -382,4 +383,6 @@ Adds the production 98 launch roadmap and starts AI key lifecycle readiness:
 - Provider spend imports deduplicate by project, provider, period, and source, and reject raw invoice or secret payload fields.
 - Adds `npm run deployment:check -- --production` as a strict launch gate that fails on memory persistence, memory repositories, enabled dashboard demo mode, missing admin token configuration, plaintext secret storage, or incomplete readiness flags.
 - `/api/health` now exposes whether dashboard demo mode is enabled without exposing secret values.
+- Adds `npm run projects:transfer -- --write-report <path>` to write a sanitized transfer rehearsal report with import, setup, connection, readiness, and missing steps.
+- Documents the first real-project rehearsal flow in `docs/PROJECT_TRANSFER_REHEARSAL.md`.
 - Adds a Prisma migration for lifecycle metadata on `AiKeyReference`.
