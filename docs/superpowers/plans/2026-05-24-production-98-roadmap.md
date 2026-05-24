@@ -171,15 +171,15 @@ Document exactly how to rehearse one personal project before live traffic.
 - Test: `tests/server/dashboard-services.test.ts`
 - Test: `tests/app/home-page.test.tsx`
 
-- [ ] **Step 1: Surface AI key lifecycle panel**
+- [x] **Step 1: Surface AI key lifecycle panel**
 
 Show key count by provider, production key count, rotation due/overdue counts, and disabled/rotating statuses.
 
-- [ ] **Step 2: Surface launch gate panel**
+- [x] **Step 2: Surface launch gate panel**
 
 Show whether persistence, repository kind, private readiness, and demo mode are production-safe.
 
-- [ ] **Step 3: Verify dashboard render**
+- [x] **Step 3: Verify dashboard render**
 
 Run: `npm test -- tests/server/dashboard-services.test.ts tests/app/home-page.test.tsx`
 

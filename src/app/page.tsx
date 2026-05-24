@@ -285,6 +285,62 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section className="operator-grid" aria-label="Operator controls">
+        <div className="operator-panel" aria-label="AI key lifecycle">
+          <div className="section-heading">
+            <h2>Key Lifecycle</h2>
+            <span>{dashboard.keyLifecycle.totalReferences} references</span>
+          </div>
+          <div className="spend-summary">
+            <article className="spend-card">
+              <span>Production keys</span>
+              <strong>{dashboard.keyLifecycle.productionReferences}</strong>
+            </article>
+            <article className="spend-card">
+              <span>Rotation due</span>
+              <strong>{dashboard.keyLifecycle.rotationDueSoon}</strong>
+            </article>
+            <article className="spend-card">
+              <span>Overdue</span>
+              <strong>{dashboard.keyLifecycle.rotationOverdue}</strong>
+            </article>
+          </div>
+          <div className="spend-list operator-list">
+            <h3>Providers</h3>
+            {dashboard.keyLifecycle.providerHealth.map((provider) => (
+              <div className="spend-row" key={provider.provider}>
+                <code>{provider.provider}</code>
+                <span>{provider.productionReferences}/{provider.references}</span>
+                <strong>{provider.rotationOverdue} overdue</strong>
+              </div>
+            ))}
+            {dashboard.keyLifecycle.providerHealth.length === 0 ? (
+              <div className="spend-row">
+                <code>none</code>
+                <span>0/0</span>
+                <strong>0 overdue</strong>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="operator-panel" aria-label="Production launch gate">
+          <div className="section-heading">
+            <h2>Launch Gate</h2>
+            <span>{dashboard.launchGate.readyCount}/{dashboard.launchGate.totalCount}</span>
+          </div>
+          <div className="readiness-grid operator-readiness">
+            {dashboard.launchGate.items.map((item) => (
+              <div className="readiness-row" data-ready={item.ready} key={item.label}>
+                <strong>{item.ready ? "ready" : "blocked"}</strong>
+                <span>{item.label}</span>
+                <code>{item.detail ?? "unknown"}</code>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className="transfer-flow" aria-label="Bulk token policy">
         <div className="section-heading">
           <h2>Bulk Token Policy</h2>

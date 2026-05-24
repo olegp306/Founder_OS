@@ -201,6 +201,122 @@ describe("dashboard services", () => {
     expect(JSON.stringify(viewModel)).not.toContain("vercel:SALES_COPILOT_ANTHROPIC_API_KEY");
   });
 
+  it("builds AI key lifecycle operator controls for the dashboard", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "booking_assistant",
+      name: "Booking Assistant",
+      status: "active",
+      owner: "olegp306"
+    });
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "sales_copilot",
+      name: "Sales Copilot",
+      status: "active",
+      owner: "olegp306"
+    });
+    await handleAiKeyReferenceRegistration(runtime, {
+      projectKey: "booking_assistant",
+      provider: "openai",
+      secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+      displayName: "Booking Assistant OpenAI key",
+      allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
+      defaultModel: "gpt-5.4-mini",
+      monthlyBudgetUsd: 250,
+      environment: "production",
+      lastVerifiedAt: "2026-05-20T00:00:00.000Z",
+      rotationDueAt: "2026-06-10T00:00:00.000Z"
+    });
+    await handleAiKeyReferenceRegistration(runtime, {
+      projectKey: "sales_copilot",
+      provider: "anthropic",
+      secretRef: "vercel:SALES_COPILOT_ANTHROPIC_API_KEY",
+      displayName: "Sales Copilot Anthropic key",
+      allowedModels: ["claude-sonnet-4.5"],
+      defaultModel: "claude-sonnet-4.5",
+      monthlyBudgetUsd: 400,
+      environment: "staging",
+      rotationDueAt: "2026-05-20T00:00:00.000Z"
+    });
+
+    const viewModel = await buildAiControlDashboardViewModel(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot",
+      asOf: "2026-05-24T00:00:00.000Z"
+    });
+
+    expect(viewModel.keyLifecycle).toEqual({
+      totalReferences: "2",
+      productionReferences: "1",
+      activeReferences: "2",
+      rotationDueSoon: "1",
+      rotationOverdue: "1",
+      rotationUnknown: "0",
+      providerHealth: [
+        {
+          provider: "anthropic",
+          references: "1",
+          productionReferences: "0",
+          rotationDueSoon: "0",
+          rotationOverdue: "1"
+        },
+        {
+          provider: "openai",
+          references: "1",
+          productionReferences: "1",
+          rotationDueSoon: "1",
+          rotationOverdue: "0"
+        }
+      ],
+      projects: [
+        {
+          projectKey: "booking_assistant",
+          name: "Booking Assistant",
+          productionReferences: "1",
+          rotationStatuses: ["due_soon"],
+          providers: ["openai"]
+        },
+        {
+          projectKey: "sales_copilot",
+          name: "Sales Copilot",
+          productionReferences: "0",
+          rotationStatuses: ["overdue"],
+          providers: ["anthropic"]
+        }
+      ]
+    });
+    expect(JSON.stringify(viewModel.keyLifecycle)).not.toContain("vercel:");
+    expect(JSON.stringify(viewModel.keyLifecycle)).not.toContain("sk-");
+  });
+
+  it("builds launch gate operator controls for the dashboard", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+
+    const viewModel = await buildAiControlDashboardViewModel(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot",
+      env: {
+        DATABASE_URL: undefined,
+        FOUNDER_OS_ADMIN_TOKEN: "admin-token",
+        FOUNDER_OS_ENABLE_DASHBOARD_DEMO: "true"
+      }
+    });
+
+    expect(viewModel.launchGate).toEqual({
+      ready: false,
+      readyCount: 3,
+      totalCount: 6,
+      items: [
+        { label: "Persistence", ready: false, detail: "memory" },
+        { label: "Repositories", ready: false, detail: "memory" },
+        { label: "Admin token", ready: true, detail: "configured" },
+        { label: "Dashboard demo", ready: false, detail: "enabled" },
+        { label: "Plaintext secrets", ready: true, detail: "not stored" },
+        { label: "Private readiness", ready: true, detail: "ready" }
+      ]
+    });
+  });
+
   it("builds bulk token policy controls for cost incidents", async () => {
     const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
     await handleProjectManifestOnboarding(runtime, {

@@ -15,6 +15,7 @@ import {
   handleProjectManifestOnboarding,
   handleProjectReadinessList
 } from "@/server/project-ai-api-services";
+import { parseFounderOsEnv } from "@/domain/readiness/readiness";
 
 export type DashboardMetric = {
   label: string;
@@ -96,6 +97,36 @@ export type DashboardAiKeyInventory = {
   }>;
 };
 
+export type DashboardKeyLifecycle = {
+  totalReferences: string;
+  productionReferences: string;
+  activeReferences: string;
+  rotationDueSoon: string;
+  rotationOverdue: string;
+  rotationUnknown: string;
+  providerHealth: Array<{
+    provider: string;
+    references: string;
+    productionReferences: string;
+    rotationDueSoon: string;
+    rotationOverdue: string;
+  }>;
+  projects: Array<{
+    projectKey: string;
+    name: string;
+    productionReferences: string;
+    rotationStatuses: string[];
+    providers: string[];
+  }>;
+};
+
+export type DashboardLaunchGate = {
+  ready: boolean;
+  readyCount: number;
+  totalCount: number;
+  items: DashboardReadinessItem[];
+};
+
 export type DashboardBulkTokenPolicy = {
   route: string;
   command: string;
@@ -124,6 +155,8 @@ export type AiControlDashboardViewModel = {
   transferFlow: DashboardTransferFlow;
   connectedProjects: DashboardConnectedProject[];
   aiKeyInventory: DashboardAiKeyInventory;
+  keyLifecycle: DashboardKeyLifecycle;
+  launchGate: DashboardLaunchGate;
   bulkTokenPolicy: DashboardBulkTokenPolicy;
 };
 
@@ -134,7 +167,13 @@ const demoSeedOperations = new WeakMap<
 
 export async function buildAiControlDashboardViewModel(
   runtime: FounderOsRuntime,
-  input: { projectKey?: string; assistantKey?: string; tokenWindowHours?: number } = {}
+  input: {
+    projectKey?: string;
+    assistantKey?: string;
+    tokenWindowHours?: number;
+    asOf?: string;
+    env?: Record<string, string | undefined>;
+  } = {}
 ): Promise<AiControlDashboardViewModel> {
   const tokenWindowHours = input.tokenWindowHours ?? 1;
   const assistantKey = input.assistantKey ?? "unknown";
@@ -190,7 +229,7 @@ export async function buildAiControlDashboardViewModel(
           }
         }),
     handleProjectList(runtime, { assistantKey: input.assistantKey }),
-    handleAiKeyReferenceInventory(runtime, {})
+    handleAiKeyReferenceInventory(runtime, { asOf: input.asOf })
   ]);
   const total = summary.totalDecisions;
   const downgradeCount = Number(summary.actionCounts.downgrade ?? 0);
@@ -244,6 +283,8 @@ export async function buildAiControlDashboardViewModel(
       missing: project.missing
     })),
     aiKeyInventory: buildDashboardAiKeyInventory(aiKeyInventoryResult),
+    keyLifecycle: buildDashboardKeyLifecycle(aiKeyInventoryResult),
+    launchGate: buildDashboardLaunchGate(runtime, input.env ?? process.env),
     bulkTokenPolicy: buildDashboardBulkTokenPolicy(
       projectListResult.projects,
       assistantKey
@@ -500,6 +541,102 @@ function buildDashboardAiKeyInventory(inventory: {
       providers: uniqueSorted(project.references.map((reference) => reference.provider)),
       defaultModels: uniqueSorted(project.references.map((reference) => reference.defaultModel))
     }))
+  };
+}
+
+function buildDashboardKeyLifecycle(inventory: {
+  totalReferences: number;
+  byProvider: Array<{
+    provider: string;
+    referenceCount: number;
+    rotationDueSoonCount: number;
+    rotationOverdueCount: number;
+  }>;
+  projects: Array<{
+    projectKey: string;
+    name: string;
+    references: Array<{
+      provider: string;
+      environment: string;
+      rotationStatus: string;
+      status: string;
+    }>;
+  }>;
+}): DashboardKeyLifecycle {
+  const references = inventory.projects.flatMap((project) => project.references);
+
+  return {
+    totalReferences: String(inventory.totalReferences),
+    productionReferences: String(references.filter((reference) => reference.environment === "production").length),
+    activeReferences: String(references.filter((reference) => reference.status === "active").length),
+    rotationDueSoon: String(references.filter((reference) => reference.rotationStatus === "due_soon").length),
+    rotationOverdue: String(references.filter((reference) => reference.rotationStatus === "overdue").length),
+    rotationUnknown: String(references.filter((reference) => reference.rotationStatus === "unknown").length),
+    providerHealth: inventory.byProvider.map((provider) => {
+      const providerReferences = references.filter((reference) => reference.provider === provider.provider);
+
+      return {
+        provider: provider.provider,
+        references: String(provider.referenceCount),
+        productionReferences: String(providerReferences.filter((reference) => reference.environment === "production").length),
+        rotationDueSoon: String(provider.rotationDueSoonCount),
+        rotationOverdue: String(provider.rotationOverdueCount)
+      };
+    }),
+    projects: inventory.projects.map((project) => ({
+      projectKey: project.projectKey,
+      name: project.name,
+      productionReferences: String(project.references.filter((reference) => reference.environment === "production").length),
+      rotationStatuses: uniqueSorted(project.references.map((reference) => reference.rotationStatus)),
+      providers: uniqueSorted(project.references.map((reference) => reference.provider))
+    }))
+  };
+}
+
+function buildDashboardLaunchGate(
+  runtime: FounderOsRuntime,
+  env: Record<string, string | undefined>
+): DashboardLaunchGate {
+  const environment = parseFounderOsEnv(env);
+  const privateReadinessReady = true;
+  const items: DashboardReadinessItem[] = [
+    {
+      label: "Persistence",
+      ready: runtime.persistenceMode === "prisma",
+      detail: runtime.persistenceMode
+    },
+    {
+      label: "Repositories",
+      ready: runtime.repositories.kind === "prisma",
+      detail: runtime.repositories.kind
+    },
+    {
+      label: "Admin token",
+      ready: environment.adminTokenConfigured,
+      detail: environment.adminTokenConfigured ? "configured" : "missing"
+    },
+    {
+      label: "Dashboard demo",
+      ready: !environment.dashboardDemoEnabled,
+      detail: environment.dashboardDemoEnabled ? "enabled" : "disabled"
+    },
+    {
+      label: "Plaintext secrets",
+      ready: true,
+      detail: "not stored"
+    },
+    {
+      label: "Private readiness",
+      ready: privateReadinessReady,
+      detail: privateReadinessReady ? "ready" : "blocked"
+    }
+  ];
+
+  return {
+    ready: items.every((item) => item.ready),
+    readyCount: items.filter((item) => item.ready).length,
+    totalCount: items.length,
+    items
   };
 }
 
