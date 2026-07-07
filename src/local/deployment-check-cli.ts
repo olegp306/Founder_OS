@@ -1,11 +1,13 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 export type DeploymentCheckCliOptions = {
   baseUrl: string;
   token?: string;
   expectedPersistence: "memory" | "prisma";
+  production: boolean;
   dryRun: boolean;
+  writeReportPath?: string;
 };
 
 export type DeploymentCheck = {
@@ -22,12 +24,14 @@ export type DeploymentHealthResponse = {
   repositoryKind?: string;
   environment?: {
     adminTokenConfigured?: boolean;
+    dashboardDemoEnabled?: boolean;
   };
   privateMvpReadiness?: {
     plaintextSecretsStored?: boolean;
     projectOnboarding?: boolean;
     aiKeyReferences?: boolean;
     projectConnectionBundle?: boolean;
+    [key: string]: boolean | undefined;
   };
 };
 
@@ -49,7 +53,9 @@ export function parseDeploymentCheckCliArgs(
     expectedPersistence: parseExpectedPersistence(
       readOption(args, "--expected-persistence") ?? env.FOUNDER_OS_EXPECTED_PERSISTENCE ?? "prisma"
     ),
-    dryRun: args.includes("--dry-run")
+    production: args.includes("--production"),
+    dryRun: args.includes("--dry-run"),
+    writeReportPath: readOption(args, "--write-report")
   };
 }
 
@@ -75,10 +81,10 @@ export async function runDeploymentCheckCli(dependencies: DeploymentCheckCliDepe
   ];
 
   if (dependencies.options.dryRun) {
-    return {
+    return withOptionalReport(dependencies.options, healthEndpoint, {
       mode: "dry-run" as const,
       checks: baseChecks
-    };
+    });
   }
 
   const health = await get(healthEndpoint, buildHeaders(dependencies.options.token));
@@ -131,20 +137,95 @@ export async function runDeploymentCheckCli(dependencies: DeploymentCheckCliDepe
       passed: health.privateMvpReadiness?.projectConnectionBundle === true,
       actual: health.privateMvpReadiness?.projectConnectionBundle,
       expected: true
-    }
+    },
+    ...productionChecks(dependencies.options, health)
   ];
   const ready = checks.every((check) => check.passed);
-
-  if (!ready) {
-    throw new Error(`Deployment check failed: ${JSON.stringify(checks.filter((check) => !check.passed))}`);
-  }
-
-  return {
+  const failedChecks = checks.filter((check) => !check.passed);
+  const result = {
     mode: "checked" as const,
     ready,
     checks,
+    failedChecks,
     health
   };
+
+  if (!ready) {
+    withOptionalReport(dependencies.options, healthEndpoint, result);
+    const reportSuffix = dependencies.options.writeReportPath
+      ? `; report written to ${dependencies.options.writeReportPath}`
+      : "";
+    throw new Error(`Deployment check failed${reportSuffix}: ${JSON.stringify(failedChecks)}`);
+  }
+
+  return withOptionalReport(dependencies.options, healthEndpoint, result);
+}
+
+function withOptionalReport<
+  T extends {
+    mode: "dry-run" | "checked";
+    checks: DeploymentCheck[];
+    failedChecks?: DeploymentCheck[];
+    ready?: boolean;
+    health?: DeploymentHealthResponse;
+  }
+>(options: DeploymentCheckCliOptions, endpoint: string, result: T) {
+  if (!options.writeReportPath) {
+    return result;
+  }
+
+  const report = {
+    generatedAt: new Date().toISOString(),
+    mode: result.mode,
+    ready: result.ready ?? false,
+    endpoint,
+    checks: sanitizeForReport(result.checks),
+    failedChecks: sanitizeForReport(result.failedChecks ?? result.checks.filter((check) => !check.passed)),
+    ...(result.health ? { health: sanitizeForReport(result.health) } : {})
+  };
+
+  mkdirSync(dirname(options.writeReportPath), { recursive: true });
+  writeFileSync(options.writeReportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+
+  return {
+    ...result,
+    report: {
+      path: options.writeReportPath,
+      written: true
+    }
+  };
+}
+
+function sanitizeForReport(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeForReport(item));
+  }
+
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !isSensitiveReportKey(key))
+      .map(([key, nestedValue]) => [key, sanitizeForReport(nestedValue)])
+  );
+}
+
+function isSensitiveReportKey(key: string) {
+  const normalized = key.toLowerCase();
+  return (
+    normalized === "authorization" ||
+    normalized === "token" ||
+    normalized === "accesstoken" ||
+    normalized === "refreshtoken" ||
+    normalized === "authtoken" ||
+    normalized === "bearertoken" ||
+    normalized.includes("secret") ||
+    normalized.includes("password") ||
+    normalized.includes("apikey") ||
+    normalized.includes("api_key")
+  );
 }
 
 async function getJson(endpoint: string, headers: Record<string, string>) {
@@ -181,6 +262,63 @@ function buildHeaders(token: string | undefined): Record<string, string> {
 
 function parseExpectedPersistence(value: string): DeploymentCheckCliOptions["expectedPersistence"] {
   return value === "memory" ? "memory" : "prisma";
+}
+
+function productionChecks(
+  options: DeploymentCheckCliOptions,
+  health: DeploymentHealthResponse
+): DeploymentCheck[] {
+  if (!options.production) {
+    return [];
+  }
+
+  return [
+    {
+      name: "productionPersistenceMode",
+      passed: health.persistenceMode === "prisma",
+      actual: health.persistenceMode,
+      expected: "prisma"
+    },
+    {
+      name: "productionRepositoryKind",
+      passed: health.repositoryKind === "prisma",
+      actual: health.repositoryKind,
+      expected: "prisma"
+    },
+    {
+      name: "dashboardDemoDisabled",
+      passed: health.environment?.dashboardDemoEnabled === false,
+      actual: health.environment?.dashboardDemoEnabled,
+      expected: false
+    },
+    ...privateReadinessChecks(health.privateMvpReadiness)
+  ];
+}
+
+function privateReadinessChecks(
+  readiness: DeploymentHealthResponse["privateMvpReadiness"]
+): DeploymentCheck[] {
+  if (!readiness) {
+    return [
+      {
+        name: "privateReadiness",
+        passed: false,
+        actual: undefined,
+        expected: "all readiness flags"
+      }
+    ];
+  }
+
+  return Object.entries(readiness).map(([name, value]) => {
+    const expected = name === "plaintextSecretsStored" ? false : true;
+
+    return {
+      name: `privateReadiness:${name}`,
+      passed: value === expected,
+      actual: value,
+      expected
+    };
+  });
 }
 
 function stripTrailingSlash(value: string): string {

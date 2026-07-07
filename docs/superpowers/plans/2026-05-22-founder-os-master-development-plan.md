@@ -79,9 +79,11 @@ Each completed area adds 10%. At 80%, development switches to feature branches u
 1. Add Campaign data model and workflow states.
 2. Implement eligibility checks using consent, opt-out, channel permission, rate limit, and timezone.
 3. Add Telegram sender abstraction with dry-run mode first.
-4. Add campaign preview and manual approval UI.
+4. Add campaign preview and manual approval gate.
 5. Add tests for blocked sends, allowed sends, rate limits, and timezone windows.
 6. Add audit logs for campaign sends and failures.
+
+Implementation note: the current campaign slice has workflow state tracking, preview, dry-run, live-send approval gating, safe delivery handoff, delivery receipts, and audit records. Actual Telegram delivery remains intentionally external behind production bot credentials and deployment access controls.
 
 ## Slice 6: Production Readiness and 80% Gate
 

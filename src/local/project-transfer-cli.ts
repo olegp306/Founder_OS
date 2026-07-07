@@ -10,6 +10,9 @@ export type ProjectTransferCliOptions = {
   setupConfigPath: string;
   baseUrl: string;
   token?: string;
+  writeReportPath?: string;
+  writeLaunchEvidencePath?: string;
+  requireLaunchEvidenceReady: boolean;
   dryRun: boolean;
 };
 
@@ -39,6 +42,9 @@ export function parseProjectTransferCliArgs(
       readOption(args, "--base-url") ?? env.FOUNDER_OS_BASE_URL ?? "http://localhost:3000"
     ),
     token: readOption(args, "--token") ?? env.FOUNDER_OS_ADMIN_TOKEN,
+    writeReportPath: readOption(args, "--write-report"),
+    writeLaunchEvidencePath: readOption(args, "--write-launch-evidence"),
+    requireLaunchEvidenceReady: args.includes("--require-launch-evidence-ready"),
     dryRun: args.includes("--dry-run")
   };
 }
@@ -55,10 +61,11 @@ export async function runProjectTransferCli(dependencies: ProjectTransferCliDepe
   const importEndpoint = `${dependencies.options.baseUrl}/api/projects/bulk-import`;
   const setupEndpoint = `${dependencies.options.baseUrl}/api/projects/ai-setup`;
   const connectionEndpoint = buildConnectionEndpoint(dependencies.options.baseUrl, setupPayload);
+  const launchEvidenceEndpoint = buildLaunchEvidenceEndpoint(dependencies.options.baseUrl, setupPayload);
   const headers = buildHeaders(dependencies.options.token);
 
   if (dependencies.options.dryRun) {
-    return {
+    const result = {
       mode: "dry-run" as const,
       import: {
         manifestCount: manifests.length,
@@ -70,16 +77,46 @@ export async function runProjectTransferCli(dependencies: ProjectTransferCliDepe
       },
       connection: {
         endpoint: connectionEndpoint
+      },
+      launchEvidence: {
+        endpoint: launchEvidenceEndpoint
       }
     };
+
+    return withOptionalReport(dependencies.options.writeReportPath, result, {
+      importEndpoint,
+      setupEndpoint,
+      connectionEndpoint,
+      launchEvidenceEndpoint,
+      manifestCount: manifests.length,
+      setupPayload
+    });
   }
 
-  return {
+  const result = {
     mode: "transferred" as const,
     import: await post(importEndpoint, buildBulkProjectImportPayload(manifests), headers),
     setup: await post(setupEndpoint, setupPayload, headers),
-    connection: await get(connectionEndpoint, headers)
+    connection: await get(connectionEndpoint, headers),
+    launchEvidence: dependencies.options.writeLaunchEvidencePath ||
+      dependencies.options.requireLaunchEvidenceReady
+      ? await get(launchEvidenceEndpoint, headers)
+      : undefined
   };
+
+  const resultWithReport = await withOptionalReport(dependencies.options.writeReportPath, result, {
+    importEndpoint,
+    setupEndpoint,
+    connectionEndpoint,
+    launchEvidenceEndpoint,
+    manifestCount: manifests.length,
+    setupPayload
+  });
+  return withOptionalLaunchEvidence(
+    dependencies.options.writeLaunchEvidencePath,
+    resultWithReport,
+    dependencies.options.requireLaunchEvidenceReady
+  );
 }
 
 async function postJson(endpoint: string, payload: unknown, headers: Record<string, string>) {
@@ -125,6 +162,234 @@ function sanitizeSetupPayload(payload: ProjectAiSetupPayload): ProjectAiSetupPay
       plaintextSecret: undefined
     }
   };
+}
+
+function buildLaunchEvidenceEndpoint(baseUrl: string, payload: ProjectAiSetupPayload): string {
+  const params = new URLSearchParams({
+    projectKey: payload.projectKey,
+    assistantKey: payload.assistantKey
+  });
+
+  return `${baseUrl}/api/projects/launch-evidence?${params.toString()}`;
+}
+
+async function withOptionalReport<T extends { mode: "dry-run" | "transferred"; import: unknown; setup: unknown; connection: unknown }>(
+  reportPath: string | undefined,
+  result: T,
+  context: {
+    importEndpoint: string;
+    setupEndpoint: string;
+    connectionEndpoint: string;
+    launchEvidenceEndpoint: string;
+    manifestCount: number;
+    setupPayload: ProjectAiSetupPayload;
+  }
+): Promise<T & { report?: { path: string; written: true } }> {
+  if (!reportPath) {
+    return result;
+  }
+
+  const report = buildTransferReport(result, context);
+  const { mkdir, writeFile } = await import("node:fs/promises");
+  const { dirname } = await import("node:path");
+
+  await mkdir(dirname(reportPath), { recursive: true });
+  await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+
+  return {
+    ...result,
+    report: {
+      path: reportPath,
+      written: true as const
+    }
+  };
+}
+
+async function withOptionalLaunchEvidence<T extends { launchEvidence?: unknown }>(
+  launchEvidencePath: string | undefined,
+  result: T,
+  requireReady = false
+): Promise<T & { launchEvidence?: unknown }> {
+  if (!result.launchEvidence) {
+    return result;
+  }
+
+  const launchEvidence = sanitizeLaunchEvidence(result.launchEvidence);
+
+  if (launchEvidencePath) {
+    const { mkdir, writeFile } = await import("node:fs/promises");
+    const { dirname } = await import("node:path");
+
+    await mkdir(dirname(launchEvidencePath), { recursive: true });
+    await writeFile(launchEvidencePath, `${JSON.stringify(launchEvidence, null, 2)}\n`, "utf8");
+  }
+
+  assertLaunchEvidenceReady(launchEvidence, requireReady, launchEvidencePath);
+
+  return {
+    ...result,
+    launchEvidence: launchEvidencePath
+      ? {
+          path: launchEvidencePath,
+          written: true as const
+        }
+      : launchEvidence
+  };
+}
+
+function assertLaunchEvidenceReady(
+  launchEvidence: unknown,
+  requireReady: boolean,
+  launchEvidencePath: string | undefined
+) {
+  if (!requireReady || !launchEvidence || typeof launchEvidence !== "object") {
+    return;
+  }
+
+  const ready = "ready" in launchEvidence ? (launchEvidence as { ready?: unknown }).ready : undefined;
+
+  if (ready === true) {
+    return;
+  }
+
+  const blockers = extractLaunchBlockers(launchEvidence);
+  const pathSuffix = launchEvidencePath ? `; evidence written to ${launchEvidencePath}` : "";
+  const blockerSuffix = blockers.length > 0 ? `: ${blockers.join(", ")}` : "";
+
+  throw new Error(`Launch evidence is not ready${pathSuffix}${blockerSuffix}`);
+}
+
+function extractLaunchBlockers(launchEvidence: object): string[] {
+  const blockers = "launchBlockers" in launchEvidence
+    ? (launchEvidence as { launchBlockers?: unknown }).launchBlockers
+    : undefined;
+
+  if (!Array.isArray(blockers)) {
+    return [];
+  }
+
+  return blockers.filter((blocker): blocker is string => typeof blocker === "string");
+}
+
+function buildTransferReport(
+  result: { mode: "dry-run" | "transferred"; import: unknown; setup: unknown; connection: unknown; launchEvidence?: unknown },
+  context: {
+    importEndpoint: string;
+    setupEndpoint: string;
+    connectionEndpoint: string;
+    launchEvidenceEndpoint: string;
+    manifestCount: number;
+    setupPayload: ProjectAiSetupPayload;
+  }
+) {
+  const sanitizedSetupResult = sanitizeUnknown(result.setup);
+  const sanitizedConnectionResult = sanitizeUnknown(result.connection);
+  const readiness = extractReadiness(sanitizedConnectionResult) ??
+    extractReadiness(sanitizedSetupResult) ??
+    { ready: false, missing: ["connection readiness not reported"] };
+
+  return {
+    generatedAt: new Date().toISOString(),
+    mode: result.mode,
+    endpoints: {
+      import: context.importEndpoint,
+      setup: context.setupEndpoint,
+      connection: context.connectionEndpoint,
+      launchEvidence: context.launchEvidenceEndpoint
+    },
+    project: {
+      projectKey: context.setupPayload.projectKey,
+      assistantKey: context.setupPayload.assistantKey
+    },
+    import: {
+      manifestCount: context.manifestCount,
+      result: sanitizeUnknown(result.import)
+    },
+    setup: {
+      provider: context.setupPayload.aiKey.provider,
+      defaultModel: context.setupPayload.aiKey.defaultModel,
+      monthlyBudgetUsd: context.setupPayload.aiKey.monthlyBudgetUsd,
+      tokenPolicy: context.setupPayload.tokenPolicy,
+      result: sanitizedSetupResult
+    },
+    connection: {
+      result: sanitizedConnectionResult
+    },
+    readiness
+  };
+}
+
+function extractReadiness(value: unknown): { ready: boolean; missing: string[] } | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const maybeBundle = "bundle" in value ? (value as { bundle?: unknown }).bundle : undefined;
+  const maybeReadiness = maybeBundle && typeof maybeBundle === "object" && "readiness" in maybeBundle
+    ? (maybeBundle as { readiness?: unknown }).readiness
+    : undefined;
+
+  if (!maybeReadiness || typeof maybeReadiness !== "object") {
+    return undefined;
+  }
+
+  const ready = "ready" in maybeReadiness ? (maybeReadiness as { ready?: unknown }).ready : undefined;
+  const missing = "missing" in maybeReadiness ? (maybeReadiness as { missing?: unknown }).missing : undefined;
+
+  if (typeof ready !== "boolean" || !Array.isArray(missing)) {
+    return undefined;
+  }
+
+  return {
+    ready,
+    missing: missing.filter((item): item is string => typeof item === "string")
+  };
+}
+
+function sanitizeUnknown(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeUnknown(item));
+  }
+
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !isUnsafeReportKey(key))
+      .map(([key, nestedValue]) => [key, sanitizeUnknown(nestedValue)])
+  );
+}
+
+function sanitizeLaunchEvidence(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeLaunchEvidence(item));
+  }
+
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !isUnsafeLaunchEvidenceKey(key))
+      .map(([key, nestedValue]) => [key, sanitizeLaunchEvidence(nestedValue)])
+  );
+}
+
+function isUnsafeReportKey(key: string): boolean {
+  const normalized = key.toLowerCase();
+  return normalized.includes("plaintext") ||
+    normalized.includes("secretvalue") ||
+    normalized === "secret" ||
+    normalized === "token" ||
+    normalized === "apikey" ||
+    normalized === "api_key";
+}
+
+function isUnsafeLaunchEvidenceKey(key: string): boolean {
+  return isUnsafeReportKey(key) || key.toLowerCase() === "secretref";
 }
 
 function buildHeaders(token: string | undefined): Record<string, string> {

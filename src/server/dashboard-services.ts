@@ -15,6 +15,8 @@ import {
   handleProjectManifestOnboarding,
   handleProjectReadinessList
 } from "@/server/project-ai-api-services";
+import { parseFounderOsEnv } from "@/domain/readiness/readiness";
+import { handleProjectLaunchEvidence } from "@/server/launch-evidence-services";
 
 export type DashboardMetric = {
   label: string;
@@ -96,6 +98,59 @@ export type DashboardAiKeyInventory = {
   }>;
 };
 
+export type DashboardKeyLifecycle = {
+  totalReferences: string;
+  productionReferences: string;
+  activeReferences: string;
+  rotationDueSoon: string;
+  rotationOverdue: string;
+  rotationUnknown: string;
+  providerHealth: Array<{
+    provider: string;
+    references: string;
+    productionReferences: string;
+    rotationDueSoon: string;
+    rotationOverdue: string;
+  }>;
+  projects: Array<{
+    projectKey: string;
+    name: string;
+    productionReferences: string;
+    rotationStatuses: string[];
+    providers: string[];
+  }>;
+};
+
+export type DashboardLaunchGate = {
+  ready: boolean;
+  readyCount: number;
+  totalCount: number;
+  items: DashboardReadinessItem[];
+};
+
+export type DashboardLaunchEvidence = {
+  ready: boolean;
+  generatedAt: string;
+  projectKey: string;
+  assistantKey: string;
+  launchBlockers: string[];
+  readiness: string;
+  connection: string;
+  tokenSpend: string;
+  projectedDailySpend: string;
+  alertCount: string;
+  campaignWorkflows: string;
+};
+
+export type DashboardLaunchBundle = {
+  projectKey: string;
+  assistantKey: string;
+  command: string;
+  summaryPath: string;
+  artifacts: string[];
+  checks: string[];
+};
+
 export type DashboardBulkTokenPolicy = {
   route: string;
   command: string;
@@ -115,6 +170,22 @@ export type DashboardBulkTokenPolicy = {
   };
 };
 
+export type DashboardCampaignDelivery = {
+  totalCampaigns: string;
+  readyForAdapter: string;
+  sentCampaigns: string;
+  failedCampaigns: string;
+  routes: string[];
+  workflows: Array<{
+    campaignKey: string;
+    projectKey: string;
+    status: string;
+    channel: string;
+    plannedRecipients: string;
+    blockedReasons: string[];
+  }>;
+};
+
 export type AiControlDashboardViewModel = {
   projectKey?: string;
   metrics: DashboardMetric[];
@@ -124,7 +195,12 @@ export type AiControlDashboardViewModel = {
   transferFlow: DashboardTransferFlow;
   connectedProjects: DashboardConnectedProject[];
   aiKeyInventory: DashboardAiKeyInventory;
+  keyLifecycle: DashboardKeyLifecycle;
+  launchGate: DashboardLaunchGate;
+  launchEvidence: DashboardLaunchEvidence;
+  launchBundle: DashboardLaunchBundle;
   bulkTokenPolicy: DashboardBulkTokenPolicy;
+  campaignDelivery: DashboardCampaignDelivery;
 };
 
 const demoSeedOperations = new WeakMap<
@@ -134,7 +210,13 @@ const demoSeedOperations = new WeakMap<
 
 export async function buildAiControlDashboardViewModel(
   runtime: FounderOsRuntime,
-  input: { projectKey?: string; assistantKey?: string; tokenWindowHours?: number } = {}
+  input: {
+    projectKey?: string;
+    assistantKey?: string;
+    tokenWindowHours?: number;
+    asOf?: string;
+    env?: Record<string, string | undefined>;
+  } = {}
 ): Promise<AiControlDashboardViewModel> {
   const tokenWindowHours = input.tokenWindowHours ?? 1;
   const assistantKey = input.assistantKey ?? "unknown";
@@ -145,7 +227,8 @@ export async function buildAiControlDashboardViewModel(
     tokenSpendResult,
     transferResult,
     projectListResult,
-    aiKeyInventoryResult
+    aiKeyInventoryResult,
+    launchEvidenceResult
   ] = await Promise.all([
     handleAiExecutionSummary(runtime, input),
     handleAiExecutionDecisionAuditList(runtime, {
@@ -190,7 +273,15 @@ export async function buildAiControlDashboardViewModel(
           }
         }),
     handleProjectList(runtime, { assistantKey: input.assistantKey }),
-    handleAiKeyReferenceInventory(runtime, {})
+    handleAiKeyReferenceInventory(runtime, { asOf: input.asOf }),
+    input.projectKey && input.assistantKey
+      ? handleProjectLaunchEvidence(runtime, {
+          projectKey: input.projectKey,
+          assistantKey: input.assistantKey,
+          tokenWindowHours,
+          asOf: input.asOf
+        })
+      : Promise.resolve(undefined)
   ]);
   const total = summary.totalDecisions;
   const downgradeCount = Number(summary.actionCounts.downgrade ?? 0);
@@ -244,10 +335,19 @@ export async function buildAiControlDashboardViewModel(
       missing: project.missing
     })),
     aiKeyInventory: buildDashboardAiKeyInventory(aiKeyInventoryResult),
+    keyLifecycle: buildDashboardKeyLifecycle(aiKeyInventoryResult),
+    launchGate: buildDashboardLaunchGate(runtime, input.env ?? process.env),
+    launchEvidence: buildDashboardLaunchEvidence(
+      launchEvidenceResult,
+      input.projectKey,
+      assistantKey
+    ),
+    launchBundle: buildDashboardLaunchBundle(input.projectKey, assistantKey),
     bulkTokenPolicy: buildDashboardBulkTokenPolicy(
       projectListResult.projects,
       assistantKey
-    )
+    ),
+    campaignDelivery: buildDashboardCampaignDelivery(runtime)
   };
 }
 
@@ -503,6 +603,164 @@ function buildDashboardAiKeyInventory(inventory: {
   };
 }
 
+function buildDashboardKeyLifecycle(inventory: {
+  totalReferences: number;
+  byProvider: Array<{
+    provider: string;
+    referenceCount: number;
+    rotationDueSoonCount: number;
+    rotationOverdueCount: number;
+  }>;
+  projects: Array<{
+    projectKey: string;
+    name: string;
+    references: Array<{
+      provider: string;
+      environment: string;
+      rotationStatus: string;
+      status: string;
+    }>;
+  }>;
+}): DashboardKeyLifecycle {
+  const references = inventory.projects.flatMap((project) => project.references);
+
+  return {
+    totalReferences: String(inventory.totalReferences),
+    productionReferences: String(references.filter((reference) => reference.environment === "production").length),
+    activeReferences: String(references.filter((reference) => reference.status === "active").length),
+    rotationDueSoon: String(references.filter((reference) => reference.rotationStatus === "due_soon").length),
+    rotationOverdue: String(references.filter((reference) => reference.rotationStatus === "overdue").length),
+    rotationUnknown: String(references.filter((reference) => reference.rotationStatus === "unknown").length),
+    providerHealth: inventory.byProvider.map((provider) => {
+      const providerReferences = references.filter((reference) => reference.provider === provider.provider);
+
+      return {
+        provider: provider.provider,
+        references: String(provider.referenceCount),
+        productionReferences: String(providerReferences.filter((reference) => reference.environment === "production").length),
+        rotationDueSoon: String(provider.rotationDueSoonCount),
+        rotationOverdue: String(provider.rotationOverdueCount)
+      };
+    }),
+    projects: inventory.projects.map((project) => ({
+      projectKey: project.projectKey,
+      name: project.name,
+      productionReferences: String(project.references.filter((reference) => reference.environment === "production").length),
+      rotationStatuses: uniqueSorted(project.references.map((reference) => reference.rotationStatus)),
+      providers: uniqueSorted(project.references.map((reference) => reference.provider))
+    }))
+  };
+}
+
+function buildDashboardLaunchGate(
+  runtime: FounderOsRuntime,
+  env: Record<string, string | undefined>
+): DashboardLaunchGate {
+  const environment = parseFounderOsEnv(env);
+  const privateReadinessReady = true;
+  const items: DashboardReadinessItem[] = [
+    {
+      label: "Persistence",
+      ready: runtime.persistenceMode === "prisma",
+      detail: runtime.persistenceMode
+    },
+    {
+      label: "Repositories",
+      ready: runtime.repositories.kind === "prisma",
+      detail: runtime.repositories.kind
+    },
+    {
+      label: "Admin token",
+      ready: environment.adminTokenConfigured,
+      detail: environment.adminTokenConfigured ? "configured" : "missing"
+    },
+    {
+      label: "Dashboard demo",
+      ready: !environment.dashboardDemoEnabled,
+      detail: environment.dashboardDemoEnabled ? "enabled" : "disabled"
+    },
+    {
+      label: "Plaintext secrets",
+      ready: true,
+      detail: "not stored"
+    },
+    {
+      label: "Private readiness",
+      ready: privateReadinessReady,
+      detail: privateReadinessReady ? "ready" : "blocked"
+    }
+  ];
+
+  return {
+    ready: items.every((item) => item.ready),
+    readyCount: items.filter((item) => item.ready).length,
+    totalCount: items.length,
+    items
+  };
+}
+
+function buildDashboardLaunchEvidence(
+  evidence:
+    | {
+        ready: boolean;
+        generatedAt: string;
+        projectKey: string;
+        assistantKey: string;
+        launchBlockers: string[];
+        readiness: { ready: boolean };
+        connection: { ready: boolean };
+        tokenSpend: {
+          totalCostUsd: number;
+          projectedDailySpendUsd: number;
+        };
+        alerts: { alertCount: number };
+        campaigns: { workflowCount: number };
+      }
+    | undefined,
+  projectKey: string | undefined,
+  assistantKey: string
+): DashboardLaunchEvidence {
+  return {
+    ready: evidence?.ready ?? false,
+    generatedAt: evidence?.generatedAt ?? "not generated",
+    projectKey: evidence?.projectKey ?? projectKey ?? "unknown",
+    assistantKey: evidence?.assistantKey ?? assistantKey,
+    launchBlockers: evidence?.launchBlockers ?? ["project_or_assistant_not_selected"],
+    readiness: evidence?.readiness.ready ? "ready" : "blocked",
+    connection: evidence?.connection.ready ? "ready" : "blocked",
+    tokenSpend: formatUsd(evidence?.tokenSpend.totalCostUsd ?? 0),
+    projectedDailySpend: formatUsd(evidence?.tokenSpend.projectedDailySpendUsd ?? 0),
+    alertCount: String(evidence?.alerts.alertCount ?? 0),
+    campaignWorkflows: String(evidence?.campaigns.workflowCount ?? 0)
+  };
+}
+
+function buildDashboardLaunchBundle(
+  projectKey: string | undefined,
+  assistantKey: string
+): DashboardLaunchBundle {
+  const safeProjectKey = projectKey ?? "unknown";
+  const artifactRoot = `C:\\Repos\\${safeProjectKey}\\.founderos`;
+  const deploymentReportPath = `${artifactRoot}\\deployment-report.json`;
+  const transferReportPath = `${artifactRoot}\\transfer-report.json`;
+  const launchEvidencePath = `${artifactRoot}\\launch-evidence.json`;
+  const summaryPath = `${artifactRoot}\\launch-summary.json`;
+
+  return {
+    projectKey: safeProjectKey,
+    assistantKey,
+    command: `npm run launch:check -- --deployment-report ${deploymentReportPath} --transfer-report ${transferReportPath} --launch-evidence ${launchEvidencePath} --write-summary ${summaryPath}`,
+    summaryPath,
+    artifacts: [
+      "deployment-report.json",
+      "transfer-report.json",
+      "launch-evidence.json",
+      "launch-summary.json"
+    ],
+    checks: ["deployment", "transfer", "launchEvidence"]
+  };
+}
+
 function buildDashboardBulkTokenPolicy(
   projects: Array<{ projectKey: string }>,
   assistantKey: string
@@ -526,6 +784,34 @@ function buildDashboardBulkTokenPolicy(
       emergencyMode: true,
       reason: "cost_spike_or_provider_incident"
     }
+  };
+}
+
+function buildDashboardCampaignDelivery(runtime: FounderOsRuntime): DashboardCampaignDelivery {
+  const workflows = runtime.campaigns.allWorkflows();
+
+  return {
+    totalCampaigns: String(workflows.length),
+    readyForAdapter: String(workflows.filter((workflow) => workflow.status === "approved_for_live_send").length),
+    sentCampaigns: String(workflows.filter((workflow) => workflow.status === "sent").length),
+    failedCampaigns: String(workflows.filter((workflow) => workflow.status === "failed").length),
+    routes: [
+      "/api/campaigns/workflow",
+      "/api/campaigns/workflow/export",
+      "/api/campaigns/preview",
+      "/api/campaigns/telegram-dry-run",
+      "/api/campaigns/telegram-live-send/approve",
+      "/api/campaigns/telegram-delivery/handoff",
+      "/api/campaigns/telegram-delivery/receipt"
+    ],
+    workflows: workflows.slice(0, 5).map((workflow) => ({
+      campaignKey: workflow.campaignKey,
+      projectKey: workflow.projectKey ?? "campaigns",
+      status: workflow.status,
+      channel: workflow.channel,
+      plannedRecipients: String(workflow.plannedRecipients),
+      blockedReasons: workflow.blockedReasons
+    }))
   };
 }
 

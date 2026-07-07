@@ -29,7 +29,7 @@ Do not commit real environment values. Store production values in the hosting pr
 3. Run `npm run prisma:migrate:deploy` from the deployment pipeline.
 4. Deploy the Next.js app.
 5. Put the dashboard behind Cloudflare Access or Tailscale before connecting real product integrations.
-6. Run `npm run deployment:check -- --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>`.
+6. Run `npm run deployment:check -- --production --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN> --write-report C:\Repos\<project>\.founderos\deployment-report.json`.
 7. Configure connected products to call Founder OS APIs with `Authorization: Bearer <FOUNDER_OS_ADMIN_TOKEN>`.
 
 ## Persistence Mode
@@ -51,17 +51,20 @@ When `DATABASE_URL` is set and `FOUNDER_OS_FORCE_MEMORY` is not `true`, the runt
 
 Use `npm run prisma:migrate:deploy` against each fresh Postgres database before routing connected products to Founder OS. The initial migration creates the private control-plane tables for projects, repositories, project controls, AI key references, events, token usage, token policies, profiles, consents, feedback, segments, campaigns, and audit logs.
 
-Use `npm run deployment:check -- --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>` after deploy. It checks the migration deploy script, bearer token configuration, `/api/health`, Prisma persistence mode, Prisma repository kind, private MVP readiness flags, and verifies plaintext secrets are not centrally stored.
+Use `npm run deployment:check -- --production --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN> --write-report C:\Repos\<project>\.founderos\deployment-report.json` after deploy. It checks the migration deploy script, bearer token configuration, `/api/health`, Prisma persistence mode, Prisma repository kind, every private MVP readiness flag, disabled dashboard demo mode, and verifies plaintext secrets are not centrally stored. The optional report is a sanitized JSON launch artifact with the health endpoint, checks, failed checks, readiness flags, and no bearer token or plaintext secret values. When the launch gate fails, the CLI still writes the report and includes the report path in the error message so blockers can be reviewed without searching deployment logs.
 
 ## Production Guardrails
 
-- Keep campaign sending in dry-run until Telegram bot tokens and approval UI are configured.
+- Keep campaign delivery behind `/api/campaigns/telegram-live-send/approve`, `/api/campaigns/telegram-delivery/handoff`, and `/api/campaigns/telegram-delivery/receipt` until Telegram bot tokens, deployment access controls, and the external delivery adapter are configured.
 - Keep raw conversation storage disabled by default.
+- Run `npm run deployment:check -- --production --write-report <path>` before routing personal projects to the deployment; production mode fails closed on memory repositories, enabled dashboard demo data, missing admin-token configuration, or incomplete private readiness flags, and writes `failedChecks` into the sanitized deployment evidence artifact when blocked.
 - Rotate `FOUNDER_OS_ADMIN_TOKEN` immediately if it is exposed.
 - Use separate database credentials for local, staging, and production.
 - Store AI provider keys in the deployment platform or a secret manager. Founder OS should store only `secretRef` values such as `vercel:PROJECT_OPENAI_API_KEY`.
 - Use `/api/projects/ai-setup` after manifest import to register the project's AI key reference and token policy in one protected admin call.
 - Use `GET /api/ai-keys` to review the safe AI key reference inventory across projects, providers, allowed models, and monthly budgets without exposing plaintext provider keys.
+- Track `environment`, `rotationDueAt`, `lastVerifiedAt`, and inventory `rotationStatus` for each AI key reference so OpenAI, Anthropic, Google, and other provider keys can be rotated before production risk accumulates.
+- Import daily OpenAI, Anthropic, Google, or other provider cost totals through `/api/provider-spend/import`; send only aggregate project/provider/period totals and never raw invoices, provider tokens, or plaintext secrets.
 - Use `/api/projects/connection?projectKey=<project>&assistantKey=<assistant>` after onboarding to get the safe integration bundle for the connected project.
 - Connected products should ask `/api/ai-control/resolve` which provider, model, secret reference, and budget metadata to use before high-cost AI work.
 - Connected assistants should call `/api/ai-usage/assess` before expensive or open-ended AI work. Respect `recommendedAction` and `modelDirective` to downgrade, rate-limit, block, or temporarily suspend abusive usage.
@@ -70,11 +73,18 @@ Use `npm run deployment:check -- --base-url https://<founder-os-host> --token <F
 - Use `/api/token-policy/bulk` to apply the same preferred model, fallback model, budgets, request limit, or emergency mode across several project/assistant targets during cost spikes or provider incidents.
 - Use token policy emergency mode for central fallback-model enforcement during cost spikes or provider incidents. Policy changes are recorded as `token.policy.changed` audit events.
 - Use `/api/projects/readiness?projectKeys=<project>&assistantKey=<assistant>` after onboarding to confirm manifest import, AI key reference, and token policy configuration before connecting production AI traffic.
+- Use `/api/projects/launch-evidence?projectKey=<project>&assistantKey=<assistant>` before live routing to capture one safe snapshot of readiness, connection next steps, token spend, alerts, and campaign workflow counts without returning secret refs, raw prompts, message bodies, or recipient IDs. The internal dashboard mirrors this as the Launch Evidence panel for the configured dashboard project.
 - The internal dashboard mirrors the same readiness checks for the configured dashboard project so missing transfer steps are visible before live AI usage begins.
 - The internal dashboard also mirrors `/api/token-usage/summary` spend and burn-rate data so projected daily cost is visible without calling the API manually.
 - Use `/api/token-usage/summary?projectKey=<project>&windowHours=<hours>` to inspect token spend, burn rate, projected daily spend, and usage split by assistant, model, and environment.
 - Use `/api/ai-execution/audit?projectKey=<project>` to inspect recent AI execution decisions without exposing secrets or raw request text.
 - Use `/api/ai-execution/summary?projectKey=<project>` for a compact project-level view of allow, downgrade, block, risk, reasons, and estimated tokens under risk.
+- Use `/api/alerts?projectKey=<project>` to review budget breach, overdue key rotation, provider spend anomaly, emergency-mode, and project-filtered failed campaign delivery evidence without exposing raw prompts, provider invoices, bearer tokens, recipient IDs, or plaintext provider keys.
+- Use `/api/campaigns/workflow` to create or inspect the campaign workflow record before preview, dry-run, approval, or future delivery. Include `projectKey` in the create payload so dashboard workflow rows and failed-delivery alerts stay tied to the owning private project.
+- Use `/api/campaigns/workflow/export?projectKey=<project>` before launch rehearsals or backups to capture safe workflow state without message bodies, Telegram recipient IDs, `botKeyRef`, or plaintext bot tokens.
+- Use `/api/campaigns/telegram-dry-run` before any Telegram campaign, then record `/api/campaigns/telegram-live-send/approve` with dry-run evidence, manual approval, matching recipient counts, and a safe `botKeyRef`. Founder OS should still keep plaintext Telegram bot tokens in the deployment secret store.
+- Use `/api/campaigns/telegram-delivery/handoff` after approval to produce the safe delivery adapter payload. The handoff contains `botKeyRef`, message, approved recipient ids, and audit evidence, but never the Telegram bot token.
+- Use `/api/campaigns/telegram-delivery/receipt` from the external adapter to close the workflow as sent or failed after delivery.
 
 ## Project Onboarding
 
@@ -89,13 +99,18 @@ Current recommended local flow:
 5. If needed, update key references with `POST /api/ai-keys` or token policy with `/api/token-policy`.
 6. Check `/api/projects/readiness?projectKeys=<project>&assistantKey=<assistant>` and confirm `manifestImported`, `aiKeyConfigured`, and `tokenPolicyConfigured` are true.
 7. Review `GET /api/ai-keys` to confirm the inventory contains only expected `secretRef` metadata and budgets.
-8. Fetch `/api/projects/connection?projectKey=<project>&assistantKey=<assistant>` and apply the returned environment variable names, route contracts, key references, and next steps.
-9. Configure the connected project to call `/api/ai-control/resolve` before high-cost AI work.
-10. Configure connected assistants to call `/api/ai-usage/assess` before expensive or open-ended AI work.
-11. For new integrations, use `/api/ai-execution/decide` as the single AI preflight before model execution.
-12. Review `/api/token-usage/summary` for token spend and burn-rate monitoring.
-13. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
-14. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
+8. Import provider spend totals with `/api/provider-spend/import` once provider billing exports are available.
+9. Fetch `/api/projects/connection?projectKey=<project>&assistantKey=<assistant>` and apply the returned environment variable names, route contracts, key references, and next steps.
+10. Configure the connected project to call `/api/ai-control/resolve` before high-cost AI work.
+11. Configure connected assistants to call `/api/ai-usage/assess` before expensive or open-ended AI work.
+12. For new integrations, use `/api/ai-execution/decide` as the single AI preflight before model execution.
+13. Review `/api/token-usage/summary` for token spend and burn-rate monitoring.
+14. Review `/api/ai-execution/audit` when monitoring model downgrades, blocks, and abuse-control actions.
+15. Review `/api/ai-execution/summary` for the fast token-control and abuse-control overview.
+16. Review `/api/alerts` for launch evidence across budget, key lifecycle, provider spend, and emergency-mode conditions.
+17. Run `projects:transfer` with `--write-launch-evidence` and `--require-launch-evidence-ready` to capture `/api/projects/launch-evidence?projectKey=<project>&assistantKey=<assistant>` beside the transfer report and fail closed when launch blockers remain.
+18. Run `npm run launch:check` against `deployment-report.json`, `transfer-report.json`, and `launch-evidence.json` to produce one sanitized `launch-summary.json` gate before routing live traffic.
+19. For Telegram campaigns, create the workflow, run preview, dry-run, live-send approval, delivery handoff, then adapter receipt.
 
 Bulk policy payload example:
 
@@ -119,15 +134,25 @@ Bulk policy payload example:
 
 Use `docs/PROJECT_AI_SETUP.example.json` as the template for `.founderos/ai-setup.json`. Keep real provider keys in Vercel, Supabase, Neon, Cloudflare, Tailscale, or another secret manager; the file should contain only `secretRef` values.
 
-For a one-command local transfer, run:
+For a one-command local transfer rehearsal, run:
 
 ```powershell
-npm run projects:transfer -- --root C:\Repos --setup-config C:\Repos\<project>\.founderos\ai-setup.json --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>
+npm run projects:transfer -- --root C:\Repos --setup-config C:\Repos\<project>\.founderos\ai-setup.json --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN> --write-report C:\Repos\<project>\.founderos\transfer-report.json --write-launch-evidence C:\Repos\<project>\.founderos\launch-evidence.json --require-launch-evidence-ready
 ```
 
-Use `--dry-run` first to preview the discovered manifests, sanitized setup payload, and connection bundle URL.
+Use `--dry-run` first to preview the discovered manifests, sanitized setup payload, and connection bundle URL. Use `--require-launch-evidence-ready` on the real rehearsal so the command exits non-zero after writing `launch-evidence.json` if readiness, critical alerts, token spend, or campaign workflow blockers remain. Use `docs/PROJECT_TRANSFER_REHEARSAL.md` as the launch checklist for the first real project.
 
-The internal dashboard also shows the same transfer command, required environment variable names, route paths, remaining connection-bundle next steps, safe AI key inventory budgets, and the bulk token-policy incident command for the configured dashboard project.
+Then run the combined launch bundle check:
+
+```powershell
+npm run launch:check -- --deployment-report C:\Repos\<project>\.founderos\deployment-report.json --transfer-report C:\Repos\<project>\.founderos\transfer-report.json --launch-evidence C:\Repos\<project>\.founderos\launch-evidence.json --write-summary C:\Repos\<project>\.founderos\launch-summary.json
+```
+
+The launch summary fails closed when deployment, transfer, or launch evidence artifacts are not ready and keeps the summary free of bearer tokens, plaintext provider keys, passwords, and `secretRef` values.
+
+The internal dashboard also shows the same transfer command, the final `launch:check` command, expected launch artifact names, required environment variable names, route paths, remaining connection-bundle next steps, launch evidence blockers, safe AI key inventory budgets, and the bulk token-policy incident command for the configured dashboard project.
+
+The internal dashboard also shows Campaign Delivery status for the workflow, owning project, safe export, dry-run, live-send approval, external handoff, and adapter receipt contracts without exposing Telegram bot tokens, `botKeyRef` values, or recipient IDs.
 
 Use `/api/projects?assistantKey=<assistant>` or the Connected Projects dashboard section to review imported projects and see which ones still need AI key references, token policies, token tracking, feedback capture, or raw-message policy fixes.
 

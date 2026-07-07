@@ -342,6 +342,9 @@ class PrismaProjectOnboardingRepository {
         allowedModels: key.allowedModels,
         defaultModel: key.defaultModel,
         monthlyBudgetUsd: key.monthlyBudgetUsd,
+        environment: key.environment ?? "production",
+        rotationDueAt: key.rotationDueAt ? new Date(key.rotationDueAt) : null,
+        lastVerifiedAt: key.lastVerifiedAt ? new Date(key.lastVerifiedAt) : null,
         status: key.status
       },
       create: {
@@ -352,6 +355,9 @@ class PrismaProjectOnboardingRepository {
         allowedModels: key.allowedModels,
         defaultModel: key.defaultModel,
         monthlyBudgetUsd: key.monthlyBudgetUsd,
+        environment: key.environment ?? "production",
+        rotationDueAt: key.rotationDueAt ? new Date(key.rotationDueAt) : null,
+        lastVerifiedAt: key.lastVerifiedAt ? new Date(key.lastVerifiedAt) : null,
         status: key.status
       }
     });
@@ -595,6 +601,9 @@ function mapPrismaAiKey(projectKey: string, row: unknown): AiKeyReference {
     allowedModels: unknown;
     defaultModel: string;
     monthlyBudgetUsd: unknown;
+    environment?: AiKeyReference["environment"] | null;
+    rotationDueAt?: unknown;
+    lastVerifiedAt?: unknown;
     status: AiKeyReference["status"];
   };
 
@@ -606,6 +615,9 @@ function mapPrismaAiKey(projectKey: string, row: unknown): AiKeyReference {
     allowedModels: Array.isArray(key.allowedModels) ? key.allowedModels.map(String) : [],
     defaultModel: key.defaultModel,
     monthlyBudgetUsd: Number(key.monthlyBudgetUsd),
+    environment: key.environment ?? "production",
+    rotationDueAt: key.rotationDueAt ? mapPrismaDate(key.rotationDueAt) : undefined,
+    lastVerifiedAt: key.lastVerifiedAt ? mapPrismaDate(key.lastVerifiedAt) : undefined,
     status: key.status
   };
 }

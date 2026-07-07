@@ -35,13 +35,15 @@ describe("production readiness helpers", () => {
     const env = parseFounderOsEnv({
       DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/founder_os",
       FOUNDER_OS_ADMIN_EMAIL: "founder@example.com",
-      FOUNDER_OS_ADMIN_TOKEN: "dev-secret"
+      FOUNDER_OS_ADMIN_TOKEN: "dev-secret",
+      FOUNDER_OS_ENABLE_DASHBOARD_DEMO: "true"
     });
 
     expect(env).toEqual({
       databaseConfigured: true,
       adminEmail: "founder@example.com",
-      adminTokenConfigured: true
+      adminTokenConfigured: true,
+      dashboardDemoEnabled: true
     });
   });
 

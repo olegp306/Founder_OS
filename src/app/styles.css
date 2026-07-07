@@ -73,6 +73,7 @@ h2 {
 .transfer-flow,
 .spend-table,
 .key-inventory,
+.operator-panel,
 .signal-table {
   border: 1px solid #d9dee5;
   border-radius: 8px;
@@ -144,6 +145,7 @@ h2 {
 .transfer-flow,
 .spend-table,
 .key-inventory,
+.operator-panel,
 .signal-table {
   padding: 22px;
   background: #ffffff;
@@ -328,6 +330,21 @@ h2 {
   margin-top: 22px;
 }
 
+.operator-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.operator-list {
+  margin-top: 10px;
+}
+
+.operator-readiness {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .spend-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -436,6 +453,7 @@ h3 {
   .spend-breakdowns,
   .spend-row,
   .transfer-grid,
+  .operator-grid,
   .project-row,
   .readiness-grid,
   .readiness-row {

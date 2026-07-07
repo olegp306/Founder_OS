@@ -285,6 +285,134 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section className="operator-grid" aria-label="Operator controls">
+        <div className="operator-panel" aria-label="AI key lifecycle">
+          <div className="section-heading">
+            <h2>Key Lifecycle</h2>
+            <span>{dashboard.keyLifecycle.totalReferences} references</span>
+          </div>
+          <div className="spend-summary">
+            <article className="spend-card">
+              <span>Production keys</span>
+              <strong>{dashboard.keyLifecycle.productionReferences}</strong>
+            </article>
+            <article className="spend-card">
+              <span>Rotation due</span>
+              <strong>{dashboard.keyLifecycle.rotationDueSoon}</strong>
+            </article>
+            <article className="spend-card">
+              <span>Overdue</span>
+              <strong>{dashboard.keyLifecycle.rotationOverdue}</strong>
+            </article>
+          </div>
+          <div className="spend-list operator-list">
+            <h3>Providers</h3>
+            {dashboard.keyLifecycle.providerHealth.map((provider) => (
+              <div className="spend-row" key={provider.provider}>
+                <code>{provider.provider}</code>
+                <span>{provider.productionReferences}/{provider.references}</span>
+                <strong>{provider.rotationOverdue} overdue</strong>
+              </div>
+            ))}
+            {dashboard.keyLifecycle.providerHealth.length === 0 ? (
+              <div className="spend-row">
+                <code>none</code>
+                <span>0/0</span>
+                <strong>0 overdue</strong>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="operator-panel" aria-label="Production launch gate">
+          <div className="section-heading">
+            <h2>Launch Gate</h2>
+            <span>{dashboard.launchGate.readyCount}/{dashboard.launchGate.totalCount}</span>
+          </div>
+          <div className="readiness-grid operator-readiness">
+            {dashboard.launchGate.items.map((item) => (
+              <div className="readiness-row" data-ready={item.ready} key={item.label}>
+                <strong>{item.ready ? "ready" : "blocked"}</strong>
+                <span>{item.label}</span>
+                <code>{item.detail ?? "unknown"}</code>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="transfer-flow" aria-label="Project launch evidence">
+        <div className="section-heading">
+          <h2>Launch Evidence</h2>
+          <span>{dashboard.launchEvidence.ready ? "ready" : "blocked"}</span>
+        </div>
+        <div className="spend-summary">
+          <article className="spend-card">
+            <span>Alerts</span>
+            <strong>{dashboard.launchEvidence.alertCount}</strong>
+          </article>
+          <article className="spend-card">
+            <span>Campaign workflows</span>
+            <strong>{dashboard.launchEvidence.campaignWorkflows}</strong>
+          </article>
+          <article className="spend-card">
+            <span>Projected daily</span>
+            <strong>{dashboard.launchEvidence.projectedDailySpend}</strong>
+          </article>
+        </div>
+        <div className="transfer-grid">
+          <div className="transfer-list">
+            <h3>Snapshot</h3>
+            <code>/api/projects/launch-evidence</code>
+            <code>{dashboard.launchEvidence.projectKey}/{dashboard.launchEvidence.assistantKey}</code>
+          </div>
+          <div className="transfer-list">
+            <h3>Checks</h3>
+            <span>Readiness {dashboard.launchEvidence.readiness}</span>
+            <span>Connection {dashboard.launchEvidence.connection}</span>
+            <span>Token spend {dashboard.launchEvidence.tokenSpend}</span>
+          </div>
+          <div className="transfer-list">
+            <h3>Blockers</h3>
+            {dashboard.launchEvidence.launchBlockers.length === 0 ? (
+              <strong>No launch blockers</strong>
+            ) : (
+              dashboard.launchEvidence.launchBlockers.map((blocker) => <span key={blocker}>{blocker}</span>)
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="transfer-flow" aria-label="Launch bundle gate">
+        <div className="section-heading">
+          <h2>Launch Bundle</h2>
+          <span>{dashboard.launchBundle.projectKey}</span>
+        </div>
+        <div className="transfer-command">
+          <span>Final local gate</span>
+          <code>{dashboard.launchBundle.command}</code>
+        </div>
+        <div className="transfer-grid">
+          <div className="transfer-list">
+            <h3>Artifacts</h3>
+            {dashboard.launchBundle.artifacts.map((artifact) => (
+              <code key={artifact}>{artifact}</code>
+            ))}
+          </div>
+          <div className="transfer-list">
+            <h3>Checks</h3>
+            {dashboard.launchBundle.checks.map((check) => (
+              <span key={check}>{check}</span>
+            ))}
+          </div>
+          <div className="transfer-list">
+            <h3>Summary</h3>
+            <code>{dashboard.launchBundle.summaryPath}</code>
+            <span>{dashboard.launchBundle.projectKey}/{dashboard.launchBundle.assistantKey}</span>
+          </div>
+        </div>
+      </section>
+
       <section className="transfer-flow" aria-label="Bulk token policy">
         <div className="section-heading">
           <h2>Bulk Token Policy</h2>
@@ -317,6 +445,52 @@ export default async function HomePage() {
             <span>Daily ${dashboard.bulkTokenPolicy.emergencyTemplate.dailyBudgetUsd}</span>
             <span>Monthly ${dashboard.bulkTokenPolicy.emergencyTemplate.monthlyBudgetUsd}</span>
             <span>{dashboard.bulkTokenPolicy.emergencyTemplate.maxTokensPerRequest} tokens/request</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="transfer-flow" aria-label="Campaign delivery">
+        <div className="section-heading">
+          <h2>Campaign Delivery</h2>
+          <span>{dashboard.campaignDelivery.totalCampaigns} campaigns</span>
+        </div>
+        <div className="spend-summary">
+          <article className="spend-card">
+            <span>Ready handoffs</span>
+            <strong>{dashboard.campaignDelivery.readyForAdapter}</strong>
+          </article>
+          <article className="spend-card">
+            <span>Sent</span>
+            <strong>{dashboard.campaignDelivery.sentCampaigns}</strong>
+          </article>
+          <article className="spend-card">
+            <span>Failed</span>
+            <strong>{dashboard.campaignDelivery.failedCampaigns}</strong>
+          </article>
+        </div>
+        <div className="transfer-grid">
+          <div className="transfer-list">
+            <h3>Routes</h3>
+            {dashboard.campaignDelivery.routes.map((route) => (
+              <code key={route}>{route}</code>
+            ))}
+          </div>
+          <div className="transfer-list">
+            <h3>Workflows</h3>
+            {dashboard.campaignDelivery.workflows.map((workflow) => (
+              <span key={workflow.campaignKey}>
+                {workflow.projectKey}/{workflow.campaignKey}: {workflow.status}
+              </span>
+            ))}
+            {dashboard.campaignDelivery.workflows.length === 0 ? (
+              <strong>No campaign workflows</strong>
+            ) : null}
+          </div>
+          <div className="transfer-list">
+            <h3>Evidence</h3>
+            <span>No plaintext bot tokens</span>
+            <span>No Telegram recipient IDs</span>
+            <span>Receipts close sent or failed workflows</span>
           </div>
         </div>
       </section>

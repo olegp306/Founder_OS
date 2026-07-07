@@ -20,19 +20,27 @@ export async function GET() {
       "/api/consents",
       "/api/feedback",
       "/api/segments/evaluate",
+      "/api/campaigns/workflow",
+      "/api/campaigns/workflow/export",
       "/api/campaigns/preview",
       "/api/campaigns/telegram-dry-run",
+      "/api/campaigns/telegram-live-send/approve",
+      "/api/campaigns/telegram-delivery/handoff",
+      "/api/campaigns/telegram-delivery/receipt",
       "/api/projects/onboard",
       "/api/projects/bulk-import",
       "/api/projects",
       "/api/projects/ai-setup",
       "/api/projects/connection",
+      "/api/projects/launch-evidence",
       "/api/ai-keys",
+      "/api/provider-spend/import",
       "/api/ai-control/resolve",
       "/api/ai-usage/assess",
       "/api/ai-execution/decide",
       "/api/ai-execution/audit",
-      "/api/ai-execution/summary"
+      "/api/ai-execution/summary",
+      "/api/alerts"
     ],
     privateMvpReadiness: {
       projectOnboarding: true,
@@ -48,12 +56,21 @@ export async function GET() {
       projectList: true,
       projectAiSetup: true,
       projectConnectionBundle: true,
+      projectLaunchEvidence: true,
+      providerSpendImport: true,
+      alertEvidence: true,
+      campaignWorkflowState: true,
+      campaignWorkflowExport: true,
+      campaignLiveSendApproval: true,
+      campaignDeliveryHandoff: true,
+      campaignDeliveryReceipt: true,
       plaintextSecretsStored: false
     },
     environment: parseFounderOsEnv({
       DATABASE_URL: process.env.DATABASE_URL,
       FOUNDER_OS_ADMIN_EMAIL: process.env.FOUNDER_OS_ADMIN_EMAIL,
-      FOUNDER_OS_ADMIN_TOKEN: process.env.FOUNDER_OS_ADMIN_TOKEN
+      FOUNDER_OS_ADMIN_TOKEN: process.env.FOUNDER_OS_ADMIN_TOKEN,
+      FOUNDER_OS_ENABLE_DASHBOARD_DEMO: process.env.FOUNDER_OS_ENABLE_DASHBOARD_DEMO
     })
   });
 }

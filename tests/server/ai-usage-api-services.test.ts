@@ -482,8 +482,20 @@ describe("AI usage API services", () => {
       totalReferences: 2,
       totalMonthlyBudgetUsd: 650,
       byProvider: [
-        { provider: "anthropic", referenceCount: 1, monthlyBudgetUsd: 400 },
-        { provider: "openai", referenceCount: 1, monthlyBudgetUsd: 250 }
+        {
+          provider: "anthropic",
+          referenceCount: 1,
+          monthlyBudgetUsd: 400,
+          rotationDueSoonCount: 0,
+          rotationOverdueCount: 0
+        },
+        {
+          provider: "openai",
+          referenceCount: 1,
+          monthlyBudgetUsd: 250,
+          rotationDueSoonCount: 0,
+          rotationOverdueCount: 0
+        }
       ],
       projects: [
         {
@@ -499,6 +511,10 @@ describe("AI usage API services", () => {
               allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
               defaultModel: "gpt-5.4-mini",
               monthlyBudgetUsd: 250,
+              environment: "production",
+              rotationDueAt: undefined,
+              lastVerifiedAt: undefined,
+              rotationStatus: "unknown",
               status: "active"
             }
           ]
@@ -516,6 +532,10 @@ describe("AI usage API services", () => {
               allowedModels: ["claude-sonnet-4.5"],
               defaultModel: "claude-sonnet-4.5",
               monthlyBudgetUsd: 400,
+              environment: "production",
+              rotationDueAt: undefined,
+              lastVerifiedAt: undefined,
+              rotationStatus: "unknown",
               status: "active"
             }
           ]
@@ -523,6 +543,93 @@ describe("AI usage API services", () => {
       ]
     });
     expect(JSON.stringify(result)).not.toContain("sk-never-store");
+  });
+
+  it("reports AI key lifecycle and rotation readiness", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "booking_assistant",
+      name: "Booking Assistant",
+      status: "active",
+      owner: "olegp306"
+    });
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "sales_copilot",
+      name: "Sales Copilot",
+      status: "active",
+      owner: "olegp306"
+    });
+    await handleAiKeyReferenceRegistration(runtime, {
+      projectKey: "booking_assistant",
+      provider: "openai",
+      secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+      displayName: "Booking Assistant OpenAI key",
+      allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
+      defaultModel: "gpt-5.4-mini",
+      monthlyBudgetUsd: 250,
+      environment: "production",
+      lastVerifiedAt: "2026-05-20T00:00:00.000Z",
+      rotationDueAt: "2026-06-10T00:00:00.000Z"
+    });
+    await handleAiKeyReferenceRegistration(runtime, {
+      projectKey: "sales_copilot",
+      provider: "anthropic",
+      secretRef: "vercel:SALES_COPILOT_ANTHROPIC_API_KEY",
+      displayName: "Sales Copilot Anthropic key",
+      allowedModels: ["claude-sonnet-4.5"],
+      defaultModel: "claude-sonnet-4.5",
+      monthlyBudgetUsd: 400,
+      environment: "production",
+      rotationDueAt: "2026-05-20T00:00:00.000Z"
+    });
+
+    const result = await handleAiKeyReferenceInventory(runtime, {
+      asOf: "2026-05-24T00:00:00.000Z"
+    });
+
+    expect(result.projects).toEqual([
+      expect.objectContaining({
+        projectKey: "booking_assistant",
+        references: [
+          expect.objectContaining({
+            provider: "openai",
+            environment: "production",
+            lastVerifiedAt: "2026-05-20T00:00:00.000Z",
+            rotationDueAt: "2026-06-10T00:00:00.000Z",
+            rotationStatus: "due_soon"
+          })
+        ]
+      }),
+      expect.objectContaining({
+        projectKey: "sales_copilot",
+        references: [
+          expect.objectContaining({
+            provider: "anthropic",
+            environment: "production",
+            lastVerifiedAt: undefined,
+            rotationDueAt: "2026-05-20T00:00:00.000Z",
+            rotationStatus: "overdue"
+          })
+        ]
+      })
+    ]);
+    expect(result.byProvider).toEqual([
+      {
+        provider: "anthropic",
+        referenceCount: 1,
+        monthlyBudgetUsd: 400,
+        rotationDueSoonCount: 0,
+        rotationOverdueCount: 1
+      },
+      {
+        provider: "openai",
+        referenceCount: 1,
+        monthlyBudgetUsd: 250,
+        rotationDueSoonCount: 1,
+        rotationOverdueCount: 0
+      }
+    ]);
+    expect(JSON.stringify(result)).not.toContain("sk-");
   });
 
   it("builds a safe project connection bundle for connected products", async () => {
@@ -594,7 +701,8 @@ describe("AI usage API services", () => {
           { method: "POST", path: "/api/ai-execution/decide", purpose: "preflight model, budget, and abuse control before provider execution" },
           { method: "POST", path: "/api/token-usage", purpose: "record token usage after provider execution" },
           { method: "GET", path: "/api/token-usage/summary", purpose: "inspect token spend, burn rate, and projected daily spend" },
-          { method: "GET", path: "/api/projects/readiness", purpose: "verify project transfer readiness" }
+          { method: "GET", path: "/api/projects/readiness", purpose: "verify project transfer readiness" },
+          { method: "GET", path: "/api/projects/launch-evidence", purpose: "collect safe launch evidence before routing live traffic" }
         ],
         aiKeyReferences: [
           {
@@ -680,6 +788,9 @@ describe("AI usage API services", () => {
         allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
         defaultModel: "gpt-5.4-mini",
         monthlyBudgetUsd: 250,
+        environment: "production",
+        rotationDueAt: undefined,
+        lastVerifiedAt: undefined,
         status: "active"
       },
       policy: {

@@ -126,6 +126,9 @@ model AiKeyReference {
   allowedModels    Json     @default("[]")
   defaultModel     String
   monthlyBudgetUsd Decimal  @db.Decimal(12, 2)
+  environment      String   @default("production")
+  rotationDueAt    DateTime?
+  lastVerifiedAt   DateTime?
   status           String   @default("active")
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

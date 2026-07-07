@@ -30,17 +30,159 @@ export type CampaignAuditRecord = {
   createdAt: string;
 };
 
+export type CampaignWorkflowStatus = "draft" | "dry_run" | "approved_for_live_send" | "blocked" | "sent" | "failed";
+
+export type CampaignWorkflowRecord = {
+  campaignKey: string;
+  projectKey?: string;
+  name: string;
+  channel: ConsentChannel;
+  purpose: ConsentPurpose;
+  message: string;
+  status: CampaignWorkflowStatus;
+  plannedRecipients: number;
+  approvedBy?: string;
+  botKeyRef?: string;
+  blockedReasons: string[];
+  updatedAt: string;
+};
+
+export type TelegramLiveSendApproval = {
+  status: "approved_for_live_send" | "blocked";
+  campaignKey: string;
+  dryRunId: string;
+  botKeyRef: string;
+  approvedBy: string;
+  plannedRecipients: number;
+  blockedReasons: string[];
+};
+
+export type TelegramDeliveryHandoff = {
+  status: "handoff_ready" | "blocked";
+  campaignKey: string;
+  botKeyRef: string;
+  message: string;
+  approvedBy?: string;
+  plannedRecipients: number;
+  recipients: Array<{
+    personId: string;
+    telegramId: string;
+  }>;
+  blockedReasons: string[];
+};
+
+export type TelegramDeliveryReceipt = {
+  status: "sent" | "failed";
+  campaignKey: string;
+  adapterRunId: string;
+  deliveredCount: number;
+  failedCount: number;
+  blockedReasons: string[];
+};
+
 export class InMemoryCampaignStore {
   private readonly audit: CampaignAuditRecord[] = [];
+  private readonly approvals: TelegramLiveSendApproval[] = [];
+  private readonly workflows = new Map<string, CampaignWorkflowRecord>();
 
   addAudit(record: CampaignAuditRecord): CampaignAuditRecord {
     this.audit.push(record);
     return record;
   }
 
+  addApproval(approval: TelegramLiveSendApproval): TelegramLiveSendApproval {
+    this.approvals.push(approval);
+    return approval;
+  }
+
+  liveSendApprovals(): TelegramLiveSendApproval[] {
+    return this.approvals;
+  }
+
+  saveWorkflow(workflow: CampaignWorkflowRecord): CampaignWorkflowRecord {
+    this.workflows.set(workflow.campaignKey, workflow);
+    return workflow;
+  }
+
+  workflow(campaignKey: string): CampaignWorkflowRecord | undefined {
+    return this.workflows.get(campaignKey);
+  }
+
+  allWorkflows(): CampaignWorkflowRecord[] {
+    return [...this.workflows.values()].sort((left, right) => left.campaignKey.localeCompare(right.campaignKey));
+  }
+
   auditTrail(): CampaignAuditRecord[] {
     return this.audit;
   }
+}
+
+export function createCampaignWorkflow(
+  store: InMemoryCampaignStore,
+  input: {
+    campaignKey: string;
+    projectKey?: string;
+    name: string;
+    channel: ConsentChannel;
+    purpose: ConsentPurpose;
+    message: string;
+    actor: string;
+  }
+): CampaignWorkflowRecord {
+  const workflow = store.saveWorkflow({
+    campaignKey: input.campaignKey,
+    projectKey: input.projectKey,
+    name: input.name,
+    channel: input.channel,
+    purpose: input.purpose,
+    message: input.message,
+    status: "draft",
+    plannedRecipients: 0,
+    blockedReasons: [],
+    updatedAt: new Date().toISOString()
+  });
+
+  store.addAudit({
+    action: "campaign.workflow.created",
+    actor: input.actor,
+    subjectId: input.campaignKey,
+    createdAt: workflow.updatedAt
+  });
+
+  return workflow;
+}
+
+export function getCampaignWorkflow(
+  store: InMemoryCampaignStore,
+  campaignKey: string
+): CampaignWorkflowRecord | undefined {
+  return store.workflow(campaignKey);
+}
+
+function updateCampaignWorkflow(
+  store: InMemoryCampaignStore,
+  campaignKey: string,
+  update: Partial<Omit<CampaignWorkflowRecord, "campaignKey" | "name" | "channel" | "purpose" | "message">> & {
+    message?: string;
+  }
+) {
+  const existing = store.workflow(campaignKey);
+  const workflow = store.saveWorkflow({
+    campaignKey,
+    projectKey: update.projectKey ?? existing?.projectKey,
+    name: existing?.name ?? campaignKey,
+    channel: existing?.channel ?? "telegram",
+    purpose: existing?.purpose ?? "marketing",
+    message: update.message ?? existing?.message ?? "",
+    status: update.status ?? existing?.status ?? "draft",
+    plannedRecipients: update.plannedRecipients ?? existing?.plannedRecipients ?? 0,
+    approvedBy: update.approvedBy ?? existing?.approvedBy,
+    botKeyRef: update.botKeyRef ?? existing?.botKeyRef,
+    blockedReasons: update.blockedReasons ?? existing?.blockedReasons ?? [],
+    updatedAt: new Date().toISOString()
+  });
+
+  return workflow;
 }
 
 export function evaluateCampaignEligibility(input: {
@@ -72,6 +214,166 @@ export function evaluateCampaignEligibility(input: {
   return {
     allowed: reasons.length === 0,
     reasons
+  };
+}
+
+export function approveTelegramCampaignForLiveSend(
+  store: InMemoryCampaignStore,
+  input: {
+    campaignKey: string;
+    dryRunId: string;
+    botKeyRef: string;
+    actor: string;
+    manualApproval: {
+      approvedBy: string;
+      approvedAt: string;
+      confirmed: boolean;
+    };
+    expectedRecipients: number;
+    dryRunPlannedRecipients: number;
+  }
+): TelegramLiveSendApproval {
+  const blockedReasons: string[] = [];
+
+  if (!input.manualApproval.confirmed) {
+    blockedReasons.push("manual_approval_required");
+  }
+
+  if (!input.dryRunId.trim()) {
+    blockedReasons.push("dry_run_evidence_required");
+  }
+
+  if (!input.botKeyRef.trim()) {
+    blockedReasons.push("approved_bot_key_ref_required");
+  }
+
+  if (input.expectedRecipients !== input.dryRunPlannedRecipients) {
+    blockedReasons.push("recipient_count_mismatch");
+  }
+
+  const approval = store.addApproval({
+    status: blockedReasons.length === 0 ? "approved_for_live_send" : "blocked",
+    campaignKey: input.campaignKey,
+    dryRunId: input.dryRunId,
+    botKeyRef: input.botKeyRef,
+    approvedBy: input.manualApproval.approvedBy,
+    plannedRecipients: input.dryRunPlannedRecipients,
+    blockedReasons
+  });
+
+  store.addAudit({
+    action: approval.status === "approved_for_live_send"
+      ? "campaign.telegram.live_send_approved"
+      : "campaign.telegram.live_send_blocked",
+    actor: input.actor,
+    subjectId: input.campaignKey,
+    createdAt: input.manualApproval.approvedAt
+  });
+
+  updateCampaignWorkflow(store, input.campaignKey, {
+    status: approval.status,
+    plannedRecipients: input.dryRunPlannedRecipients,
+    approvedBy: approval.approvedBy,
+    botKeyRef: approval.botKeyRef,
+    blockedReasons: approval.blockedReasons
+  });
+
+  return approval;
+}
+
+export function createTelegramDeliveryHandoff(
+  store: InMemoryCampaignStore,
+  input: {
+    campaignKey: string;
+    botKeyRef: string;
+    actor: string;
+    recipients: Array<{
+      personId: string;
+      telegramId: string;
+    }>;
+  }
+): TelegramDeliveryHandoff {
+  const workflow = store.workflow(input.campaignKey);
+  const blockedReasons: string[] = [];
+
+  if (workflow?.status !== "approved_for_live_send") {
+    blockedReasons.push("campaign_not_approved_for_live_send");
+  }
+
+  if (workflow?.botKeyRef !== input.botKeyRef) {
+    blockedReasons.push("approved_bot_key_ref_mismatch");
+  }
+
+  if (workflow?.plannedRecipients !== input.recipients.length) {
+    blockedReasons.push("recipient_count_mismatch");
+  }
+
+  const handoff: TelegramDeliveryHandoff = {
+    status: blockedReasons.length === 0 ? "handoff_ready" : "blocked",
+    campaignKey: input.campaignKey,
+    botKeyRef: input.botKeyRef,
+    message: workflow?.message ?? "",
+    approvedBy: workflow?.approvedBy,
+    plannedRecipients: workflow?.plannedRecipients ?? 0,
+    recipients: input.recipients,
+    blockedReasons
+  };
+
+  store.addAudit({
+    action: handoff.status === "handoff_ready"
+      ? "campaign.telegram.delivery_handoff_ready"
+      : "campaign.telegram.delivery_handoff_blocked",
+    actor: input.actor,
+    subjectId: input.campaignKey,
+    createdAt: new Date().toISOString()
+  });
+
+  return handoff;
+}
+
+export function recordTelegramDeliveryReceipt(
+  store: InMemoryCampaignStore,
+  input: {
+    campaignKey: string;
+    adapterRunId: string;
+    actor: string;
+    delivered: Array<{
+      personId: string;
+      telegramId: string;
+      deliveredAt: string;
+    }>;
+    failed: Array<{
+      personId: string;
+      telegramId: string;
+      reason: string;
+    }>;
+  }
+): TelegramDeliveryReceipt {
+  const blockedReasons = input.failed.length > 0 ? ["delivery_failures_reported"] : [];
+  const status = blockedReasons.length === 0 ? "sent" : "failed";
+
+  updateCampaignWorkflow(store, input.campaignKey, {
+    status,
+    plannedRecipients: input.delivered.length + input.failed.length,
+    blockedReasons
+  });
+
+  store.addAudit({
+    action: status === "sent"
+      ? "campaign.telegram.delivery_sent"
+      : "campaign.telegram.delivery_failed",
+    actor: input.actor,
+    subjectId: input.campaignKey,
+    createdAt: new Date().toISOString()
+  });
+
+  return {
+    status,
+    campaignKey: input.campaignKey,
+    adapterRunId: input.adapterRunId,
+    deliveredCount: input.delivered.length,
+    failedCount: input.failed.length,
+    blockedReasons
   };
 }
 
@@ -139,6 +441,13 @@ export function sendTelegramCampaignDryRun(
     actor: input.actor,
     subjectId: input.campaignKey,
     createdAt: new Date().toISOString()
+  });
+
+  updateCampaignWorkflow(store, input.campaignKey, {
+    status: "dry_run",
+    message: input.message,
+    plannedRecipients: input.recipients.length,
+    blockedReasons: []
   });
 
   return {

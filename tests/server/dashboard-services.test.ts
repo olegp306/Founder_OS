@@ -7,6 +7,12 @@ import {
   handleProjectManifestOnboarding
 } from "@/server/project-ai-api-services";
 import {
+  handleCampaignWorkflowCreate,
+  handleTelegramDeliveryReceipt,
+  handleTelegramDryRun,
+  handleTelegramLiveSendApproval
+} from "@/server/engagement-api-services";
+import {
   buildAiControlDashboardViewModel,
   seedAiControlDashboardDemoData
 } from "@/server/dashboard-services";
@@ -126,9 +132,40 @@ describe("dashboard services", () => {
         "/api/ai-execution/decide",
         "/api/token-usage",
         "/api/token-usage/summary",
-        "/api/projects/readiness"
+        "/api/projects/readiness",
+        "/api/projects/launch-evidence"
       ],
       nextSteps: []
+    });
+    expect(viewModel.launchEvidence).toEqual({
+      ready: true,
+      generatedAt: expect.any(String),
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot",
+      launchBlockers: [],
+      readiness: "ready",
+      connection: "ready",
+      tokenSpend: "$0.00",
+      projectedDailySpend: "$0.00",
+      alertCount: "0",
+      campaignWorkflows: "0"
+    });
+    expect(viewModel.launchBundle).toEqual({
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot",
+      command: "npm run launch:check -- --deployment-report C:\\Repos\\booking_assistant\\.founderos\\deployment-report.json --transfer-report C:\\Repos\\booking_assistant\\.founderos\\transfer-report.json --launch-evidence C:\\Repos\\booking_assistant\\.founderos\\launch-evidence.json --write-summary C:\\Repos\\booking_assistant\\.founderos\\launch-summary.json",
+      summaryPath: "C:\\Repos\\booking_assistant\\.founderos\\launch-summary.json",
+      artifacts: [
+        "deployment-report.json",
+        "transfer-report.json",
+        "launch-evidence.json",
+        "launch-summary.json"
+      ],
+      checks: [
+        "deployment",
+        "transfer",
+        "launchEvidence"
+      ]
     });
     expect(JSON.stringify(viewModel)).not.toContain("vercel:BOOKING_ASSISTANT_OPENAI_API_KEY");
   });
@@ -201,6 +238,122 @@ describe("dashboard services", () => {
     expect(JSON.stringify(viewModel)).not.toContain("vercel:SALES_COPILOT_ANTHROPIC_API_KEY");
   });
 
+  it("builds AI key lifecycle operator controls for the dashboard", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "booking_assistant",
+      name: "Booking Assistant",
+      status: "active",
+      owner: "olegp306"
+    });
+    await handleProjectManifestOnboarding(runtime, {
+      project_id: "sales_copilot",
+      name: "Sales Copilot",
+      status: "active",
+      owner: "olegp306"
+    });
+    await handleAiKeyReferenceRegistration(runtime, {
+      projectKey: "booking_assistant",
+      provider: "openai",
+      secretRef: "vercel:BOOKING_ASSISTANT_OPENAI_API_KEY",
+      displayName: "Booking Assistant OpenAI key",
+      allowedModels: ["gpt-5.4-mini", "gpt-5.4"],
+      defaultModel: "gpt-5.4-mini",
+      monthlyBudgetUsd: 250,
+      environment: "production",
+      lastVerifiedAt: "2026-05-20T00:00:00.000Z",
+      rotationDueAt: "2026-06-10T00:00:00.000Z"
+    });
+    await handleAiKeyReferenceRegistration(runtime, {
+      projectKey: "sales_copilot",
+      provider: "anthropic",
+      secretRef: "vercel:SALES_COPILOT_ANTHROPIC_API_KEY",
+      displayName: "Sales Copilot Anthropic key",
+      allowedModels: ["claude-sonnet-4.5"],
+      defaultModel: "claude-sonnet-4.5",
+      monthlyBudgetUsd: 400,
+      environment: "staging",
+      rotationDueAt: "2026-05-20T00:00:00.000Z"
+    });
+
+    const viewModel = await buildAiControlDashboardViewModel(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot",
+      asOf: "2026-05-24T00:00:00.000Z"
+    });
+
+    expect(viewModel.keyLifecycle).toEqual({
+      totalReferences: "2",
+      productionReferences: "1",
+      activeReferences: "2",
+      rotationDueSoon: "1",
+      rotationOverdue: "1",
+      rotationUnknown: "0",
+      providerHealth: [
+        {
+          provider: "anthropic",
+          references: "1",
+          productionReferences: "0",
+          rotationDueSoon: "0",
+          rotationOverdue: "1"
+        },
+        {
+          provider: "openai",
+          references: "1",
+          productionReferences: "1",
+          rotationDueSoon: "1",
+          rotationOverdue: "0"
+        }
+      ],
+      projects: [
+        {
+          projectKey: "booking_assistant",
+          name: "Booking Assistant",
+          productionReferences: "1",
+          rotationStatuses: ["due_soon"],
+          providers: ["openai"]
+        },
+        {
+          projectKey: "sales_copilot",
+          name: "Sales Copilot",
+          productionReferences: "0",
+          rotationStatuses: ["overdue"],
+          providers: ["anthropic"]
+        }
+      ]
+    });
+    expect(JSON.stringify(viewModel.keyLifecycle)).not.toContain("vercel:");
+    expect(JSON.stringify(viewModel.keyLifecycle)).not.toContain("sk-");
+  });
+
+  it("builds launch gate operator controls for the dashboard", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+
+    const viewModel = await buildAiControlDashboardViewModel(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot",
+      env: {
+        DATABASE_URL: undefined,
+        FOUNDER_OS_ADMIN_TOKEN: "admin-token",
+        FOUNDER_OS_ENABLE_DASHBOARD_DEMO: "true"
+      }
+    });
+
+    expect(viewModel.launchGate).toEqual({
+      ready: false,
+      readyCount: 3,
+      totalCount: 6,
+      items: [
+        { label: "Persistence", ready: false, detail: "memory" },
+        { label: "Repositories", ready: false, detail: "memory" },
+        { label: "Admin token", ready: true, detail: "configured" },
+        { label: "Dashboard demo", ready: false, detail: "enabled" },
+        { label: "Plaintext secrets", ready: true, detail: "not stored" },
+        { label: "Private readiness", ready: true, detail: "ready" }
+      ]
+    });
+  });
+
   it("builds bulk token policy controls for cost incidents", async () => {
     const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
     await handleProjectManifestOnboarding(runtime, {
@@ -241,6 +394,78 @@ describe("dashboard services", () => {
     });
     expect(JSON.stringify(viewModel.bulkTokenPolicy)).not.toContain("secret");
     expect(JSON.stringify(viewModel.bulkTokenPolicy)).not.toContain("sk-");
+  });
+
+  it("builds campaign delivery operator controls for the dashboard", async () => {
+    const runtime = createFounderOsRuntime({ FOUNDER_OS_FORCE_MEMORY: "true" });
+    await handleCampaignWorkflowCreate(runtime, {
+      campaignKey: "booking_nudge",
+      projectKey: "booking_assistant",
+      name: "Booking nudge",
+      channel: "telegram",
+      purpose: "marketing",
+      message: "Want help automating bookings?",
+      actor: "founder"
+    });
+    await handleTelegramDryRun(runtime, {
+      campaignKey: "booking_nudge",
+      message: "Want help automating bookings?",
+      actor: "founder",
+      recipients: [{ personId: "person_1", telegramId: "123456" }]
+    });
+    await handleTelegramLiveSendApproval(runtime, {
+      campaignKey: "booking_nudge",
+      dryRunId: "dry_run_2026_05_24",
+      botKeyRef: "ai_key_telegram_booking_bot",
+      actor: "founder",
+      manualApproval: {
+        approvedBy: "founder@example.com",
+        approvedAt: "2026-05-24T15:00:00.000Z",
+        confirmed: true
+      },
+      expectedRecipients: 1,
+      dryRunPlannedRecipients: 1
+    });
+    await handleTelegramDeliveryReceipt(runtime, {
+      campaignKey: "booking_nudge",
+      adapterRunId: "telegram_run_1",
+      actor: "telegram_adapter",
+      delivered: [{ personId: "person_1", telegramId: "123456", deliveredAt: "2026-05-24T16:00:00.000Z" }],
+      failed: []
+    });
+
+    const viewModel = await buildAiControlDashboardViewModel(runtime, {
+      projectKey: "booking_assistant",
+      assistantKey: "support_bot"
+    });
+
+    expect(viewModel.campaignDelivery).toEqual({
+      totalCampaigns: "1",
+      readyForAdapter: "0",
+      sentCampaigns: "1",
+      failedCampaigns: "0",
+      routes: [
+        "/api/campaigns/workflow",
+        "/api/campaigns/workflow/export",
+        "/api/campaigns/preview",
+        "/api/campaigns/telegram-dry-run",
+        "/api/campaigns/telegram-live-send/approve",
+        "/api/campaigns/telegram-delivery/handoff",
+        "/api/campaigns/telegram-delivery/receipt"
+      ],
+      workflows: [
+        {
+          campaignKey: "booking_nudge",
+          projectKey: "booking_assistant",
+          status: "sent",
+          channel: "telegram",
+          plannedRecipients: "1",
+          blockedReasons: []
+        }
+      ]
+    });
+    expect(JSON.stringify(viewModel.campaignDelivery)).not.toContain("123456");
+    expect(JSON.stringify(viewModel.campaignDelivery)).not.toContain("ai_key_telegram_booking_bot");
   });
 
   it("builds AI control dashboard metrics from runtime execution decisions", async () => {

@@ -21,6 +21,9 @@ describe("Prisma migrations", () => {
     expect(migrationSql).toContain('CREATE TABLE "TokenUsageEvent"');
     expect(migrationSql).toContain('CREATE UNIQUE INDEX "AiKeyReference_projectId_secretRef_key"');
     expect(migrationSql).toContain('ALTER TABLE "AiKeyReference" ADD CONSTRAINT');
+    expect(migrationSql).toContain('ADD COLUMN "environment" TEXT NOT NULL DEFAULT');
+    expect(migrationSql).toContain('ADD COLUMN "rotationDueAt" TIMESTAMP(3)');
+    expect(migrationSql).toContain('ADD COLUMN "lastVerifiedAt" TIMESTAMP(3)');
   });
 
   it("exposes a deploy migration script", () => {

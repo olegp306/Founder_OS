@@ -1,0 +1,100 @@
+# Project Transfer Rehearsal
+
+Use this checklist before routing a real founder-owned project through Founder OS.
+
+## Goal
+
+Create one repeatable, sanitized evidence artifact that proves a project can be imported, configured, connected, and checked without exposing plaintext provider keys or raw user content.
+
+## Prerequisites
+
+- Founder OS deployed behind Cloudflare Access or Tailscale.
+- Postgres migrations deployed with `npm run prisma:migrate:deploy`.
+- Production launch gate passing:
+
+```powershell
+npm run deployment:check -- --production --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>
+```
+
+- Optional sanitized deployment evidence path:
+
+```powershell
+npm run deployment:check -- --production --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN> --write-report C:\Repos\<project>\.founderos\deployment-report.json
+```
+
+- A project manifest at `<project>\.founderos\project.json`.
+- A setup file at `<project>\.founderos\ai-setup.json`.
+- Provider keys stored only in the deployment secret store. The setup file must use `secretRef` values, not plaintext keys.
+
+## Dry Run
+
+Preview the transfer without writing to Founder OS:
+
+```powershell
+npm run projects:transfer -- --dry-run --root C:\Repos --setup-config C:\Repos\<project>\.founderos\ai-setup.json --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN>
+```
+
+Confirm the output references:
+
+- `/api/projects/bulk-import`
+- `/api/projects/ai-setup`
+- `/api/projects/connection`
+- the expected `projectKey`
+- the expected `assistantKey`
+
+## Rehearsal Run
+
+Run the transfer and write the sanitized report plus launch evidence snapshot. The strict launch-evidence flag exits non-zero after writing the artifact if launch blockers remain.
+
+```powershell
+npm run projects:transfer -- --root C:\Repos --setup-config C:\Repos\<project>\.founderos\ai-setup.json --base-url https://<founder-os-host> --token <FOUNDER_OS_ADMIN_TOKEN> --write-report C:\Repos\<project>\.founderos\transfer-report.json --write-launch-evidence C:\Repos\<project>\.founderos\launch-evidence.json --require-launch-evidence-ready
+```
+
+The report includes:
+
+- generated timestamp
+- import, setup, and connection endpoints
+- project and assistant keys
+- manifest import result
+- AI setup provider, default model, budget, and token policy
+- connection bundle result
+- readiness state and missing steps
+
+The report excludes:
+
+- plaintext provider keys
+- raw prompts
+- raw conversations
+- raw provider invoices
+- bearer tokens
+
+The launch evidence artifact captures the matching `/api/projects/launch-evidence` response with stricter sanitization that removes bearer tokens, plaintext keys, and `secretRef` values.
+
+## Launch Bundle Check
+
+After the deployment check and transfer rehearsal produce their artifacts, run the combined local gate:
+
+```powershell
+npm run launch:check -- --deployment-report C:\Repos\<project>\.founderos\deployment-report.json --transfer-report C:\Repos\<project>\.founderos\transfer-report.json --launch-evidence C:\Repos\<project>\.founderos\launch-evidence.json --write-summary C:\Repos\<project>\.founderos\launch-summary.json
+```
+
+The summary verifies deployment readiness, transfer readiness, and launch evidence together. It writes `launch-summary.json` without bearer tokens, plaintext keys, passwords, or `secretRef` values. If any artifact is not ready, the command exits non-zero and lists the deployment, transfer, or launch-evidence blockers.
+
+## Acceptance
+
+Before production traffic, confirm:
+
+- `deployment-report.json` exists if `--write-report` was used.
+- `transfer-report.json` exists.
+- `launch-evidence.json` exists.
+- `launch-summary.json` exists and has `ready: true`.
+- The deployment report has `ready: true` and no bearer token, plaintext key, password, or `secretRef` values.
+- If the deployment report has `ready: false`, every item in `failedChecks` has an owner and fix plan before retrying the transfer.
+- `readiness.ready` is `true`, or every `readiness.missing` item has an owner and fix plan.
+- `secretRef` values point to real deployment secrets.
+- `/api/token-policy` has a project or assistant policy for the transferred project.
+- `/api/token-usage/summary` is expected to show data after the connected product starts reporting usage.
+- `/api/provider-spend/import` has a source plan for provider billing exports.
+- `launch-evidence.json` has `ready: true`; with `--require-launch-evidence-ready`, the rehearsal command fails until every `launchBlockers` item has an owner and fix plan.
+
+Keep the report with launch notes. It is the replayable proof that the first project transfer is ready or shows exactly what remains blocked.

@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   InMemoryCampaignStore,
+  createCampaignWorkflow,
   createCampaignPreview,
+  recordTelegramDeliveryReceipt,
+  createTelegramDeliveryHandoff,
   evaluateCampaignEligibility,
+  getCampaignWorkflow,
+  approveTelegramCampaignForLiveSend,
   sendTelegramCampaignDryRun
 } from "@/domain/campaigns/campaign-center";
 import {
@@ -12,6 +17,92 @@ import {
 } from "@/domain/profiles/profile-operations";
 
 describe("campaign center", () => {
+  it("tracks campaign workflow state from draft through dry-run and live-send approval", () => {
+    const campaigns = new InMemoryCampaignStore();
+
+    expect(
+      createCampaignWorkflow(campaigns, {
+        campaignKey: "booking_nudge",
+        projectKey: "booking_assistant",
+        name: "Booking nudge",
+        channel: "telegram",
+        purpose: "marketing",
+        message: "Want help automating photo studio bookings?",
+        actor: "founder"
+      })
+    ).toMatchObject({
+      campaignKey: "booking_nudge",
+      projectKey: "booking_assistant",
+      status: "draft",
+      channel: "telegram",
+      plannedRecipients: 0,
+      blockedReasons: []
+    });
+
+    sendTelegramCampaignDryRun(campaigns, {
+      campaignKey: "booking_nudge",
+      message: "Want help automating photo studio bookings?",
+      recipients: [{ personId: "person_1", telegramId: "123456" }],
+      actor: "founder"
+    });
+
+    expect(getCampaignWorkflow(campaigns, "booking_nudge")).toMatchObject({
+      projectKey: "booking_assistant",
+      status: "dry_run",
+      plannedRecipients: 1
+    });
+
+    approveTelegramCampaignForLiveSend(campaigns, {
+      campaignKey: "booking_nudge",
+      dryRunId: "dry_run_2026_05_24",
+      botKeyRef: "ai_key_telegram_booking_bot",
+      actor: "founder",
+      manualApproval: {
+        approvedBy: "founder@example.com",
+        approvedAt: "2026-05-24T15:00:00.000Z",
+        confirmed: true
+      },
+      expectedRecipients: 1,
+      dryRunPlannedRecipients: 1
+    });
+
+    expect(getCampaignWorkflow(campaigns, "booking_nudge")).toMatchObject({
+      projectKey: "booking_assistant",
+      status: "approved_for_live_send",
+      approvedBy: "founder@example.com",
+      botKeyRef: "ai_key_telegram_booking_bot",
+      blockedReasons: []
+    });
+  });
+
+  it("preserves project attribution when delivery receipts close campaign workflow", () => {
+    const campaigns = new InMemoryCampaignStore();
+    createCampaignWorkflow(campaigns, {
+      campaignKey: "booking_nudge",
+      projectKey: "booking_assistant",
+      name: "Booking nudge",
+      channel: "telegram",
+      purpose: "marketing",
+      message: "Want help automating photo studio bookings?",
+      actor: "founder"
+    });
+
+    recordTelegramDeliveryReceipt(campaigns, {
+      campaignKey: "booking_nudge",
+      adapterRunId: "telegram_run_1",
+      actor: "telegram_adapter",
+      delivered: [],
+      failed: [{ personId: "person_1", telegramId: "123456", reason: "bot_blocked" }]
+    });
+
+    expect(getCampaignWorkflow(campaigns, "booking_nudge")).toMatchObject({
+      campaignKey: "booking_nudge",
+      projectKey: "booking_assistant",
+      status: "failed",
+      blockedReasons: ["delivery_failures_reported"]
+    });
+  });
+
   it("allows an eligible Telegram campaign recipient with consent inside their local send window", () => {
     const profiles = new InMemoryProfileOperationsStore();
     const identity = linkIdentity(profiles, {
@@ -139,5 +230,269 @@ describe("campaign center", () => {
         subjectId: "booking_nudge"
       })
     );
+  });
+
+  it("approves a Telegram campaign for live send only with dry-run evidence, manual approval, and bot key reference", () => {
+    const campaigns = new InMemoryCampaignStore();
+
+    expect(
+      approveTelegramCampaignForLiveSend(campaigns, {
+        campaignKey: "booking_nudge",
+        dryRunId: "dry_run_2026_05_24",
+        botKeyRef: "ai_key_telegram_booking_bot",
+        actor: "founder",
+        manualApproval: {
+          approvedBy: "founder@example.com",
+          approvedAt: "2026-05-24T15:00:00.000Z",
+          confirmed: true
+        },
+        expectedRecipients: 2,
+        dryRunPlannedRecipients: 2
+      })
+    ).toEqual({
+      status: "approved_for_live_send",
+      campaignKey: "booking_nudge",
+      dryRunId: "dry_run_2026_05_24",
+      botKeyRef: "ai_key_telegram_booking_bot",
+      approvedBy: "founder@example.com",
+      plannedRecipients: 2,
+      blockedReasons: []
+    });
+    expect(campaigns.auditTrail()).toContainEqual(
+      expect.objectContaining({
+        action: "campaign.telegram.live_send_approved",
+        actor: "founder",
+        subjectId: "booking_nudge"
+      })
+    );
+  });
+
+  it("blocks Telegram live-send approval when approval evidence or recipient counts are unsafe", () => {
+    const campaigns = new InMemoryCampaignStore();
+
+    const result = approveTelegramCampaignForLiveSend(campaigns, {
+      campaignKey: "booking_nudge",
+      dryRunId: "",
+      botKeyRef: "",
+      actor: "founder",
+      manualApproval: {
+        approvedBy: "founder@example.com",
+        approvedAt: "2026-05-24T15:00:00.000Z",
+        confirmed: false
+      },
+      expectedRecipients: 3,
+      dryRunPlannedRecipients: 2
+    });
+
+    expect(result).toEqual({
+      status: "blocked",
+      campaignKey: "booking_nudge",
+      dryRunId: "",
+      botKeyRef: "",
+      approvedBy: "founder@example.com",
+      plannedRecipients: 2,
+      blockedReasons: [
+        "manual_approval_required",
+        "dry_run_evidence_required",
+        "approved_bot_key_ref_required",
+        "recipient_count_mismatch"
+      ]
+    });
+    expect(campaigns.auditTrail()).toContainEqual(
+      expect.objectContaining({
+        action: "campaign.telegram.live_send_blocked",
+        actor: "founder",
+        subjectId: "booking_nudge"
+      })
+    );
+  });
+
+  it("creates a safe Telegram delivery handoff only after live-send approval", () => {
+    const campaigns = new InMemoryCampaignStore();
+    createCampaignWorkflow(campaigns, {
+      campaignKey: "booking_nudge",
+      name: "Booking nudge",
+      channel: "telegram",
+      purpose: "marketing",
+      message: "Want help automating photo studio bookings?",
+      actor: "founder"
+    });
+    sendTelegramCampaignDryRun(campaigns, {
+      campaignKey: "booking_nudge",
+      message: "Want help automating photo studio bookings?",
+      recipients: [
+        {
+          personId: "person_1",
+          telegramId: "123456"
+        }
+      ],
+      actor: "founder"
+    });
+    approveTelegramCampaignForLiveSend(campaigns, {
+      campaignKey: "booking_nudge",
+      dryRunId: "dry_run_2026_05_24",
+      botKeyRef: "ai_key_telegram_booking_bot",
+      actor: "founder",
+      manualApproval: {
+        approvedBy: "founder@example.com",
+        approvedAt: "2026-05-24T15:00:00.000Z",
+        confirmed: true
+      },
+      expectedRecipients: 1,
+      dryRunPlannedRecipients: 1
+    });
+
+    expect(
+      createTelegramDeliveryHandoff(campaigns, {
+        campaignKey: "booking_nudge",
+        botKeyRef: "ai_key_telegram_booking_bot",
+        actor: "founder",
+        recipients: [{ personId: "person_1", telegramId: "123456" }]
+      })
+    ).toEqual({
+      status: "handoff_ready",
+      campaignKey: "booking_nudge",
+      botKeyRef: "ai_key_telegram_booking_bot",
+      message: "Want help automating photo studio bookings?",
+      approvedBy: "founder@example.com",
+      plannedRecipients: 1,
+      recipients: [{ personId: "person_1", telegramId: "123456" }],
+      blockedReasons: []
+    });
+    expect(campaigns.auditTrail()).toContainEqual(
+      expect.objectContaining({
+        action: "campaign.telegram.delivery_handoff_ready",
+        actor: "founder",
+        subjectId: "booking_nudge"
+      })
+    );
+  });
+
+  it("blocks Telegram delivery handoff when approval state or recipient evidence is unsafe", () => {
+    const campaigns = new InMemoryCampaignStore();
+    createCampaignWorkflow(campaigns, {
+      campaignKey: "booking_nudge",
+      name: "Booking nudge",
+      channel: "telegram",
+      purpose: "marketing",
+      message: "Want help automating photo studio bookings?",
+      actor: "founder"
+    });
+
+    const result = createTelegramDeliveryHandoff(campaigns, {
+      campaignKey: "booking_nudge",
+      botKeyRef: "wrong_key",
+      actor: "founder",
+      recipients: [{ personId: "person_1", telegramId: "123456" }]
+    });
+
+    expect(result).toMatchObject({
+      status: "blocked",
+      campaignKey: "booking_nudge",
+      botKeyRef: "wrong_key",
+      blockedReasons: [
+        "campaign_not_approved_for_live_send",
+        "approved_bot_key_ref_mismatch",
+        "recipient_count_mismatch"
+      ]
+    });
+  });
+
+  it("records a Telegram delivery receipt and closes workflow as sent", () => {
+    const campaigns = new InMemoryCampaignStore();
+    createCampaignWorkflow(campaigns, {
+      campaignKey: "booking_nudge",
+      name: "Booking nudge",
+      channel: "telegram",
+      purpose: "marketing",
+      message: "Want help automating photo studio bookings?",
+      actor: "founder"
+    });
+    sendTelegramCampaignDryRun(campaigns, {
+      campaignKey: "booking_nudge",
+      message: "Want help automating photo studio bookings?",
+      recipients: [{ personId: "person_1", telegramId: "123456" }],
+      actor: "founder"
+    });
+    approveTelegramCampaignForLiveSend(campaigns, {
+      campaignKey: "booking_nudge",
+      dryRunId: "dry_run_2026_05_24",
+      botKeyRef: "ai_key_telegram_booking_bot",
+      actor: "founder",
+      manualApproval: {
+        approvedBy: "founder@example.com",
+        approvedAt: "2026-05-24T15:00:00.000Z",
+        confirmed: true
+      },
+      expectedRecipients: 1,
+      dryRunPlannedRecipients: 1
+    });
+    createTelegramDeliveryHandoff(campaigns, {
+      campaignKey: "booking_nudge",
+      botKeyRef: "ai_key_telegram_booking_bot",
+      actor: "founder",
+      recipients: [{ personId: "person_1", telegramId: "123456" }]
+    });
+
+    expect(
+      recordTelegramDeliveryReceipt(campaigns, {
+        campaignKey: "booking_nudge",
+        adapterRunId: "telegram_run_1",
+        actor: "telegram_adapter",
+        delivered: [{ personId: "person_1", telegramId: "123456", deliveredAt: "2026-05-24T16:00:00.000Z" }],
+        failed: []
+      })
+    ).toEqual({
+      status: "sent",
+      campaignKey: "booking_nudge",
+      adapterRunId: "telegram_run_1",
+      deliveredCount: 1,
+      failedCount: 0,
+      blockedReasons: []
+    });
+    expect(getCampaignWorkflow(campaigns, "booking_nudge")).toMatchObject({
+      status: "sent",
+      plannedRecipients: 1
+    });
+    expect(campaigns.auditTrail()).toContainEqual(
+      expect.objectContaining({
+        action: "campaign.telegram.delivery_sent",
+        actor: "telegram_adapter",
+        subjectId: "booking_nudge"
+      })
+    );
+  });
+
+  it("records a failed Telegram delivery receipt when adapter reports failures", () => {
+    const campaigns = new InMemoryCampaignStore();
+    createCampaignWorkflow(campaigns, {
+      campaignKey: "booking_nudge",
+      name: "Booking nudge",
+      channel: "telegram",
+      purpose: "marketing",
+      message: "Want help automating photo studio bookings?",
+      actor: "founder"
+    });
+
+    const result = recordTelegramDeliveryReceipt(campaigns, {
+      campaignKey: "booking_nudge",
+      adapterRunId: "telegram_run_1",
+      actor: "telegram_adapter",
+      delivered: [],
+      failed: [{ personId: "person_1", telegramId: "123456", reason: "bot_blocked" }]
+    });
+
+    expect(result).toEqual({
+      status: "failed",
+      campaignKey: "booking_nudge",
+      adapterRunId: "telegram_run_1",
+      deliveredCount: 0,
+      failedCount: 1,
+      blockedReasons: ["delivery_failures_reported"]
+    });
+    expect(getCampaignWorkflow(campaigns, "booking_nudge")).toMatchObject({
+      status: "failed",
+      blockedReasons: ["delivery_failures_reported"]
+    });
   });
 });

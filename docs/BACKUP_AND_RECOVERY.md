@@ -20,5 +20,5 @@ Founder OS stores operational control-plane data. Backups should cover Postgres,
 1. Restore latest Postgres backup into staging.
 2. Deploy Founder OS against the restored database.
 3. Verify `/api/health` returns `status: ok`.
-4. Verify project registry, token policies, and campaign dry-runs are visible.
+4. Verify project registry, token policies, campaign dry-runs, delivery handoffs, and delivery receipts are visible.
 5. Document recovery time and any missing data.
